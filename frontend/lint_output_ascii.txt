@@ -1,0 +1,65 @@
+
+> frontend@0.1.0 lint
+> eslint
+
+
+C:\Users\SHAH HARSH\.gemini\antigravity\scratch\rdvpriority\frontend\qa-backend.js
+  20:14  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+  29:14  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+  55:14  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\SHAH HARSH\.gemini\antigravity\scratch\rdvpriority\frontend\src\app\dashboard\alerts\page.tsx
+  31:13  warning  'prefectures' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\SHAH HARSH\.gemini\antigravity\scratch\rdvpriority\frontend\src\app\page.tsx
+  350:47  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+C:\Users\SHAH HARSH\.gemini\antigravity\scratch\rdvpriority\frontend\src\app\page.tsx:350:47
+  348 |                     <span className="text-gray-500">Dernier cr??neau: <strong className="text-gray-900">{timeAgo(p.lastSlotFoundAt)}</strong></span>
+  349 |                     <span className="text-xs text-accent font-bold">
+> 350 |                       {!p.lastSlotFoundAt || (Date.now() - new Date(p.lastSlotFoundAt).getTime() > 86400000) ? "??? Aucun cr??neau" : "??? R??cent"}
+      |                                               ^^^^^^^^^^ Cannot call impure function
+  351 |                     </span>
+  352 |                   </div>
+  353 |                   <div className="mt-4 text-center">  react-hooks/purity
+
+C:\Users\SHAH HARSH\.gemini\antigravity\scratch\rdvpriority\frontend\src\components\CountdownTimer.tsx
+  18:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\SHAH HARSH\.gemini\antigravity\scratch\rdvpriority\frontend\src\components\CountdownTimer.tsx:18:13
+  16 |     useEffect(() => {
+  17 |         if (!expiresAt) {
+> 18 |             setTimeLeft("Aucun plan");
+     |             ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  19 |             setPercentage(0);
+  20 |             return;
+  21 |         }  react-hooks/set-state-in-effect
+
+C:\Users\SHAH HARSH\.gemini\antigravity\scratch\rdvpriority\frontend\src\context\auth.tsx
+  55:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\SHAH HARSH\.gemini\antigravity\scratch\rdvpriority\frontend\src\context\auth.tsx:55:13
+  53 |         const savedToken = localStorage.getItem("rdv_token");
+  54 |         if (savedToken) {
+> 55 |             setToken(savedToken);
+     |             ^^^^^^^^ Avoid calling setState() directly within an effect
+  56 |             refreshUser().finally(() => setIsLoading(false));
+  57 |         } else {
+  58 |             setIsLoading(false);  react-hooks/set-state-in-effect
+
+??? 7 problems (3 errors, 4 warnings)
+
