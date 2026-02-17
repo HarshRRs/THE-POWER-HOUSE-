@@ -1,7 +1,6 @@
 [build]
 builder = "dockerfile"
-dockerfilePath = "backend/Dockerfile"
-watchPatterns = ["backend/**", "prisma/**"]
+dockerfilePath = "Dockerfile"
 
 [deploy]
 startCommand = "npm start"
@@ -9,3 +8,6 @@ healthcheckPath = "/health"
 healthcheckTimeout = 100
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
+
+[service]
+rootDirectory = "backend"
