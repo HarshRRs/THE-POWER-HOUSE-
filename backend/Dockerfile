@@ -22,6 +22,9 @@ COPY . .
 # Build TypeScript
 RUN npm run build
 
+# Prune dev dependencies
+RUN npm prune --production
+
 # Production stage
 FROM node:20-slim AS runner
 
