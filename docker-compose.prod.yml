@@ -1,0 +1,165 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: rdv_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rdv_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rdv_password}
+      POSTGRES_DB: ${POSTGRES_DB:-rdv_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - rdv_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rdv_user -d rdv_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: rdv_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    networks:
+      - rdv_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # API Server
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rdv_api
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      DATABASE_URL: postgresql://rdv_user:rdv_password@postgres:5432/rdv_db
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL}
+      FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rdv_net
+    volumes:
+      - screenshots:/app/public/screenshots
+
+  # Scraper Worker 1 (Tier 1 - IDF)
+  worker1:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    container_name: rdv_worker1
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://rdv_user:rdv_password@postgres:5432/rdv_db
+      REDIS_URL: redis://redis:6379
+      WORKER_ID: worker-1-idf
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rdv_net
+    volumes:
+      - screenshots:/app/public/screenshots
+    mem_limit: 2g
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  # Scraper Worker 2 (Tier 2 - Major cities)
+  worker2:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    container_name: rdv_worker2
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://rdv_user:rdv_password@postgres:5432/rdv_db
+      REDIS_URL: redis://redis:6379
+      WORKER_ID: worker-2-cities
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rdv_net
+    volumes:
+      - screenshots:/app/public/screenshots
+    mem_limit: 2g
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  # Scraper Worker 3 (Tier 3 - Others)
+  worker3:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    container_name: rdv_worker3
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://rdv_user:rdv_password@postgres:5432/rdv_db
+      REDIS_URL: redis://redis:6379
+      WORKER_ID: worker-3-others
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rdv_net
+    volumes:
+      - screenshots:/app/public/screenshots
+    mem_limit: 2g
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+networks:
+  rdv_net:
+    driver: bridge
+
+volumes:
+  pgdata:
+  redisdata:
+  screenshots:

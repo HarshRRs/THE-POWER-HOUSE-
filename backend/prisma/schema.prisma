@@ -1,0 +1,238 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════
+// USER & AUTH
+// ═══════════════════════════════════════
+
+model User {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  passwordHash      String
+  phone             String?
+  telegramChatId    String?
+  fcmTokens         String[]  @default([])
+  
+  plan              Plan      @default(NONE)
+  planExpiresAt     DateTime?
+  stripeCustomerId  String?   @unique
+  
+  notifyEmail       Boolean   @default(true)
+  notifyTelegram    Boolean   @default(false)
+  notifySms         Boolean   @default(false)
+  notifyFcm         Boolean   @default(false)
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  alerts            Alert[]
+  payments          Payment[]
+  notifications     Notification[]
+
+  @@index([plan, planExpiresAt])
+}
+
+enum Plan {
+  NONE
+  URGENCE_24H
+  URGENCE_7J
+  URGENCE_TOTAL
+}
+
+// ═══════════════════════════════════════
+// ALERTS
+// ═══════════════════════════════════════
+
+model Alert {
+  id              String      @id @default(uuid())
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  prefectureId    String
+  prefecture      Prefecture  @relation(fields: [prefectureId], references: [id])
+  procedure       Procedure
+  isActive        Boolean     @default(true)
+  
+  lastCheckedAt   DateTime?
+  slotsFound      Int         @default(0)
+  notificationsSent Int       @default(0)
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  detections      Detection[]
+  
+  @@unique([userId, prefectureId, procedure])
+  @@index([prefectureId, isActive])
+  @@index([userId])
+}
+
+enum Procedure {
+  TITRE_SEJOUR
+  NATURALISATION
+  VISA
+  CARTE_IDENTITE
+  PASSEPORT
+  PERMIS_CONDUIRE
+  CARTE_GRISE
+  AUTRE
+}
+
+// ═══════════════════════════════════════
+// DETECTIONS
+// ═══════════════════════════════════════
+
+model Detection {
+  id              String    @id @default(uuid())
+  alertId         String
+  alert           Alert     @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  
+  prefectureId    String
+  prefecture      Prefecture @relation(fields: [prefectureId], references: [id])
+  slotsAvailable  Int
+  slotDate        String?
+  slotTime        String?
+  bookingUrl      String
+  screenshotPath  String?
+  
+  detectedAt      DateTime  @default(now())
+  
+  @@index([prefectureId, detectedAt])
+  @@index([alertId])
+}
+
+// ═══════════════════════════════════════
+// PREFECTURE CONFIG
+// ═══════════════════════════════════════
+
+model Prefecture {
+  id              String    @id
+  name            String
+  department      String
+  region          String
+  tier            Int       @default(3)
+  
+  bookingUrl      String
+  checkInterval   Int       @default(120)
+  selectors       Json
+  
+  status          PrefectureStatus @default(ACTIVE)
+  lastScrapedAt   DateTime?
+  lastSlotFoundAt DateTime?
+  consecutiveErrors Int     @default(0)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  alerts          Alert[]
+  detections      Detection[]
+  scraperLogs     ScraperLog[]
+  
+  @@index([tier, status])
+}
+
+enum PrefectureStatus {
+  ACTIVE
+  PAUSED
+  ERROR
+  CAPTCHA
+}
+
+// ═══════════════════════════════════════
+// PAYMENTS
+// ═══════════════════════════════════════
+
+model Payment {
+  id                String    @id @default(uuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id])
+  
+  stripePaymentId   String    @unique
+  stripeSessionId   String?
+  
+  plan              Plan
+  amount            Int
+  currency          String    @default("eur")
+  status            PaymentStatus @default(PENDING)
+  
+  createdAt         DateTime  @default(now())
+  paidAt            DateTime?
+  refundedAt        DateTime?
+  
+  @@index([userId, createdAt])
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// ═══════════════════════════════════════
+// NOTIFICATIONS
+// ═══════════════════════════════════════
+
+model Notification {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  
+  channel     NotificationChannel
+  type        String
+  title       String
+  body        String
+  metadata    Json?
+  
+  status      NotificationDeliveryStatus @default(PENDING)
+  sentAt      DateTime?
+  failedAt    DateTime?
+  errorMsg    String?
+  
+  createdAt   DateTime  @default(now())
+  
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  TELEGRAM
+  WEBSOCKET
+  FCM
+}
+
+enum NotificationDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+// ═══════════════════════════════════════
+// SCRAPER LOGS
+// ═══════════════════════════════════════
+
+model ScraperLog {
+  id              String    @id @default(uuid())
+  prefectureId    String
+  prefecture      Prefecture @relation(fields: [prefectureId], references: [id])
+  workerId        String
+  
+  status          String
+  slotsFound      Int       @default(0)
+  responseTimeMs  Int
+  errorMessage    String?
+  screenshotPath  String?
+  
+  createdAt       DateTime  @default(now())
+  
+  @@index([prefectureId, createdAt])
+  @@index([status, createdAt])
+}
