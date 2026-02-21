@@ -134,8 +134,8 @@ function Hero({ stats, loading }: { stats: Stats | null; loading: boolean }) {
       <div className="bg-accent text-white text-center py-3 text-sm font-bold relative z-20">
         <span className="animate-urgent-blink inline-block mr-2">🔴</span>
         {detected > 0
-          ? `EN CE MOMENT — ${detected} créneaux détectés dans les dernières 24h — Agissez MAINTENANT`
-          : "SURVEILLANCE ACTIVE 24h/24 — Des créneaux peuvent apparaître à tout moment"}
+          ? `EN DIRECT — ${detected} RDV préfecture détectés dans les dernières 24h — Prenez le vôtre MAINTENANT`
+          : "SURVEILLANCE ACTIVE 24h/24 — Des créneaux préfecture peuvent apparaître à tout moment"}
         <span className="animate-urgent-blink inline-block ml-2">🔴</span>
       </div>
 
@@ -146,13 +146,13 @@ function Hero({ stats, loading }: { stats: Stats | null; loading: boolean }) {
         </div>
 
         <h1 className="text-3xl sm:text-4xl md:text-6xl font-black leading-tight mb-6 max-w-4xl mx-auto">
-          Chaque minute sans surveillance,<br />
-          c&apos;est un <span className="text-accent">créneau perdu</span>
+          Prenez votre <span className="text-accent">RDV préfecture</span> en 24h<br />
+          <span className="text-xl sm:text-2xl md:text-3xl font-medium">Alertes instantanées dès qu'un créneau se libère</span>
         </h1>
 
         <p className="text-base sm:text-lg md:text-xl text-white/70 mb-10 max-w-2xl mx-auto leading-relaxed">
-          Vous rafraîchissez le site de la préfecture depuis <span className="text-white font-bold">des semaines</span> ?
-          <br className="hidden sm:block" />Notre système le fait <span className="text-accent font-bold">toutes les 30 secondes</span> et vous alerte instantanément.
+          Vous cherchez désespérément un <span className="text-white font-bold">RDV préfecture</span> depuis des semaines ?
+          <br className="hidden sm:block" />Notre système surveille <span className="text-accent font-bold">101 préfectures</span> toutes les 30 secondes et vous alerte instantanément dès qu'un créneau est disponible.
         </p>
 
         {/* Stats from API */}
@@ -724,6 +724,83 @@ function FAQ() {
 }
 
 /* ═══════════════════════════════════════════════
+   Blog Preview Section
+   ═══════════════════════════════════════════════ */
+function BlogPreview() {
+  const blogPosts = [
+    {
+      title: "Comment prendre RDV préfecture en 2024",
+      excerpt: "Le guide ultime pour réussir votre prise de RDV préfecture avec les méthodes efficaces et astuces pour éviter les files d'attente.",
+      slug: "comment-prendre-rdv-prefecture",
+      category: "Guides"
+    },
+    {
+      title: "Préfecture de Paris : Horaires et services essentiels",
+      excerpt: "Tout savoir sur la préfecture de Paris : horaires d'ouverture, services disponibles, et conseils pour optimiser votre visite.",
+      slug: "prefecture-paris-horaires-services",
+      category: "Guides"
+    },
+    {
+      title: "Titre de séjour : Démarches complètes à la préfecture",
+      excerpt: "Guide étape par étape pour votre demande de titre de séjour. Documents requis, formulaires, délais, et erreurs à éviter.",
+      slug: "titre-sejour-demarches-prefecture",
+      category: "Guides"
+    }
+  ];
+
+  return (
+    <motion.section 
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className="py-20 bg-gray-50"
+    >
+      <div className="max-w-6xl mx-auto px-4">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-4">Nos derniers articles</h2>
+          <p className="text-gray-600 max-w-2xl mx-auto">Guides, actualités et conseils pour réussir vos démarches préfecture</p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
+          {blogPosts.map((post, index) => (
+            <Link 
+              key={index}
+              href={`/blog/${post.slug}`}
+              className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+            >
+              <span className="inline-block px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full mb-3">
+                {post.category}
+              </span>
+              <h3 className="font-bold text-gray-900 mb-3 hover:text-primary transition-colors">
+                {post.title}
+              </h3>
+              <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                {post.excerpt}
+              </p>
+              <span className="text-primary font-medium text-sm flex items-center gap-1">
+                Lire l'article →
+              </span>
+            </Link>
+          ))}
+        </div>
+
+        <div className="text-center">
+          <Link 
+            href="/blog" 
+            className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white font-bold rounded-lg hover:bg-primary/90 transition-colors"
+          >
+            Voir tous les articles
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+        </div>
+      </div>
+    </motion.section>
+  );
+}
+
+/* ═══════════════════════════════════════════════
    Final CTA
    ═══════════════════════════════════════════════ */
 function FinalCTA() {
@@ -849,6 +926,7 @@ export default function LandingPage() {
       <Pricing plans={plans} loading={loading} />
       <SocialProof stats={stats} />
       <FAQ />
+      <BlogPreview />
       <FinalCTA />
       <Footer />
       <DemoBanner />

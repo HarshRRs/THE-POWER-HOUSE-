@@ -19,17 +19,20 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "RDVPriority.fr — Alertes Créneaux Préfecture en Temps Réel",
+  title: "RDVPriority.fr — Prendre RDV Préfecture | Alertes Créneaux en Temps Réel",
   description:
-    "Surveillance automatique 24/7 de 101 préfectures françaises. Recevez une alerte instantanée dès qu'un créneau se libère pour votre titre de séjour, naturalisation ou visa.",
+    "Prenez votre RDV préfecture en 24h ! Surveillance automatique 24/7 de 101 préfectures. Alertes instantanées dès qu'un créneau se libère. Titre de séjour, naturalisation, visa.",
   keywords: [
+    "prendre rdv préfecture",
     "rdv préfecture",
     "rendez-vous préfecture",
-    "titre de séjour",
-    "naturalisation",
     "créneau préfecture",
+    "urgence rdv préfecture",
     "alerte préfecture",
-    "France visa",
+    "titre de séjour rdv",
+    "naturalisation préfecture",
+    "visa préfecture",
+    "préfecture france",
   ],
   appleWebApp: {
     capable: true,
