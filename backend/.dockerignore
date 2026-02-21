@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+.env.*
+dist
+coverage
+.jest
+.vscode
+.DS_Store
+*.md
+performance-tests
+screenshots
+*.log
+.qoder

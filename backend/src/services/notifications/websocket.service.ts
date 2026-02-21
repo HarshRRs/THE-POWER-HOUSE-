@@ -29,8 +29,32 @@ export function emitToUser<K extends keyof WebSocketEvents>(
   }
 }
 
+export function emitToAdmins(event: string, data: unknown): boolean {
+  if (!io) {
+    logger.warn('WebSocket server not initialized');
+    return false;
+  }
+
+  try {
+    io.to('admin').emit(event, data);
+    return true;
+  } catch (error) {
+    logger.error('WebSocket admin emit error:', error);
+    return false;
+  }
+}
+
 export function emitSlotDetection(userId: string, data: SlotDetectionData): boolean {
-  return emitToUser(userId, 'slot_detected', data);
+  // Notify user
+  emitToUser(userId, 'slot_detected', data);
+  // Notify admins
+  emitToAdmins('admin_detection', {
+    prefectureId: data.prefectureId,
+    prefectureName: data.prefectureName,
+    slotsFound: data.slotsAvailable,
+    timestamp: new Date(),
+  });
+  return true;
 }
 
 export function emitPlanExpiring(userId: string, daysRemaining: number, plan: string): boolean {

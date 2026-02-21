@@ -17,6 +17,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
     req.user = {
       id: payload.id,
       email: payload.email,
+      role: payload.role || 'USER',
       plan: payload.plan,
       planExpiresAt: payload.planExpiresAt ? new Date(payload.planExpiresAt) : null,
     };
@@ -41,6 +42,7 @@ export function optionalAuthMiddleware(req: Request, _res: Response, next: NextF
     req.user = {
       id: payload.id,
       email: payload.email,
+      role: payload.role || 'USER',
       plan: payload.plan,
       planExpiresAt: payload.planExpiresAt ? new Date(payload.planExpiresAt) : null,
     };

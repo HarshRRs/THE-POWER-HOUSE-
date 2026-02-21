@@ -1,0 +1,22 @@
+{
+  "name": "rdvpriority-performance-tests",
+  "version": "1.0.0",
+  "description": "K6 performance tests for RDVPriority",
+  "type": "module",
+  "scripts": {
+    "test:smoke": "k6 run --vus 5 --duration 1m scenarios/auth-load.js",
+    "test:auth": "k6 run scenarios/auth-load.js",
+    "test:alerts": "k6 run scenarios/alerts-crud.js",
+    "test:prefectures": "k6 run scenarios/prefecture-cache.js",
+    "test:admin": "k6 run scenarios/admin-dashboard.js",
+    "test:websocket": "k6 run scenarios/websocket-load.js",
+    "test:stress-db": "k6 run scenarios/stress-db-pool.js",
+    "test:baseline": "bash scripts/run-baseline.sh",
+    "test:all": "k6 run scenarios/auth-load.js && k6 run scenarios/alerts-crud.js && k6 run scenarios/prefecture-cache.js && k6 run scenarios/admin-dashboard.js",
+    "report": "node scripts/compare-results.js"
+  },
+  "devDependencies": {},
+  "engines": {
+    "k6": ">=0.45.0"
+  }
+}

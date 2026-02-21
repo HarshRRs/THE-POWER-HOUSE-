@@ -71,16 +71,16 @@ export default function PrefecturesPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="🔍 Rechercher par nom, département ou région..."
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-primary outline-none text-sm bg-white"
+                className="w-full input-mobile"
             />
 
             {/* Region Filters */}
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
                 {REGIONS.map((r) => (
                     <button
                         key={r}
                         onClick={() => setSelectedRegion(r)}
-                        className={`flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full transition-colors ${selectedRegion === r ? "bg-primary text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
+                        className={`flex-shrink-0 text-[10px] font-bold px-3 py-2 rounded-full transition-colors ${selectedRegion === r ? "bg-primary text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
                     >
                         {r}
                     </button>
@@ -89,20 +89,20 @@ export default function PrefecturesPage() {
 
             {/* Status Filters + View Toggle */}
             <div className="flex items-center justify-between">
-                <div className="flex gap-1.5">
+                <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
                     {statusFilters.map((s) => (
                         <button
                             key={s}
                             onClick={() => setStatusFilter(s)}
-                            className={`text-[10px] font-bold px-2.5 py-1.5 rounded-full transition-colors ${statusFilter === s ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
+                            className={`flex-shrink-0 text-[10px] font-bold px-2.5 py-2 rounded-full transition-colors ${statusFilter === s ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
                         >
                             {statusLabels[s]}
                         </button>
                     ))}
                 </div>
-                <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
-                    <button onClick={() => setViewMode("list")} className={`px-2 py-1 rounded text-[10px] font-bold ${viewMode === "list" ? "bg-white shadow-sm text-gray-900" : "text-gray-400"}`}>☰</button>
-                    <button onClick={() => setViewMode("grid")} className={`px-2 py-1 rounded text-[10px] font-bold ${viewMode === "grid" ? "bg-white shadow-sm text-gray-900" : "text-gray-400"}`}>⊞</button>
+                <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5 ml-2 flex-shrink-0">
+                    <button onClick={() => setViewMode("list")} className={`px-2.5 py-1.5 rounded text-[10px] font-bold ${viewMode === "list" ? "bg-white shadow-sm text-gray-900" : "text-gray-400"}`}>☰</button>
+                    <button onClick={() => setViewMode("grid")} className={`px-2.5 py-1.5 rounded text-[10px] font-bold ${viewMode === "grid" ? "bg-white shadow-sm text-gray-900" : "text-gray-400"}`}>⊞</button>
                 </div>
             </div>
 
@@ -128,11 +128,11 @@ export default function PrefecturesPage() {
             {/* Legend */}
             <div className="bg-white rounded-xl card-shadow p-4">
                 <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Légende des statuts</h3>
-                <div className="grid grid-cols-2 gap-2 text-[10px]">
-                    <div className="flex items-center gap-2"><span className="w-2 h-2 bg-success rounded-full" /> Active — Surveillance opérationnelle</div>
-                    <div className="flex items-center gap-2"><span className="w-2 h-2 bg-gray-400 rounded-full" /> En pause — Temporairement arrêtée</div>
-                    <div className="flex items-center gap-2"><span className="w-2 h-2 bg-accent rounded-full" /> Erreur — Site inaccessible</div>
-                    <div className="flex items-center gap-2"><span className="w-2 h-2 bg-warning rounded-full" /> CAPTCHA — Vérification requise</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]">
+                    <div className="flex items-center gap-2"><span className="w-2 h-2 bg-success rounded-full flex-shrink-0" /> Active — Surveillance opérationnelle</div>
+                    <div className="flex items-center gap-2"><span className="w-2 h-2 bg-gray-400 rounded-full flex-shrink-0" /> En pause — Temporairement arrêtée</div>
+                    <div className="flex items-center gap-2"><span className="w-2 h-2 bg-accent rounded-full flex-shrink-0" /> Erreur — Site inaccessible</div>
+                    <div className="flex items-center gap-2"><span className="w-2 h-2 bg-warning rounded-full flex-shrink-0" /> CAPTCHA — Vérification requise</div>
                 </div>
             </div>
         </div>

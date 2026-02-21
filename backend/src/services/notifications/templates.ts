@@ -44,6 +44,14 @@ export const TEMPLATES = {
     sms: (data: SlotDetectionData) => 
       `🚨 RDVPriority: ${data.slotsAvailable} créneau(x) à ${data.prefectureName}! Réservez vite: ${data.bookingUrl}`,
     
+    whatsapp: (data: SlotDetectionData) => 
+      `🚨 *CRÉNEAU DÉTECTÉ!*\n\n` +
+      `🏛️ *${data.prefectureName}* (${data.department})\n` +
+      `📅 ${data.slotsAvailable} créneau(x) disponible(s)\n` +
+      `${data.slotDate ? `📆 Date: ${data.slotDate} ${data.slotTime || ''}\n` : ''}` +
+      `\n👉 Réservez maintenant:\n${data.bookingUrl}\n\n` +
+      `⚡ _Les créneaux partent en minutes. Agissez maintenant!_`,
+    
     telegram: (data: SlotDetectionData) => 
       `🚨 <b>CRÉNEAU DÉTECTÉ!</b>\n\n` +
       `🏛️ ${data.prefectureName} (${data.department})\n` +

@@ -41,9 +41,9 @@ export default function CGVPage() {
                         <h2 className="text-xl font-bold text-gray-900 mb-3">Article 3 — Formules et tarification</h2>
                         <p className="text-gray-600 leading-relaxed">Le Service propose les formules suivantes :</p>
                         <ul className="list-disc pl-6 space-y-2 text-gray-600 mt-3">
-                            <li><strong>Urgence 24h (4,99€)</strong> — Paiement unique. Surveillance d&apos;une page pendant 24 heures. 1 alerte active, vérification toutes les 2 minutes, notification par email.</li>
-                            <li><strong>Urgence 7 jours (14,99€)</strong> — Paiement unique. Surveillance pendant 7 jours. 3 alertes actives, vérification toutes les 60 secondes, notifications par email et Telegram.</li>
-                            <li><strong>Urgence Totale (29,99€/mois)</strong> — Abonnement mensuel. Alertes illimitées, vérification toutes les 30 secondes, notifications par email, Telegram et SMS, service de conciergerie.</li>
+                            <li><strong>Urgence 24h (4,99€)</strong> — Paiement unique. Surveillance d&apos;une page pendant 24 heures. 1 alerte active, vérification toutes les 2 minutes, notification par email. <span className="text-red-600 font-bold">⚠️ Pas de remboursement</span></li>
+                            <li><strong>Urgence 7 jours (14,99€)</strong> — Paiement unique. Surveillance pendant 7 jours. 3 alertes actives, vérification toutes les 60 secondes, notifications par email et Telegram. <span className="text-yellow-600 font-bold">🟡 Remboursement 50% si échec</span></li>
+                            <li><strong>Urgence Totale (29,99€/mois)</strong> — Abonnement mensuel. Alertes illimitées, vérification toutes les 30 secondes, notifications par email, Telegram et SMS, service de conciergerie. <span className="text-green-600 font-bold">✅ Garantie "RDV ou remboursé"</span></li>
                         </ul>
                         <p className="text-gray-600 leading-relaxed mt-3">
                             Les prix sont indiqués en euros (€), toutes taxes comprises (TTC). Le prestataire se réserve le droit de modifier ses tarifs à tout moment. Les modifications ne s&apos;appliquent pas aux commandes déjà validées.
@@ -58,12 +58,34 @@ export default function CGVPage() {
                     </section>
 
                     <section>
-                        <h2 className="text-xl font-bold text-gray-900 mb-3">Article 5 — Garantie satisfait ou remboursé</h2>
-                        <p className="text-gray-600 leading-relaxed">
-                            Si aucun changement n&apos;est détecté sur les pages surveillées pendant toute la durée du plan souscrit, l&apos;Utilisateur peut demander un remboursement intégral en contactant <strong>support@rdvpriority.fr</strong> dans les 7 jours suivant l&apos;expiration de son plan.
+                        <h2 className="text-xl font-bold text-gray-900 mb-3">Article 5 — Politique de remboursement par formule</h2>
+                        
+                        <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
+                            <h3 className="font-bold text-red-800 mb-2">🚨 Urgence 24h (4,99€) — PAS DE REMBOURSEMENT</h3>
+                            <p className="text-red-700 text-sm">
+                                Cette formule est vendue telle quelle. Aucun remboursement ne sera effectué même si aucun créneau n&apos;est détecté. Le service est considéré comme rendu dès activation.
+                            </p>
+                        </div>
+                        
+                        <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-6">
+                            <h3 className="font-bold text-yellow-800 mb-2">⏰ Urgence 7 jours (14,99€) — REMBOURSEMENT PARTIEL</h3>
+                            <p className="text-yellow-700 text-sm">
+                                Remboursement de 50% si aucun créneau n&apos;est détecté pendant les 7 jours. Demande à effectuer par email dans les 7 jours suivant l&apos;expiration.
+                            </p>
+                        </div>
+                        
+                        <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-6">
+                            <h3 className="font-bold text-green-800 mb-2">✅ Urgence Totale (29,99€/mois) — GARANTIE COMPLÈTE</h3>
+                            <p className="text-green-700 text-sm">
+                                <strong>Garantie "Rendez-vous ou remboursé"</strong> : Remboursement intégral si aucun créneau de rendez-vous n&apos;est trouvé pendant la période de souscription. Remboursement automatique si applicable.
+                            </p>
+                        </div>
+                        
+                        <p className="text-gray-600 leading-relaxed mt-4">
+                            <strong>Conditions générales de remboursement :</strong> Ces garanties ne s&apos;appliquent pas en cas de mauvaise configuration par l&apos;Utilisateur, de fermeture/indisponibilité du site web surveillé, ou d&apos;utilisation frauduleuse du service.
                         </p>
                         <p className="text-gray-600 leading-relaxed mt-3">
-                            Cette garantie ne s&apos;applique pas si l&apos;absence de détection résulte d&apos;une mauvaise configuration par l&apos;Utilisateur ou de la fermeture/indisponibilité du site web surveillé.
+                            Les demandes de remboursement doivent être envoyées à <strong>support@rdvpriority.fr</strong> avec les détails de commande et la raison du remboursement demandé.
                         </p>
                     </section>
 

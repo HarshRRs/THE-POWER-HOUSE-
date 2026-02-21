@@ -63,6 +63,8 @@
     color: var(--color-gray-900);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
+    padding-top: env(safe-area-inset-top);
   }
 }
 
@@ -70,7 +72,7 @@
 
   /* ═══ French Tricolor Strip ═══ */
   .tricolor-bar {
-    height: 4px;
+    height: 5px;
     background: linear-gradient(90deg, #000091 33.33%, #ffffff 33.33%, #ffffff 66.66%, #e1000f 66.66%);
   }
 
@@ -117,7 +119,7 @@
   }
 
   .card-shadow {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.06);
   }
 
   .card-shadow-lg {
@@ -187,6 +189,48 @@
     background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
+  }
+
+  /* ═══ Mobile Premium Utilities ═══ */
+  .btn-press {
+    transition: transform 100ms ease-out;
+  }
+  .btn-press:active {
+    transform: scale(0.97);
+  }
+
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* ═══ Mobile Input Polish ═══ */
+  .input-mobile {
+    font-size: 16px; /* Prevents iOS zoom on focus */
+    border-radius: 14px;
+    padding: 14px 16px;
+    border: 2px solid var(--color-gray-200);
+    background: var(--color-gray-50);
+    transition: border-color 200ms ease, box-shadow 200ms ease;
+  }
+  .input-mobile:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(0, 0, 145, 0.12);
+    background: #ffffff;
+  }
+
+  /* ═══ Bottom Sheet ═══ */
+  .bottom-sheet {
+    border-radius: 24px 24px 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  @media (min-width: 768px) {
+    .bottom-sheet {
+      border-radius: 16px;
+      padding-bottom: 0;
+    }
   }
 }
 

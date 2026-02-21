@@ -97,7 +97,7 @@ export default function AlertsPage() {
                 <button
                     onClick={() => canCreate ? setShowModal(true) : undefined}
                     disabled={!canCreate}
-                    className="gradient-urgent text-white text-xs font-bold px-4 py-2 rounded-lg hover:opacity-90 disabled:opacity-50"
+                    className="gradient-urgent text-white text-xs font-bold px-4 py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50 btn-press touch-target"
                 >
                     + Nouvelle alerte
                 </button>
@@ -118,7 +118,7 @@ export default function AlertsPage() {
                         <p className="text-4xl mb-3">🏛️</p>
                         <p className="text-sm font-bold text-gray-900">Aucune alerte configurée</p>
                         <p className="text-xs text-gray-400 mt-2">Créez votre première alerte pour commencer la surveillance de créneaux</p>
-                        <button onClick={() => setShowModal(true)} disabled={!canCreate} className="mt-4 gradient-urgent text-white text-xs font-bold px-6 py-3 rounded-xl hover:opacity-90 disabled:opacity-50">
+                        <button onClick={() => setShowModal(true)} disabled={!canCreate} className="mt-4 gradient-urgent text-white text-xs font-bold px-6 py-3 rounded-xl hover:opacity-90 disabled:opacity-50 btn-press">
                             🚨 Créer ma première alerte
                         </button>
                     </div>
@@ -137,19 +137,19 @@ export default function AlertsPage() {
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                    <div className="flex items-center gap-3 flex-shrink-0">
                                         {alert.slotsFound > 0 && (
                                             <span className="text-[10px] font-bold text-success bg-success-light px-2 py-1 rounded-full">{alert.slotsFound} ✅</span>
                                         )}
                                         <button
                                             onClick={() => handleToggle(alert)}
-                                            className={`w-12 h-6 rounded-full p-0.5 transition-colors ${alert.isActive ? "bg-success" : "bg-gray-300"}`}
+                                            className={`w-12 h-7 rounded-full p-0.5 transition-colors ${alert.isActive ? "bg-success" : "bg-gray-300"}`}
                                         >
-                                            <div className={`w-5 h-5 bg-white rounded-full shadow transform transition-transform ${alert.isActive ? "translate-x-6" : "translate-x-0"}`} />
+                                            <div className={`w-6 h-6 bg-white rounded-full shadow transform transition-transform ${alert.isActive ? "translate-x-5" : "translate-x-0"}`} />
                                         </button>
                                         <button
                                             onClick={() => handleDelete(alert.id)}
-                                            className="text-gray-300 hover:text-accent text-sm transition-colors p-1"
+                                            className="text-gray-300 hover:text-accent text-sm transition-colors p-2 touch-target flex items-center justify-center"
                                             title="Supprimer"
                                         >
                                             🗑️
@@ -164,21 +164,26 @@ export default function AlertsPage() {
 
             {/* Create Alert Modal */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center" onClick={() => setShowModal(false)}>
-                    <div className="bg-white rounded-t-2xl md:rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-                        <div className="p-5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-                            <h2 className="text-lg font-black text-gray-900">🚨 Nouvelle alerte</h2>
-                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center animate-fade-in" onClick={() => setShowModal(false)}>
+                    <div className="bg-white bottom-sheet sm:rounded-2xl w-full sm:max-w-lg max-h-[85vh] sm:max-h-[90vh] flex flex-col animate-slide-up" onClick={(e) => e.stopPropagation()}>
+                        {/* Drag Handle (mobile) */}
+                        <div className="flex justify-center pt-3 sm:hidden">
+                            <div className="w-10 h-1 bg-gray-300 rounded-full" />
                         </div>
 
-                        <div className="p-5 space-y-4 overflow-y-auto flex-1">
+                        <div className="p-5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+                            <h2 className="text-lg font-black text-gray-900">🚨 Nouvelle alerte</h2>
+                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 text-xl touch-target flex items-center justify-center">✕</button>
+                        </div>
+
+                        <div className="p-5 space-y-4 overflow-y-auto flex-1 overscroll-contain">
                             {/* Region Filters */}
                             <div className="flex gap-2 overflow-x-auto pb-2 -mx-5 px-5 scrollbar-hide">
                                 {REGIONS.map((r) => (
                                     <button
                                         key={r}
                                         onClick={() => setSelectedRegion(r)}
-                                        className={`flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full transition-colors ${selectedRegion === r ? "bg-primary text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
+                                        className={`flex-shrink-0 text-[10px] font-bold px-3 py-2 rounded-full transition-colors touch-target ${selectedRegion === r ? "bg-primary text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
                                     >
                                         {r}
                                     </button>
@@ -192,12 +197,12 @@ export default function AlertsPage() {
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     placeholder="🔍 Rechercher une préfecture (nom, n° département)..."
-                                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-primary outline-none text-sm bg-gray-50"
+                                    className="w-full input-mobile"
                                 />
                             </div>
 
                             {/* Prefecture List */}
-                            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                            <div className="space-y-1.5 max-h-48 overflow-y-auto overscroll-contain">
                                 {prefLoading ? (
                                     <div className="text-center py-4">
                                         <div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin mx-auto" />
@@ -209,9 +214,9 @@ export default function AlertsPage() {
                                         <button
                                             key={pref.id}
                                             onClick={() => setSelectedPrefecture(pref)}
-                                            className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${selectedPrefecture?.id === pref.id ? "bg-primary-light ring-2 ring-primary" : "hover:bg-gray-50"}`}
+                                            className={`w-full text-left flex items-center gap-3 px-3 py-3 rounded-xl transition-all btn-press ${selectedPrefecture?.id === pref.id ? "bg-primary-light ring-2 ring-primary" : "hover:bg-gray-50"}`}
                                         >
-                                            <span className="w-9 h-9 bg-gray-100 text-gray-700 rounded-lg flex items-center justify-center text-xs font-black flex-shrink-0">
+                                            <span className="w-10 h-10 bg-gray-100 text-gray-700 rounded-lg flex items-center justify-center text-xs font-black flex-shrink-0">
                                                 {pref.department}
                                             </span>
                                             <div className="min-w-0">
@@ -229,7 +234,7 @@ export default function AlertsPage() {
                                 <select
                                     value={selectedProcedure}
                                     onChange={(e) => setSelectedProcedure(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-primary outline-none text-sm bg-gray-50"
+                                    className="w-full input-mobile appearance-none"
                                 >
                                     {PROCEDURES.map((p) => (
                                         <option key={p.value} value={p.value}>{p.label}</option>
@@ -238,11 +243,11 @@ export default function AlertsPage() {
                             </div>
                         </div>
 
-                        <div className="p-5 border-t border-gray-100 flex-shrink-0">
+                        <div className="p-5 border-t border-gray-100 flex-shrink-0" style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}>
                             <button
                                 onClick={handleCreate}
                                 disabled={!selectedPrefecture || creating}
-                                className="w-full gradient-urgent text-white py-4 rounded-xl font-bold text-sm shadow-lg shadow-accent/20 hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                                className="w-full gradient-urgent text-white py-4 rounded-xl font-bold text-sm shadow-lg shadow-accent/20 hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 btn-press"
                             >
                                 {creating ? (
                                     <span className="flex items-center gap-2">

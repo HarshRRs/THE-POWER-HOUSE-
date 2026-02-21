@@ -1,0 +1,333 @@
+name: Performance Tests
+
+on:
+  # Run on PRs to main (smoke tests only)
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/performance-tests.yml'
+  
+  # Run full suite on merge to main
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+  
+  # Nightly stress tests
+  schedule:
+    - cron: '0 2 * * *'  # 2 AM UTC daily
+  
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Test type to run'
+        required: true
+        default: 'smoke'
+        type: choice
+        options:
+          - smoke
+          - load
+          - stress
+          - all
+
+env:
+  K6_VERSION: '0.47.0'
+
+jobs:
+  # Quick smoke test on PRs
+  smoke-test:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: rdvpriority_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+      
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+      
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      
+      - name: Setup database
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/rdvpriority_test
+        run: npx prisma migrate deploy
+      
+      - name: Start backend server
+        working-directory: backend
+        env:
+          NODE_ENV: test
+          PORT: 4000
+          DATABASE_URL: postgresql://test:test@localhost:5432/rdvpriority_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-secret-key-32-chars-minimum
+          JWT_REFRESH_SECRET: test-refresh-secret-32-chars-min
+        run: |
+          npm run build
+          npm start &
+          sleep 10
+      
+      - name: Run smoke tests
+        working-directory: backend/performance-tests
+        env:
+          TEST_ENV: local
+        run: |
+          k6 run --vus 5 --duration 1m scenarios/auth-load.js
+          k6 run --vus 5 --duration 1m scenarios/prefecture-cache.js
+      
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-results
+          path: backend/performance-tests/results/
+
+  # Full load test on main branch
+  load-test:
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.test_type != 'smoke')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: rdvpriority_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+      
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+      
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      
+      - name: Setup database
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/rdvpriority_test
+        run: npx prisma migrate deploy
+      
+      - name: Start backend server
+        working-directory: backend
+        env:
+          NODE_ENV: production
+          PORT: 4000
+          DATABASE_URL: postgresql://test:test@localhost:5432/rdvpriority_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-secret-key-32-chars-minimum-xx
+          JWT_REFRESH_SECRET: test-refresh-secret-32-chars-min-x
+        run: |
+          npm run build
+          npm start &
+          sleep 15
+      
+      - name: Run load tests
+        working-directory: backend/performance-tests
+        env:
+          TEST_ENV: local
+        run: |
+          mkdir -p results
+          
+          echo "Running auth load test..."
+          k6 run --out json=results/auth-load.json scenarios/auth-load.js || true
+          
+          echo "Running alerts CRUD test..."
+          k6 run --out json=results/alerts-crud.json scenarios/alerts-crud.js || true
+          
+          echo "Running prefecture cache test..."
+          k6 run --out json=results/prefecture-cache.json scenarios/prefecture-cache.js || true
+          
+          echo "Running admin dashboard test..."
+          k6 run --out json=results/admin-dashboard.json scenarios/admin-dashboard.js || true
+      
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-test-results-${{ github.sha }}
+          path: backend/performance-tests/results/
+          retention-days: 30
+      
+      - name: Check thresholds
+        working-directory: backend/performance-tests
+        run: |
+          echo "Checking test results against thresholds..."
+          # Basic threshold check - fail if any test had >5% error rate
+          for file in results/*.json; do
+            if [ -f "$file" ]; then
+              error_rate=$(grep -o '"http_req_failed":{"rate":[0-9.]*' "$file" | head -1 | grep -o '[0-9.]*$' || echo "0")
+              if (( $(echo "$error_rate > 0.05" | bc -l) )); then
+                echo "FAIL: High error rate ($error_rate) in $file"
+                exit 1
+              fi
+            fi
+          done
+          echo "All thresholds passed!"
+
+  # Nightly stress tests
+  stress-test:
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.test_type == 'stress')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: rdvpriority_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+      
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+      
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      
+      - name: Setup database
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/rdvpriority_test
+        run: npx prisma migrate deploy
+      
+      - name: Start backend server
+        working-directory: backend
+        env:
+          NODE_ENV: production
+          PORT: 4000
+          DATABASE_URL: postgresql://test:test@localhost:5432/rdvpriority_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-secret-key-32-chars-minimum-xx
+          JWT_REFRESH_SECRET: test-refresh-secret-32-chars-min-x
+          DATABASE_POOL_SIZE: 20
+        run: |
+          npm run build
+          npm start &
+          sleep 15
+      
+      - name: Run stress tests
+        working-directory: backend/performance-tests
+        env:
+          TEST_ENV: local
+        run: |
+          mkdir -p results
+          
+          echo "Running DB pool stress test..."
+          k6 run --out json=results/stress-db-pool.json scenarios/stress-db-pool.js || true
+      
+      - name: Upload stress test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stress-test-results-${{ github.run_number }}
+          path: backend/performance-tests/results/
+          retention-days: 90

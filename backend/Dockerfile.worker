@@ -1,9 +1,35 @@
-# Dockerfile for scraper workers
-FROM node:20-slim
+# ── Stage 1: Builder ──────────────────────────────
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Install runtime dependencies for Playwright
+# Install OpenSSL for Prisma
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
+# Copy package files and Prisma schema
+COPY package*.json ./
+COPY prisma ./prisma/
+
+# Install all dependencies (including dev for TypeScript build)
+RUN npm ci
+
+# Generate Prisma client
+RUN npx prisma generate
+
+# Copy source and build
+COPY tsconfig.json ./
+COPY src ./src/
+RUN npm run build
+
+# Prune dev dependencies
+RUN npm prune --production
+
+# ── Stage 2: Runner ──────────────────────────────
+FROM node:20-slim AS runner
+
+WORKDIR /app
+
+# Install runtime dependencies for Playwright + procps for health checks
 RUN apt-get update && apt-get install -y \
     openssl \
     libnss3 \
@@ -22,32 +48,24 @@ RUN apt-get update && apt-get install -y \
     libasound2 \
     libpango-1.0-0 \
     libcairo2 \
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy package files
-COPY package*.json ./
-COPY prisma ./prisma/
-
-# Install dependencies
-RUN npm ci --only=production
-
-# Generate Prisma client
-RUN npx prisma generate
+# Copy built application from builder
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/prisma ./prisma
 
 # Install Playwright browsers
 RUN npx playwright install chromium
-
-# Copy source (we'll run tsx directly for workers)
-COPY . .
 
 # Create screenshots directory
 RUN mkdir -p public/screenshots
 
 # Set environment
 ENV NODE_ENV=production
-
-# Memory limit for browser pool
 ENV NODE_OPTIONS="--max-old-space-size=1536"
 
-# Start workers
-CMD ["npx", "tsx", "src/workers/index.ts"]
+# Start compiled workers
+CMD ["node", "dist/workers/index.js"]

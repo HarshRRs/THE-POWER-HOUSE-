@@ -1,13 +1,16 @@
 import { prisma } from '../config/database.js';
 import { PLAN_LIMITS } from '../config/constants.js';
-import type { Plan } from '@prisma/client';
+import type { Plan, Prisma } from '@prisma/client';
 import logger from '../utils/logger.util.js';
 
-export async function activatePlan(userId: string, plan: Plan): Promise<void> {
+type TransactionClient = Prisma.TransactionClient;
+
+export async function activatePlan(userId: string, plan: Plan, tx?: TransactionClient): Promise<void> {
+  const client = tx || prisma;
   const planConfig = PLAN_LIMITS[plan];
   const expiresAt = new Date(Date.now() + planConfig.duration);
 
-  await prisma.user.update({
+  await client.user.update({
     where: { id: userId },
     data: {
       plan,
@@ -48,8 +51,9 @@ export async function expirePlans(): Promise<number> {
   return result.count;
 }
 
-export async function renewSubscription(userId: string): Promise<void> {
-  const user = await prisma.user.findUnique({
+export async function renewSubscription(userId: string, tx?: TransactionClient): Promise<void> {
+  const client = tx || prisma;
+  const user = await client.user.findUnique({
     where: { id: userId },
   });
 
@@ -60,7 +64,7 @@ export async function renewSubscription(userId: string): Promise<void> {
   const planConfig = PLAN_LIMITS.URGENCE_TOTAL;
   const expiresAt = new Date(Date.now() + planConfig.duration);
 
-  await prisma.user.update({
+  await client.user.update({
     where: { id: userId },
     data: {
       planExpiresAt: expiresAt,
@@ -70,8 +74,10 @@ export async function renewSubscription(userId: string): Promise<void> {
   logger.info(`Subscription renewed for user ${userId}, expires at ${expiresAt.toISOString()}`);
 }
 
-export async function cancelSubscription(userId: string): Promise<void> {
-  await prisma.user.update({
+export async function cancelSubscription(userId: string, tx?: TransactionClient): Promise<void> {
+  const client = tx || prisma;
+  
+  await client.user.update({
     where: { id: userId },
     data: {
       plan: 'NONE',
@@ -80,7 +86,7 @@ export async function cancelSubscription(userId: string): Promise<void> {
   });
 
   // Deactivate all alerts
-  await prisma.alert.updateMany({
+  await client.alert.updateMany({
     where: { userId },
     data: { isActive: false },
   });

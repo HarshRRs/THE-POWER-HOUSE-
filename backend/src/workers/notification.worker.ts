@@ -22,13 +22,15 @@ export async function startNotificationWorker(concurrency = 20) {
     concurrency
   );
 
-  worker.on('completed', (job) => {
-    logger.debug(`Notification job ${job.id} completed`);
-  });
+  if (worker) {
+    worker.on('completed', (job) => {
+      logger.debug(`Notification job ${job.id} completed`);
+    });
 
-  worker.on('failed', (job, error) => {
-    logger.error(`Notification job ${job?.id} failed:`, error.message);
-  });
+    worker.on('failed', (job, error) => {
+      logger.error(`Notification job ${job?.id} failed:`, error.message);
+    });
+  }
 
   return worker;
 }

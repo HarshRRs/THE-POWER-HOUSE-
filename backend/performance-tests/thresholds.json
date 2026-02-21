@@ -1,0 +1,78 @@
+{
+  "scenarios": {
+    "auth-load": {
+      "thresholds": {
+        "http_req_duration": {
+          "p95": 500,
+          "p99": 1000
+        },
+        "http_req_failed": {
+          "rate": 0.01
+        }
+      }
+    },
+    "alerts-crud": {
+      "thresholds": {
+        "http_req_duration": {
+          "p95": 300,
+          "p99": 800
+        },
+        "http_req_failed": {
+          "rate": 0.005
+        }
+      }
+    },
+    "prefecture-cache": {
+      "thresholds": {
+        "http_req_duration": {
+          "p95": 100,
+          "p99": 200
+        },
+        "http_req_failed": {
+          "rate": 0.001
+        },
+        "cache_hit_rate": {
+          "min": 0.9
+        }
+      }
+    },
+    "admin-dashboard": {
+      "thresholds": {
+        "http_req_duration": {
+          "p95": 2000,
+          "p99": 3000
+        },
+        "http_req_failed": {
+          "rate": 0.005
+        }
+      }
+    },
+    "websocket-load": {
+      "thresholds": {
+        "ws_connect_duration": {
+          "p95": 1000,
+          "p99": 2000
+        },
+        "ws_msg_latency": {
+          "p95": 500,
+          "p99": 1000
+        }
+      }
+    },
+    "stress-db-pool": {
+      "thresholds": {
+        "http_req_duration": {
+          "p99": 5000
+        },
+        "error_rate": {
+          "rate": 0.1
+        }
+      },
+      "notes": "Stress test - higher error tolerance expected"
+    }
+  },
+  "global": {
+    "maxRegressionPercent": 10,
+    "notes": "Fail CI if any metric regresses more than 10% from baseline"
+  }
+}

@@ -110,10 +110,10 @@ function Header() {
           <a href="#tarifs" className="hover:text-primary transition-colors">Tarifs</a>
           <a href="#faq" className="hover:text-primary transition-colors">FAQ</a>
         </nav>
-        <div className="flex items-center gap-3">
-          <Link href="/login" className="text-sm font-semibold text-primary hover:underline">Connexion</Link>
-          <Link href="/register" className="gradient-urgent text-white text-sm font-bold px-5 py-2.5 rounded-lg hover:opacity-90 shadow-lg shadow-accent/20 flex items-center gap-1.5 emergency-badge">
-            🚨 Agir maintenant
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Link href="/login" className="text-sm font-semibold text-primary hover:underline hidden sm:inline">Connexion</Link>
+          <Link href="/register" className="gradient-urgent text-white text-sm font-bold px-4 py-2.5 sm:px-5 rounded-xl hover:opacity-90 shadow-lg shadow-accent/20 flex items-center gap-1.5 btn-press">
+            🚨 <span className="hidden sm:inline">Agir maintenant</span><span className="sm:hidden">Agir</span>
           </Link>
         </div>
       </div>
@@ -145,18 +145,18 @@ function Hero({ stats, loading }: { stats: Stats | null; loading: boolean }) {
           Surveillance 24h/24 — Alerte en moins de 30 secondes
         </div>
 
-        <h1 className="text-4xl md:text-6xl font-black leading-tight mb-6 max-w-4xl mx-auto">
+        <h1 className="text-3xl sm:text-4xl md:text-6xl font-black leading-tight mb-6 max-w-4xl mx-auto">
           Chaque minute sans surveillance,<br />
           c&apos;est un <span className="text-accent">créneau perdu</span>
         </h1>
 
-        <p className="text-lg md:text-xl text-white/70 mb-10 max-w-2xl mx-auto leading-relaxed">
+        <p className="text-base sm:text-lg md:text-xl text-white/70 mb-10 max-w-2xl mx-auto leading-relaxed">
           Vous rafraîchissez le site de la préfecture depuis <span className="text-white font-bold">des semaines</span> ?
-          <br />Notre système le fait <span className="text-accent font-bold">toutes les 30 secondes</span> et vous alerte instantanément.
+          <br className="hidden sm:block" />Notre système le fait <span className="text-accent font-bold">toutes les 30 secondes</span> et vous alerte instantanément.
         </p>
 
         {/* Stats from API */}
-        <div className="grid grid-cols-3 gap-4 max-w-xl mx-auto mt-14">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 max-w-sm sm:max-w-xl mx-auto mt-10 sm:mt-14">
           {loading ? (
             [1, 2, 3].map((i) => (
               <div key={i} className="glass rounded-xl p-4">
@@ -170,11 +170,11 @@ function Hero({ stats, loading }: { stats: Stats | null; loading: boolean }) {
               { n: stats?.prefecturesMonitored ?? 101, s: "", l: "Préfectures surveillées" },
               { n: stats?.activeUsers ?? 0, s: "+", l: "Utilisateurs actifs" },
             ].map((s, i) => (
-              <div key={i} className="glass rounded-xl p-4">
-                <div className="text-2xl md:text-3xl font-black text-white">
+              <div key={i} className="glass rounded-xl p-3 sm:p-4">
+                <div className="text-xl sm:text-2xl md:text-3xl font-black text-white">
                   <Counter end={s.n} />{s.s}
                 </div>
-                <div className="text-xs text-white/60 mt-1">{s.l}</div>
+                <div className="text-[10px] sm:text-xs text-white/60 mt-1">{s.l}</div>
               </div>
             ))
           )}
@@ -207,7 +207,7 @@ function PrefecturePicker({ prefectures }: { prefectures: Prefecture[] }) {
       viewport={{ once: true }}
       className="py-12 bg-white relative z-20 -mt-20 mx-4"
     >
-      <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl border border-gray-100 p-6 md:p-10 text-center">
+      <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl border border-gray-100 p-5 sm:p-6 md:p-10 text-center">
         <h3 className="text-2xl font-bold text-gray-900 mb-2">Commencez par choisir votre préfecture</h3>
         <p className="text-gray-500 mb-6">Nous vérifierons les disponibilités spécifiquement pour vous.</p>
 
@@ -421,12 +421,13 @@ function HowItWorks() {
    Pricing — from API /api/billing/plans
    ═══════════════════════════════════════════════ */
 function Pricing({ plans, loading }: { plans: Plan[]; loading: boolean }) {
-  const planMeta: Record<string, { badge?: string; style: string; btnStyle: string; cta: string; desc: string; features: string[] }> = {
+  const planMeta: Record<string, { badge?: string; returnPolicy: { text: string; color: string; bgColor: string }; style: string; btnStyle: string; cta: string; desc: string; features: string[] }> = {
     URGENCE_24H: {
       style: "border-gray-300 bg-white",
       btnStyle: "bg-gray-900 text-white hover:bg-gray-800",
       cta: "⚡ Activer pour 24h",
       desc: "Pour les chanceux qui veulent tenter aujourd'hui",
+      returnPolicy: { text: "❌ Pas de remboursement", color: "text-red-700", bgColor: "bg-red-50 border-red-200" },
       features: ["1 alerte active", "1 préfecture", "Notification email", "Vérification toutes les 2 min", "Valable 24 heures"],
     },
     URGENCE_7J: {
@@ -435,6 +436,7 @@ function Pricing({ plans, loading }: { plans: Plan[]; loading: boolean }) {
       btnStyle: "gradient-urgent text-white shadow-xl shadow-accent/25",
       cta: "🚨 Activer 7 jours",
       desc: "Le plus choisi — 7 jours de surveillance non-stop",
+      returnPolicy: { text: "🟡 50% remboursé si échec", color: "text-yellow-700", bgColor: "bg-yellow-50 border-yellow-200" },
       features: ["3 alertes actives", "Toutes les préfectures", "Email + Telegram", "Vérification toutes les 60s", "7 jours de couverture", "Support prioritaire"],
     },
     URGENCE_TOTALE: {
@@ -442,7 +444,8 @@ function Pricing({ plans, loading }: { plans: Plan[]; loading: boolean }) {
       btnStyle: "gradient-primary text-white shadow-lg shadow-primary/20",
       cta: "🔥 Surveillance totale",
       desc: "Jusqu'à ce que vous obteniez votre RDV",
-      features: ["Alertes illimitées", "Toutes les préfectures", "Email + Telegram + SMS", "Vérification toutes les 30s", "Surveillance continue", "Conciergerie RDV", "Remboursé si aucun créneau"],
+      returnPolicy: { text: "✅ RDV ou remboursé", color: "text-green-700", bgColor: "bg-green-50 border-green-200" },
+      features: ["Alertes illimitées", "Toutes les préfectures", "Email + Telegram + SMS", "Vérification toutes les 30s", "Surveillance continue", "Conciergerie RDV", "Garantie remboursement automatique"],
     },
   };
 
@@ -492,6 +495,10 @@ function Pricing({ plans, loading }: { plans: Plan[]; loading: boolean }) {
                       {meta.badge}
                     </div>
                   )}
+                  {/* Return Policy Badge */}
+                  <div className={`absolute top-3 right-3 text-xs font-bold px-2 py-1 rounded-full border ${meta.returnPolicy.bgColor} ${meta.returnPolicy.color}`}>
+                    {meta.returnPolicy.text}
+                  </div>
                   <h3 className="text-lg font-bold text-gray-900">{name}</h3>
                   <p className="text-sm text-gray-500 mb-4">{meta.desc}</p>
                   <div className="mb-6">
@@ -505,7 +512,7 @@ function Pricing({ plans, loading }: { plans: Plan[]; loading: boolean }) {
                       </li>
                     ))}
                   </ul>
-                  <Link href="/register" className={`block text-center w-full py-3.5 rounded-xl font-bold text-sm transition-all ${meta.btnStyle}`}>
+                  <Link href="/register" className={`block text-center w-full py-3.5 rounded-xl font-bold text-sm transition-all btn-press ${meta.btnStyle}`}>
                     {meta.cta}
                   </Link>
                 </div>
@@ -526,6 +533,10 @@ function Pricing({ plans, loading }: { plans: Plan[]; loading: boolean }) {
                       {meta.badge}
                     </div>
                   )}
+                  {/* Return Policy Badge */}
+                  <div className={`absolute top-3 right-3 text-xs font-bold px-2 py-1 rounded-full border ${meta.returnPolicy.bgColor} ${meta.returnPolicy.color}`}>
+                    {meta.returnPolicy.text}
+                  </div>
                   <h3 className="text-lg font-bold text-gray-900">{plan.name}</h3>
                   <p className="text-sm text-gray-500 mb-4">{meta.desc}</p>
                   <div className="mb-6">
@@ -539,7 +550,7 @@ function Pricing({ plans, loading }: { plans: Plan[]; loading: boolean }) {
                       </li>
                     ))}
                   </ul>
-                  <Link href="/register" className={`block text-center w-full py-3.5 rounded-xl font-bold text-sm transition-all ${meta.btnStyle}`}>
+                  <Link href="/register" className={`block text-center w-full py-3.5 rounded-xl font-bold text-sm transition-all btn-press ${meta.btnStyle}`}>
                     {meta.cta}
                   </Link>
                 </div>
@@ -548,9 +559,22 @@ function Pricing({ plans, loading }: { plans: Plan[]; loading: boolean }) {
           )}
         </div>
 
-        <p className="text-center text-sm text-gray-400 mt-8 max-w-lg mx-auto">
-          💰 <strong>Garantie satisfait ou remboursé</strong> — Si aucun créneau n&apos;est détecté pendant votre période, vous êtes remboursé intégralement.
-        </p>
+        <div className="mt-8 max-w-4xl mx-auto">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+            <h3 className="font-bold text-blue-800 mb-2 flex items-center gap-2">
+              ℹ️ Conditions importantes
+            </h3>
+            <ul className="text-sm text-blue-700 space-y-1">
+              <li>• <strong>Urgence 24h :</strong> Service vendu tel quel, pas de remboursement</li>
+              <li>• <strong>Urgence 7 jours :</strong> 50% remboursé si aucun créneau détecté</li>
+              <li>• <strong>Urgence Totale :</strong> 100% remboursé si aucun RDV trouvé (garantie automatique)</li>
+              <li>• Garanties non applicables en cas de mauvaise configuration ou site indisponible</li>
+            </ul>
+          </div>
+          <p className="text-center text-xs text-gray-400">
+            💰 Consultez nos <Link href="/cgv" className="text-primary underline font-medium">Conditions Générales de Vente</Link> pour le détail des politiques de remboursement
+          </p>
+        </div>
       </div>
     </motion.section>
   );
@@ -622,7 +646,7 @@ function Comparison() {
     >
       <div className="max-w-3xl mx-auto px-4">
         <h2 className="text-2xl md:text-3xl font-black text-gray-900 text-center mb-10">Sans RDVPriority vs Avec</h2>
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
           <div className="card-urgent bg-white rounded-xl p-6">
             <h3 className="text-lg font-bold text-accent mb-4">❌ Sans RDVPriority</h3>
             <ul className="space-y-3 text-sm text-gray-600">
@@ -717,7 +741,7 @@ function FinalCTA() {
         <p className="text-lg text-white/60 mb-10 max-w-xl mx-auto">
           Chaque seconde sans surveillance, c&apos;est un créneau pris par quelqu&apos;un d&apos;autre.
         </p>
-        <Link href="/register" className="gradient-urgent text-white px-10 py-5 rounded-xl font-black text-lg shadow-xl shadow-accent/30 hover:scale-105 transition-transform inline-flex items-center gap-2 urgent-glow">
+        <Link href="/register" className="gradient-urgent text-white px-8 py-4 sm:px-10 sm:py-5 rounded-xl font-black text-base sm:text-lg shadow-xl shadow-accent/30 hover:scale-105 transition-transform inline-flex items-center gap-2 urgent-glow btn-press">
           🚨 Activer la surveillance — à partir de 4,99€
         </Link>
         <p className="text-white/30 text-sm mt-4">Paiement sécurisé • Résultat garanti ou remboursé</p>

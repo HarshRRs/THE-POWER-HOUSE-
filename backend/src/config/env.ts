@@ -23,6 +23,10 @@ const envSchema = z.object({
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_PHONE_NUMBER: z.string().optional(),
   
+  // WhatsApp Cloud API
+  WHATSAPP_PHONE_ID: z.string().optional(),
+  WHATSAPP_ACCESS_TOKEN: z.string().optional(),
+  
   // Telegram
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   

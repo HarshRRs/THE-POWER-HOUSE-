@@ -30,7 +30,7 @@ FROM node:20-slim AS runner
 
 WORKDIR /app
 
-# Install runtime dependencies for Playwright
+# Install runtime dependencies for Playwright + curl for health checks
 RUN apt-get update && apt-get install -y \
     openssl \
     libnss3 \
@@ -49,6 +49,7 @@ RUN apt-get update && apt-get install -y \
     libasound2 \
     libpango-1.0-0 \
     libcairo2 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy built application

@@ -1,3 +1,5 @@
+import { PrefectureConfig } from '../types';
+
 /**
  * RDVPriority - Prefecture Configuration
  *
@@ -5,7 +7,7 @@
  * This is the single source of truth for all prefecture data.
  */
 
-const PREFECTURES = [
+export const PREFECTURES: PrefectureConfig[] = [
     // ═══════════════════════════════════════════
     // TIER 1 — CRITICAL (Paris Region) ★★★★★
     // ═══════════════════════════════════════════
@@ -136,5 +138,3 @@ const PREFECTURES = [
         active: true,
     },
 ];
-
-module.exports = { PREFECTURES };

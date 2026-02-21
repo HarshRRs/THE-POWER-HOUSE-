@@ -8,16 +8,26 @@ export function errorHandler(
   res: Response,
   _next: NextFunction
 ): void {
+  const requestId = req.requestId;
+
   logger.error(`Error: ${err.message}`, { 
     stack: err.stack,
     path: req.path,
     method: req.method,
+    requestId,
+    userId: req.user?.id,
   });
+
+  // Set request ID in response header for client debugging
+  if (requestId) {
+    res.setHeader('X-Request-ID', requestId);
+  }
 
   if (err instanceof ApiError) {
     res.status(err.statusCode).json({
       success: false,
       error: err.message,
+      requestId,
     });
     return;
   }
@@ -30,6 +40,7 @@ export function errorHandler(
       res.status(409).json({
         success: false,
         error: 'A record with this value already exists.',
+        requestId,
       });
       return;
     }
@@ -38,6 +49,7 @@ export function errorHandler(
       res.status(404).json({
         success: false,
         error: 'Record not found.',
+        requestId,
       });
       return;
     }
@@ -48,6 +60,7 @@ export function errorHandler(
     res.status(401).json({
       success: false,
       error: 'Invalid or expired token.',
+      requestId,
     });
     return;
   }
@@ -61,6 +74,7 @@ export function errorHandler(
   res.status(statusCode).json({
     success: false,
     error: message,
+    requestId,
   });
 }
 

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import type { Request, Response } from 'express';
 import { prisma } from '../config/database.js';
 import { sendTelegram, extractChatId, type TelegramUpdate } from '../services/notifications/telegram.service.js';
@@ -73,8 +74,8 @@ router.post('/link', async (req: Request, res: Response) => {
       return;
     }
 
-    // Generate random 6-char code
-    const linkCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    // Generate cryptographically secure 8-char code
+    const linkCode = crypto.randomBytes(4).toString('hex').toUpperCase();
     
     // Store pending link code
     await prisma.user.update({

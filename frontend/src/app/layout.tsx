@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/auth";
@@ -8,6 +8,15 @@ const inter = Inter({
   variable: "--font-inter",
   display: "swap",
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: "#000091",
+};
 
 export const metadata: Metadata = {
   title: "RDVPriority.fr — Alertes Créneaux Préfecture en Temps Réel",
@@ -22,6 +31,14 @@ export const metadata: Metadata = {
     "alerte préfecture",
     "France visa",
   ],
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "RDVPriority",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export default function RootLayout({
@@ -31,7 +48,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" className={inter.variable}>
-      <body className="font-sans antialiased">
+      <body className="font-sans antialiased overscroll-none">
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

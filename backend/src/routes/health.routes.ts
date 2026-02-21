@@ -2,16 +2,18 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { prisma } from '../config/database.js';
 import { redis } from '../config/redis.js';
+import { scraperQueue, notificationQueue } from '../config/bullmq.js';
 import { sendSuccess } from '../utils/responses.util.js';
 
 const router = Router();
 
 // GET /api/health - Health check
 router.get('/', async (_req: Request, res: Response) => {
-  const checks = {
+  const checks: Record<string, unknown> = {
     api: 'ok',
     database: 'unknown',
     redis: 'unknown',
+    queues: 'unknown',
     timestamp: new Date().toISOString(),
   };
 
@@ -29,6 +31,25 @@ router.get('/', async (_req: Request, res: Response) => {
     checks.redis = 'error';
   }
 
+  try {
+    const [scraperActive, scraperWaiting, scraperFailed] = await Promise.all([
+      scraperQueue.getActiveCount(),
+      scraperQueue.getWaitingCount(),
+      scraperQueue.getFailedCount(),
+    ]);
+    const [notifActive, notifWaiting, notifFailed] = await Promise.all([
+      notificationQueue.getActiveCount(),
+      notificationQueue.getWaitingCount(),
+      notificationQueue.getFailedCount(),
+    ]);
+    checks.queues = {
+      scraper: { active: scraperActive, waiting: scraperWaiting, failed: scraperFailed },
+      notifications: { active: notifActive, waiting: notifWaiting, failed: notifFailed },
+    };
+  } catch {
+    checks.queues = 'error';
+  }
+
   const allOk = checks.database === 'ok' && checks.redis === 'ok';
   const status = allOk ? 200 : 503;
 
@@ -38,7 +59,18 @@ router.get('/', async (_req: Request, res: Response) => {
   });
 });
 
-// GET /api/stats - Public statistics
+// GET /api/health/ready - Readiness probe
+router.get('/ready', async (_req: Request, res: Response) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    await redis.ping();
+    res.status(200).json({ ready: true });
+  } catch {
+    res.status(503).json({ ready: false });
+  }
+});
+
+// GET /api/health/stats - Public statistics
 router.get('/stats', async (_req: Request, res: Response) => {
   try {
     const [

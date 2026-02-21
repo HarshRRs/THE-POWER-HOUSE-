@@ -74,11 +74,11 @@ export default function BillingPage() {
 
             {/* Current Plan */}
             <div className="bg-white rounded-2xl card-shadow overflow-hidden">
-                <div className="gradient-primary p-6 text-white">
+                <div className="gradient-primary p-5 sm:p-6 text-white">
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-xs font-bold uppercase tracking-widest opacity-80">Votre plan actif</p>
-                            <h2 className="text-xl font-black mt-1">🔥 {planName}</h2>
+                            <h2 className="text-lg sm:text-xl font-black mt-1">🔥 {planName}</h2>
                         </div>
                         {isActive && (
                             <span className="bg-white/20 text-white text-[10px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5">
@@ -88,7 +88,7 @@ export default function BillingPage() {
                     </div>
                 </div>
 
-                <div className="p-6">
+                <div className="p-5 sm:p-6">
                     <CountdownTimer expiresAt={user?.planExpiresAt || null} />
 
                     {planFeatures.length > 0 && (
@@ -103,7 +103,7 @@ export default function BillingPage() {
 
                     {isActive && user?.plan !== "URGENCE_TOTAL" && (
                         <div className="flex gap-2 mt-4">
-                            <button onClick={() => handleUpgrade("URGENCE_TOTAL")} className="flex-1 gradient-urgent text-white text-xs font-bold py-3 rounded-xl hover:opacity-90">
+                            <button onClick={() => handleUpgrade("URGENCE_TOTAL")} className="flex-1 gradient-urgent text-white text-xs font-bold py-3 rounded-xl hover:opacity-90 btn-press">
                                 ⬆️ Passer à Urgence Totale
                             </button>
                         </div>
@@ -115,7 +115,7 @@ export default function BillingPage() {
             {(!isActive || user?.plan === "FREE") && (
                 <section>
                     <h2 className="text-sm font-black text-gray-900 uppercase tracking-wide mb-3">💳 Choisir un plan</h2>
-                    <div className="grid gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {[
                             { id: "URGENCE_24H", name: "Urgence 24h", price: "4,99€", period: "24 heures", features: PLAN_FEATURES.URGENCE_24H },
                             { id: "URGENCE_7J", name: "Urgence 7 jours", price: "14,99€", period: "7 jours", features: PLAN_FEATURES.URGENCE_7J, badge: "POPULAIRE" },
@@ -137,7 +137,7 @@ export default function BillingPage() {
                                         </li>
                                     ))}
                                 </ul>
-                                <button onClick={() => handleUpgrade(p.id)} className="w-full gradient-urgent text-white text-xs font-bold py-3 rounded-xl hover:opacity-90">
+                                <button onClick={() => handleUpgrade(p.id)} className="w-full gradient-urgent text-white text-xs font-bold py-3 rounded-xl hover:opacity-90 btn-press">
                                     Choisir ce plan
                                 </button>
                             </div>
@@ -180,7 +180,7 @@ export default function BillingPage() {
 
             {/* Cancel */}
             {isActive && (
-                <button onClick={handleCancel} disabled={cancelling} className="text-xs text-gray-400 hover:text-accent font-semibold transition-colors">
+                <button onClick={handleCancel} disabled={cancelling} className="text-xs text-gray-400 hover:text-accent font-semibold transition-colors py-2">
                     {cancelling ? "Annulation..." : "Annuler mon abonnement"}
                 </button>
             )}

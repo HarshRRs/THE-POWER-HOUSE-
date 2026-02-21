@@ -16,12 +16,15 @@ const colors = {
     warning: "bg-warning-light border-warning/30 text-warning",
 };
 
-const icons = { success: "✅", error: "❌", info: "ℹ️", warning: "⚠️" };
+const icons = { success: "\u2705", error: "\u274C", info: "\u2139\uFE0F", warning: "\u26A0\uFE0F" };
 
 export default function Toast({ message, type = "success", duration = 4000, onClose }: ToastProps) {
-    const [visible, setVisible] = useState(true);
+    const [visible, setVisible] = useState(false);
 
     useEffect(() => {
+        // Trigger enter animation on next frame
+        requestAnimationFrame(() => setVisible(true));
+
         const timer = setTimeout(() => {
             setVisible(false);
             setTimeout(onClose, 300);
@@ -31,13 +34,15 @@ export default function Toast({ message, type = "success", duration = 4000, onCl
 
     return (
         <div
-            className={`fixed top-4 right-4 z-[100] max-w-sm border rounded-xl px-5 py-4 shadow-xl transition-all duration-300 ${visible ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
-                } ${colors[type]}`}
+            className={`fixed top-0 left-0 right-0 sm:top-4 sm:right-4 sm:left-auto z-[100] sm:max-w-sm border-b sm:border rounded-none sm:rounded-xl px-5 py-4 shadow-xl transition-all duration-300 ease-out ${
+                visible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
+            } ${colors[type]}`}
+            style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}
         >
             <div className="flex items-center gap-3">
                 <span className="text-lg">{icons[type]}</span>
-                <p className="text-sm font-semibold">{message}</p>
-                <button onClick={() => { setVisible(false); setTimeout(onClose, 300); }} className="ml-auto text-current opacity-60 hover:opacity-100">✕</button>
+                <p className="text-sm font-semibold flex-1">{message}</p>
+                <button onClick={() => { setVisible(false); setTimeout(onClose, 300); }} className="ml-auto text-current opacity-60 hover:opacity-100 p-1 touch-target flex items-center justify-center">&times;</button>
             </div>
         </div>
     );

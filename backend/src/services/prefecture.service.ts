@@ -1,78 +1,91 @@
 import { prisma } from '../config/database.js';
 import type { PrefectureStatus } from '@prisma/client';
+import {
+  getPrefectureCache,
+  getPrefectureListCache,
+  getActivePrefecturesCache,
+  invalidatePrefectureCache,
+  getStatsCache,
+} from './cache.service.js';
 
 import { ALL_PREFECTURES } from '../scraper/prefectures/index.js';
 
 export async function getAllPrefectures() {
-  try {
-    const prefectures = await prisma.prefecture.findMany({
-      orderBy: [
-        { tier: 'asc' },
-        { name: 'asc' },
-      ],
-      select: {
-        id: true,
-        name: true,
-        department: true,
-        region: true,
-        tier: true,
-        status: true,
-        lastScrapedAt: true,
-        lastSlotFoundAt: true,
+  return getPrefectureListCache(async () => {
+    try {
+      const prefectures = await prisma.prefecture.findMany({
+        orderBy: [
+          { tier: 'asc' },
+          { name: 'asc' },
+        ],
+        select: {
+          id: true,
+          name: true,
+          department: true,
+          region: true,
+          tier: true,
+          status: true,
+          lastScrapedAt: true,
+          lastSlotFoundAt: true,
+          _count: {
+            select: {
+              alerts: {
+                where: { isActive: true },
+              },
+            },
+          },
+        },
+      });
+
+      if (prefectures.length === 0) {
+        throw new Error("No prefectures found in database");
+      }
+
+      return prefectures;
+    } catch (error) {
+      console.warn("Database error or empty, returning mock prefectures");
+      return ALL_PREFECTURES.map(p => ({
+        id: p.id,
+        name: p.name,
+        department: p.department,
+        region: p.region,
+        tier: p.tier,
+        status: 'ACTIVE',
+        lastScrapedAt: new Date(),
+        lastSlotFoundAt: null,
+        _count: { alerts: 0 }
+      }));
+    }
+  });
+}
+
+export async function getPrefectureById(prefectureId: string) {
+  return getPrefectureCache(prefectureId, async () => {
+    const prefecture = await prisma.prefecture.findUnique({
+      where: { id: prefectureId },
+      include: {
         _count: {
           select: {
-            alerts: {
-              where: { isActive: true },
-            },
+            alerts: { where: { isActive: true } },
+            detections: true,
           },
         },
       },
     });
 
-    if (prefectures.length === 0) {
-      throw new Error("No prefectures found in database");
-    }
-
-    return prefectures;
-  } catch (error) {
-    console.warn("Database error or empty, returning mock prefectures");
-    return ALL_PREFECTURES.map(p => ({
-      id: p.id,
-      name: p.name,
-      department: p.department,
-      region: p.region,
-      tier: p.tier,
-      status: 'ACTIVE',
-      lastScrapedAt: new Date(),
-      lastSlotFoundAt: null,
-      _count: { alerts: 0 }
-    }));
-  }
-}
-
-export async function getPrefectureById(prefectureId: string) {
-  const prefecture = await prisma.prefecture.findUnique({
-    where: { id: prefectureId },
-    include: {
-      _count: {
-        select: {
-          alerts: { where: { isActive: true } },
-          detections: true,
-        },
-      },
-    },
+    return prefecture;
   });
-
-  return prefecture;
 }
 
 export async function getPrefecturesByTier(tier: number) {
-  const prefectures = await prisma.prefecture.findMany({
-    where: { tier },
-    orderBy: { name: 'asc' },
-  });
+  return getStatsCache(`tier:${tier}`, async () => {
+    const prefectures = await prisma.prefecture.findMany({
+      where: { tier },
+      orderBy: { name: 'asc' },
+    });
 
-  return prefectures;
+    return prefectures;
+  }, 300);
 }
 
 export async function updatePrefectureStatus(
@@ -106,6 +119,9 @@ export async function updatePrefectureStatus(
       },
     });
   }
+
+  // Invalidate cache after update
+  await invalidatePrefectureCache(prefectureId);
 }
 
 export async function recordSlotFound(prefectureId: string) {
@@ -117,52 +133,57 @@ export async function recordSlotFound(prefectureId: string) {
       status: 'ACTIVE',
     },
   });
+
+  // Invalidate cache after update
+  await invalidatePrefectureCache(prefectureId);
 }
 
 export async function getActivePrefecturesWithAlerts() {
-  const prefectures = await prisma.prefecture.findMany({
-    where: {
-      status: 'ACTIVE',
-      alerts: {
-        some: {
-          isActive: true,
-          user: {
-            plan: { not: 'NONE' },
-            planExpiresAt: { gt: new Date() },
-          },
-        },
-      },
-    },
-    include: {
-      alerts: {
-        where: {
-          isActive: true,
-          user: {
-            plan: { not: 'NONE' },
-            planExpiresAt: { gt: new Date() },
-          },
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              phone: true,
-              telegramChatId: true,
-              fcmTokens: true,
-              notifyEmail: true,
-              notifyTelegram: true,
-              notifySms: true,
-              notifyFcm: true,
-              plan: true,
+  return getActivePrefecturesCache(async () => {
+    const prefectures = await prisma.prefecture.findMany({
+      where: {
+        status: 'ACTIVE',
+        alerts: {
+          some: {
+            isActive: true,
+            user: {
+              plan: { not: 'NONE' },
+              planExpiresAt: { gt: new Date() },
             },
           },
         },
       },
-    },
-  });
+      include: {
+        alerts: {
+          where: {
+            isActive: true,
+            user: {
+              plan: { not: 'NONE' },
+              planExpiresAt: { gt: new Date() },
+            },
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                phone: true,
+                telegramChatId: true,
+                fcmTokens: true,
+                notifyEmail: true,
+                notifyTelegram: true,
+                notifySms: true,
+                notifyFcm: true,
+                plan: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
-  return prefectures;
+    return prefectures;
+  });
 }
 
 export async function getRecentDetections(prefectureId: string, limit = 10) {

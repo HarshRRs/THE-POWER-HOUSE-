@@ -25,7 +25,7 @@ export interface PrefectureConfig {
 }
 
 export interface ScrapeResult {
-  status: 'slots_found' | 'no_slots' | 'error' | 'captcha' | 'timeout';
+  status: 'slots_found' | 'no_slots' | 'error' | 'captcha' | 'timeout' | 'blocked';
   slotsAvailable: number;
   slotDate?: string;
   slotTime?: string;

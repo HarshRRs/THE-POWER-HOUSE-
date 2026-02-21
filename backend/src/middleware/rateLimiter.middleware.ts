@@ -10,9 +10,19 @@ export const authLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
-    return req.ip || req.socket.remoteAddress || 'unknown';
+  validate: { xForwardedForHeader: false },
+});
+
+export const refreshLimiter = rateLimit({
+  windowMs: RATE_LIMITS.refresh.windowMs,
+  max: RATE_LIMITS.refresh.max,
+  message: {
+    success: false,
+    error: 'Too many refresh attempts. Please try again later.',
   },
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
 });
 
 export const generalLimiter = rateLimit({

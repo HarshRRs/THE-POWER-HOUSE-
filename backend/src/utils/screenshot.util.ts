@@ -6,7 +6,10 @@ export async function ensureScreenshotDir(): Promise<void> {
   await fs.mkdir(SCRAPER_CONFIG.screenshotDir, { recursive: true });
 }
 
-export function generateScreenshotPath(prefectureId: string, type: 'detection' | 'error' = 'detection'): string {
+export function generateScreenshotPath(
+  prefectureId: string, 
+  type: 'detection' | 'error' | 'captcha' | 'blocked' = 'detection'
+): string {
   const timestamp = Date.now();
   const filename = `${type}_${prefectureId}_${timestamp}.png`;
   return path.join(SCRAPER_CONFIG.screenshotDir, filename);

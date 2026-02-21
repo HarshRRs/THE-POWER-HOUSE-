@@ -2,11 +2,13 @@ import { z } from 'zod';
 
 export const updateProfileSchema = z.object({
   phone: z.string().optional().nullable(),
+  whatsappNumber: z.string().optional().nullable(),
   telegramChatId: z.string().optional().nullable(),
 });
 
 export const updateNotificationPrefsSchema = z.object({
   notifyEmail: z.boolean().optional(),
+  notifyWhatsapp: z.boolean().optional(),
   notifyTelegram: z.boolean().optional(),
   notifySms: z.boolean().optional(),
   notifyFcm: z.boolean().optional(),

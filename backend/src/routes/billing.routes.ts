@@ -12,11 +12,12 @@ import { validateBody } from '../middleware/validation.middleware.js';
 import { createCheckoutSchema } from '../validators/billing.validator.js';
 import { sendSuccess, sendError } from '../utils/responses.util.js';
 import { PLAN_LIMITS } from '../config/constants.js';
+import { billingUserLimiter } from '../middleware/userRateLimiter.middleware.js';
 
 const router = Router();
 
 // GET /api/billing/plans - Get available plans
-router.get('/plans', (_req: Request, res: Response) => {
+router.get('/plans', (_req: Request, res: Response, next: NextFunction) => {
   try {
     const plans = Object.entries(PLAN_LIMITS)
       .filter(([key]) => key !== 'NONE')
@@ -37,8 +38,7 @@ router.get('/plans', (_req: Request, res: Response) => {
 
     sendSuccess(res, plans);
   } catch (error) {
-    // Should not happen given it's static data, but good practice
-    sendError(res, 'Failed to fetch plans', 500);
+    next(error);
   }
 });
 
@@ -46,6 +46,7 @@ router.get('/plans', (_req: Request, res: Response) => {
 router.post(
   '/checkout',
   authMiddleware,
+  billingUserLimiter,
   validateBody(createCheckoutSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {

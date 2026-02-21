@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
+import { getAccessToken } from "@/lib/api";
 
 interface SlotDetection {
     prefectureId: string;
@@ -15,7 +16,7 @@ interface SlotDetection {
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:4000";
 
-export function useWebSocket(token: string | null) {
+export function useWebSocket(isAuthenticated: boolean) {
     const socketRef = useRef<Socket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
     const [lastDetection, setLastDetection] = useState<SlotDetection | null>(null);
@@ -23,8 +24,8 @@ export function useWebSocket(token: string | null) {
 
     const showBrowserNotification = useCallback((detection: SlotDetection) => {
         if ("Notification" in window && Notification.permission === "granted") {
-            new Notification(`🚨 ${detection.slotsAvailable} créneau(x) détecté(s)!`, {
-                body: `${detection.prefectureName} (${detection.department}) — Réservez maintenant!`,
+            new Notification(`${detection.slotsAvailable} creneau(x) detecte(s)!`, {
+                body: `${detection.prefectureName} (${detection.department}) - Reservez maintenant!`,
                 icon: "/favicon.ico",
                 tag: `slot-${detection.prefectureId}`,
             });
@@ -32,6 +33,9 @@ export function useWebSocket(token: string | null) {
     }, []);
 
     useEffect(() => {
+        if (!isAuthenticated) return;
+
+        const token = getAccessToken();
         if (!token) return;
 
         const socket = io(WS_URL, {
@@ -62,7 +66,7 @@ export function useWebSocket(token: string | null) {
             socket.disconnect();
             socketRef.current = null;
         };
-    }, [token, showBrowserNotification]);
+    }, [isAuthenticated, showBrowserNotification]);
 
     const clearNotifications = () => setNotifications([]);
 

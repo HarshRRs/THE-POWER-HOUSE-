@@ -2,12 +2,17 @@ import 'dotenv/config';
 import { httpServer } from './server.js';
 import { connectDatabase, disconnectDatabase } from './config/database.js';
 import { connectRedis, disconnectRedis } from './config/redis.js';
+import { validateJwtSecrets } from './utils/jwt.util.js';
 import logger from './utils/logger.util.js';
 
 const PORT = process.env.PORT || 4000;
 
 async function bootstrap() {
   try {
+    // Validate security configuration first
+    validateJwtSecrets();
+    logger.info('Security configuration validated');
+
     // Connect to databases
     try {
       await connectDatabase();

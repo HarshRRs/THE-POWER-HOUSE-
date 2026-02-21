@@ -4,17 +4,29 @@ import { scrapePrefecture } from '../scraper/base.scraper.js';
 import { getPrefectureConfig } from '../scraper/prefectures/index.js';
 import { processDetection } from '../services/detection.service.js';
 import { updatePrefectureStatus } from '../services/prefecture.service.js';
+import { sendManualCaptchaAlert } from '../services/manual-captcha.service.js';
 import { SCRAPER_CONFIG } from '../config/constants.js';
+import { BOOTSTRAP_CONFIG, getEffectiveInterval, shouldScrapePrefecture, logBootstrapStatus } from '../config/bootstrap.config.js';
 import logger from '../utils/logger.util.js';
 import type { ScrapeJobData } from '../types/prefecture.types.js';
 
 export async function startScraperWorker(workerId: string, concurrency = 3) {
-  logger.info(`Starting scraper worker ${workerId} with concurrency ${concurrency}`);
+  // Use bootstrap concurrency if enabled
+  const effectiveConcurrency = BOOTSTRAP_CONFIG.enabled ? BOOTSTRAP_CONFIG.maxBrowsers : concurrency;
+  
+  logBootstrapStatus();
+  logger.info(`Starting scraper worker ${workerId} with concurrency ${effectiveConcurrency}`);
 
   const worker = createWorker<ScrapeJobData>(
     'scraper',
     async (job) => {
       const { prefectureId } = job.data;
+
+      // Bootstrap mode: Skip non-priority prefectures
+      if (!shouldScrapePrefecture(prefectureId)) {
+        logger.debug(`Skipping ${prefectureId}: Not in bootstrap priority list`);
+        return;
+      }
 
       try {
         // Get prefecture config
@@ -80,6 +92,22 @@ export async function startScraperWorker(workerId: string, concurrency = 3) {
         } else if (result.status === 'captcha') {
           await updatePrefectureStatus(prefectureId, 'CAPTCHA');
           logger.warn(`CAPTCHA detected for ${prefectureId}, pausing`);
+          
+          // Send manual CAPTCHA alert (bootstrap mode or no auto-solver)
+          const prefectureInfo = await prisma.prefecture.findUnique({
+            where: { id: prefectureId },
+            select: { name: true, bookingUrl: true },
+          });
+          
+          if (prefectureInfo) {
+            await sendManualCaptchaAlert({
+              prefectureId,
+              prefectureName: prefectureInfo.name,
+              bookingUrl: prefectureInfo.bookingUrl,
+              captchaType: 'detected',
+              detectedAt: new Date(),
+            });
+          }
         } else if (result.status === 'error' || result.status === 'timeout') {
           const newErrorCount = (prefecture.consecutiveErrors || 0) + 1;
           
@@ -115,13 +143,15 @@ export async function startScraperWorker(workerId: string, concurrency = 3) {
     concurrency
   );
 
-  worker.on('completed', (job) => {
-    logger.debug(`Scraper job ${job.id} completed`);
-  });
+  if (worker) {
+    worker.on('completed', (job) => {
+      logger.debug(`Scraper job ${job.id} completed`);
+    });
 
-  worker.on('failed', (job, error) => {
-    logger.error(`Scraper job ${job?.id} failed:`, error);
-  });
+    worker.on('failed', (job, error) => {
+      logger.error(`Scraper job ${job?.id} failed:`, error);
+    });
+  }
 
   return worker;
 }
@@ -137,6 +167,12 @@ export async function scheduleScraperJobs() {
   });
 
   for (const pref of prefectures) {
+    // Bootstrap mode: Skip non-priority prefectures
+    if (!shouldScrapePrefecture(pref.id)) {
+      logger.debug(`Skipping schedule for ${pref.id}: Not in bootstrap priority list`);
+      continue;
+    }
+
     // Check if there are active paying users
     const alertCount = await prisma.alert.count({
       where: {
@@ -150,6 +186,9 @@ export async function scheduleScraperJobs() {
     });
 
     const jobId = `repeat:${pref.id}`;
+    
+    // Use bootstrap-aware interval
+    const effectiveInterval = getEffectiveInterval(pref.checkInterval);
 
     if (alertCount > 0) {
       // Add or update repeatable job
@@ -157,11 +196,11 @@ export async function scheduleScraperJobs() {
         `scrape:${pref.id}`,
         { prefectureId: pref.id },
         {
-          repeat: { every: pref.checkInterval * 1000 },
+          repeat: { every: effectiveInterval * 1000 },
           jobId,
         }
       );
-      logger.debug(`Scheduled ${pref.id} every ${pref.checkInterval}s`);
+      logger.debug(`Scheduled ${pref.id} every ${effectiveInterval}s ${BOOTSTRAP_CONFIG.enabled ? '(bootstrap)' : ''}`);
     } else {
       // Remove job if no active alerts
       try {

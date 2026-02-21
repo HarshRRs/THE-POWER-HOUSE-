@@ -3,6 +3,7 @@ import type { ScrapeResult } from '../types/prefecture.types.js';
 import type { SlotDetectionData } from '../types/notification.types.js';
 import { dispatchSlotNotifications } from './notifications/notification.service.js';
 import { recordSlotFound } from './prefecture.service.js';
+import { deduplicationService } from './deduplication.service.js';
 import logger from '../utils/logger.util.js';
 import type { Plan } from '@prisma/client';
 
@@ -12,9 +13,11 @@ interface AlertWithUser {
     id: string;
     email: string;
     phone: string | null;
+    whatsappNumber: string | null;
     telegramChatId: string | null;
     fcmTokens: string[];
     notifyEmail: boolean;
+    notifyWhatsapp: boolean;
     notifyTelegram: boolean;
     notifySms: boolean;
     notifyFcm: boolean;
@@ -65,9 +68,11 @@ export async function processDetection(
           id: true,
           email: true,
           phone: true,
+          whatsappNumber: true,
           telegramChatId: true,
           fcmTokens: true,
           notifyEmail: true,
+          notifyWhatsapp: true,
           notifyTelegram: true,
           notifySms: true,
           notifyFcm: true,
@@ -91,17 +96,44 @@ export async function processDetection(
     return;
   }
 
-  // Create detection records
+  // Deduplication: Filter out alerts that have already received this notification
+  const nonDuplicateAlerts: AlertWithUser[] = [];
+  
+  for (const alert of activeAlerts) {
+    const isNew = await deduplicationService.checkAndMark({
+      prefectureId,
+      alertId: alert.id,
+      slotDate: result.slotDate,
+      slotTime: result.slotTime,
+    });
+
+    if (isNew) {
+      nonDuplicateAlerts.push(alert);
+    } else {
+      logger.debug(`Skipping duplicate notification for alert ${alert.id}`);
+    }
+  }
+
+  if (nonDuplicateAlerts.length === 0) {
+    logger.debug(`All ${activeAlerts.length} alerts were duplicates for ${prefectureId}`);
+    return;
+  }
+
+  logger.info(
+    `Deduplication: ${nonDuplicateAlerts.length}/${activeAlerts.length} alerts are new for ${prefectureId}`
+  );
+
+  // Create detection records only for non-duplicates
   await prisma.detection.createMany({
-    data: activeAlerts.map((alert) => ({
+    data: nonDuplicateAlerts.map((alert) => ({
       alertId: alert.id,
       ...detectionData,
     })),
   });
 
-  // Update alert stats
+  // Update alert stats only for non-duplicates
   await prisma.alert.updateMany({
-    where: { id: { in: activeAlerts.map((a) => a.id) } },
+    where: { id: { in: nonDuplicateAlerts.map((a) => a.id) } },
     data: {
       slotsFound: { increment: result.slotsAvailable },
       notificationsSent: { increment: 1 },
@@ -124,8 +156,8 @@ export async function processDetection(
     screenshotPath: result.screenshotPath,
   };
 
-  // Dispatch notifications to all users
-  const users = activeAlerts.map((alert) => alert.user);
+  // Dispatch notifications only to non-duplicate users
+  const users = nonDuplicateAlerts.map((alert) => alert.user);
   await dispatchSlotNotifications(users, slotData);
 
   logger.info(

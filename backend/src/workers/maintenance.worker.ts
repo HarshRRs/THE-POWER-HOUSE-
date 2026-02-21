@@ -76,13 +76,15 @@ export async function startMaintenanceWorker() {
     1 // Single concurrency for maintenance tasks
   );
 
-  worker.on('completed', (job) => {
-    logger.debug(`Maintenance job ${job.data.task} completed`);
-  });
+  if (worker) {
+    worker.on('completed', (job) => {
+      logger.debug(`Maintenance job ${job.data.task} completed`);
+    });
 
-  worker.on('failed', (job, error) => {
-    logger.error(`Maintenance job ${job?.data.task} failed:`, error);
-  });
+    worker.on('failed', (job, error) => {
+      logger.error(`Maintenance job ${job?.data.task} failed:`, error);
+    });
+  }
 
   return worker;
 }

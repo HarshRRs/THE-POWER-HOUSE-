@@ -5,6 +5,7 @@ import { PLAN_LIMITS } from '../../config/constants.js';
 import { sendEmail } from './email.service.js';
 import { sendSms } from './sms.service.js';
 import { sendTelegram } from './telegram.service.js';
+import { sendWhatsApp } from './whatsapp.service.js';
 import { emitSlotDetection } from './websocket.service.js';
 import { sendFcm } from './fcm.service.js';
 import { TEMPLATES } from './templates.js';
@@ -15,9 +16,11 @@ interface UserNotificationPrefs {
   id: string;
   email: string;
   phone: string | null;
+  whatsappNumber: string | null;
   telegramChatId: string | null;
   fcmTokens: string[];
   notifyEmail: boolean;
+  notifyWhatsapp: boolean;
   notifyTelegram: boolean;
   notifySms: boolean;
   notifyFcm: boolean;
@@ -51,6 +54,17 @@ export async function dispatchSlotNotifications(
         type: 'slot_detected',
         title: 'Slot Detected',
         body: TEMPLATES.slot_detected.sms(data),
+        metadata: data,
+      });
+    }
+
+    if (user.notifyWhatsapp && user.whatsappNumber && allowedChannels.includes('WHATSAPP')) {
+      await queueNotification({
+        userId: user.id,
+        channel: 'WHATSAPP',
+        type: 'slot_detected',
+        title: 'Slot Detected',
+        body: TEMPLATES.slot_detected.whatsapp(data),
         metadata: data,
       });
     }
@@ -101,6 +115,7 @@ export async function processNotification(payload: NotificationPayload): Promise
       select: {
         email: true,
         phone: true,
+        whatsappNumber: true,
         telegramChatId: true,
         fcmTokens: true,
       },
@@ -125,6 +140,15 @@ export async function processNotification(payload: NotificationPayload): Promise
           success = await sendSms({
             to: user.phone,
             body: body,
+          });
+        }
+        break;
+
+      case 'WHATSAPP':
+        if (user.whatsappNumber) {
+          success = await sendWhatsApp({
+            to: user.whatsappNumber,
+            message: body,
           });
         }
         break;

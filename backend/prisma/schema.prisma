@@ -16,14 +16,22 @@ model User {
   email             String    @unique
   passwordHash      String
   phone             String?
+  whatsappNumber    String?
   telegramChatId    String?
   fcmTokens         String[]  @default([])
   
+  role              Role      @default(USER)
   plan              Plan      @default(NONE)
   planExpiresAt     DateTime?
   stripeCustomerId  String?   @unique
   
+  emailVerified           Boolean   @default(false)
+  emailVerificationToken  String?
+  passwordResetToken      String?
+  passwordResetExpiresAt  DateTime?
+  
   notifyEmail       Boolean   @default(true)
+  notifyWhatsapp    Boolean   @default(false)
   notifyTelegram    Boolean   @default(false)
   notifySms         Boolean   @default(false)
   notifyFcm         Boolean   @default(false)
@@ -34,8 +42,17 @@ model User {
   alerts            Alert[]
   payments          Payment[]
   notifications     Notification[]
+  refreshTokens     RefreshToken[]
+  auditLogs         AuditLog[]
 
   @@index([plan, planExpiresAt])
+  @@index([role])
+  @@index([createdAt])  // For admin user listing
+}
+
+enum Role {
+  USER
+  ADMIN
 }
 
 enum Plan {
@@ -43,6 +60,54 @@ enum Plan {
   URGENCE_24H
   URGENCE_7J
   URGENCE_TOTAL
+}
+
+// ═══════════════════════════════════════
+// REFRESH TOKENS
+// ═══════════════════════════════════════
+
+model RefreshToken {
+  id          String   @id @default(uuid())
+  tokenHash   String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ═══════════════════════════════════════
+// STRIPE IDEMPOTENCY
+// ═══════════════════════════════════════
+
+model ProcessedStripeEvent {
+  id          String   @id @default(uuid())
+  eventId     String   @unique
+  processedAt DateTime @default(now())
+
+  @@index([processedAt])
+}
+
+// ═══════════════════════════════════════
+// AUDIT LOG
+// ═══════════════════════════════════════
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action       String
+  resourceType String
+  resourceId   String?
+  metadata     Json?
+  ip           String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
 }
 
 // ═══════════════════════════════════════
@@ -71,6 +136,7 @@ model Alert {
   @@unique([userId, prefectureId, procedure])
   @@index([prefectureId, isActive])
   @@index([userId])
+  @@index([userId, isActive, createdAt])  // For listing user's active alerts
 }
 
 enum Procedure {
@@ -166,6 +232,7 @@ model Payment {
   refundedAt        DateTime?
   
   @@index([userId, createdAt])
+  @@index([status, createdAt])  // For admin payment filtering
 }
 
 enum PaymentStatus {
@@ -199,11 +266,14 @@ model Notification {
   
   @@index([userId, createdAt])
   @@index([status])
+  @@index([channel, status])  // For channel-specific queries
+  @@index([createdAt])        // For cleanup queries
 }
 
 enum NotificationChannel {
   EMAIL
   SMS
+  WHATSAPP
   TELEGRAM
   WEBSOCKET
   FCM

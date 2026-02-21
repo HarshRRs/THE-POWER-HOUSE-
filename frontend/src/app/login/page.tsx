@@ -32,18 +32,18 @@ export default function LoginPage() {
             <div className="tricolor-bar w-full" />
 
             <header className="bg-white border-b border-gray-200">
-                <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+                <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between">
                     <Link href="/" className="text-lg font-extrabold text-primary">RDV<span className="text-accent">Priority</span><span className="text-gray-400 text-sm">.fr</span></Link>
-                    <Link href="/register" className="gradient-urgent text-white text-sm font-bold px-5 py-2.5 rounded-lg hover:opacity-90 flex items-center gap-1.5">
+                    <Link href="/register" className="gradient-urgent text-white text-sm font-bold px-4 py-2.5 rounded-xl hover:opacity-90 flex items-center gap-1.5 btn-press">
                         🚨 S&apos;inscrire
                     </Link>
                 </div>
             </header>
 
-            <main className="flex-1 flex items-center justify-center py-12 px-4">
+            <main className="flex-1 flex items-center justify-center py-6 px-4 sm:py-12">
                 <div className="w-full max-w-md">
-                    <div className="card-govt bg-white rounded-2xl p-8">
-                        <div className="text-center mb-8">
+                    <div className="card-govt bg-white rounded-2xl p-5 sm:p-8">
+                        <div className="text-center mb-6 sm:mb-8">
                             <h1 className="text-2xl font-black text-gray-900">Connexion</h1>
                             <p className="text-sm text-gray-500 mt-2">Accédez à votre tableau de surveillance</p>
                         </div>
@@ -57,13 +57,13 @@ export default function LoginPage() {
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-2">Email</label>
-                                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="votre@email.fr" required className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-primary outline-none text-sm bg-gray-50 focus:bg-white transition-colors" />
+                                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="votre@email.fr" required className="w-full input-mobile" />
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-2">Mot de passe</label>
-                                <input type="password" value={pass} onChange={(e) => setPass(e.target.value)} placeholder="••••••••" required className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-primary outline-none text-sm bg-gray-50 focus:bg-white transition-colors" />
+                                <input type="password" value={pass} onChange={(e) => setPass(e.target.value)} placeholder="••••••••" required className="w-full input-mobile" />
                             </div>
-                            <button type="submit" disabled={loading} className="w-full gradient-primary text-white py-4 rounded-xl font-bold text-sm shadow-lg shadow-primary/20 hover:opacity-90 disabled:opacity-60 transition-all">
+                            <button type="submit" disabled={loading} className="w-full gradient-primary text-white py-4 rounded-xl font-bold text-sm shadow-lg shadow-primary/20 hover:opacity-90 disabled:opacity-60 transition-all btn-press">
                                 {loading ? (
                                     <span className="flex items-center justify-center gap-2">
                                         <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -73,10 +73,13 @@ export default function LoginPage() {
                             </button>
                         </form>
 
-                        <div className="mt-6 pt-6 border-t border-gray-100 text-center">
+                        <div className="mt-6 pt-6 border-t border-gray-100 text-center space-y-2">
                             <p className="text-sm text-gray-500">
                                 Pas encore de compte ?{" "}
                                 <Link href="/register" className="text-accent font-bold hover:underline">Activer la surveillance →</Link>
+                            </p>
+                            <p>
+                                <Link href="/forgot-password" className="text-sm text-primary font-semibold hover:underline">Mot de passe oublie ?</Link>
                             </p>
                         </div>
                     </div>

@@ -12,11 +12,13 @@ import { authMiddleware } from '../middleware/auth.middleware.js';
 import { planMiddleware } from '../middleware/plan.middleware.js';
 import { createAlertSchema, updateAlertSchema, alertIdSchema } from '../validators/alert.validator.js';
 import { sendSuccess, sendError } from '../utils/responses.util.js';
+import { alertsUserLimiter } from '../middleware/userRateLimiter.middleware.js';
 
 const router = Router();
 
-// All alert routes require authentication
+// All alert routes require authentication + per-user rate limiting
 router.use(authMiddleware);
+router.use(alertsUserLimiter);
 
 // GET /api/alerts - Get all user alerts
 router.get(

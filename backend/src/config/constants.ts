@@ -30,7 +30,7 @@ export const PLAN_LIMITS: Record<Plan, PlanConfig> = {
     maxAlerts: 3,
     checkInterval: 60,
     duration: 7 * 24 * 60 * 60 * 1000, // 7 days
-    channels: ['EMAIL', 'TELEGRAM'],
+    channels: ['EMAIL', 'WHATSAPP', 'TELEGRAM'],
     price: 1499,
     type: 'one_time',
   },
@@ -38,7 +38,7 @@ export const PLAN_LIMITS: Record<Plan, PlanConfig> = {
     maxAlerts: Infinity,
     checkInterval: 30,
     duration: 30 * 24 * 60 * 60 * 1000, // 30 days
-    channels: ['EMAIL', 'TELEGRAM', 'SMS', 'WEBSOCKET', 'FCM'],
+    channels: ['EMAIL', 'WHATSAPP', 'TELEGRAM', 'SMS', 'WEBSOCKET', 'FCM'],
     price: 2999,
     type: 'subscription',
   },
@@ -63,6 +63,10 @@ export const RATE_LIMITS = {
   auth: {
     windowMs: 60 * 1000, // 1 minute
     max: 5,
+  },
+  refresh: {
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // 10 refresh attempts per 15 minutes per IP
   },
   general: {
     windowMs: 15 * 60 * 1000, // 15 minutes

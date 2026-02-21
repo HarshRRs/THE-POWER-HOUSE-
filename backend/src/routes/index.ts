@@ -6,6 +6,7 @@ import usersRoutes from './users.routes.js';
 import healthRoutes from './health.routes.js';
 import billingRoutes from './billing.routes.js';
 import telegramRoutes from './telegram.routes.js';
+import adminRoutes from './admin.routes.js';
 
 const router = Router();
 
@@ -16,6 +17,7 @@ router.use('/users', usersRoutes);
 router.use('/health', healthRoutes);
 router.use('/billing', billingRoutes);
 router.use('/telegram', telegramRoutes);
+router.use('/admin', adminRoutes);
 
 // Stats endpoint (alias to health/stats)
 router.get('/stats', (_req, res) => {

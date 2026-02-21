@@ -53,6 +53,13 @@ export async function createCheckoutSession(userId: string, email: string, plan:
   return { checkoutUrl: session.url, sessionId: session.id };
 }
 
+async function isEventProcessed(eventId: string): Promise<boolean> {
+  const existing = await prisma.processedStripeEvent.findUnique({
+    where: { eventId },
+  });
+  return !!existing;
+}
+
 export async function handleWebhook(payload: Buffer, signature: string) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   
@@ -69,33 +76,41 @@ export async function handleWebhook(payload: Buffer, signature: string) {
     throw new ApiError('Invalid webhook signature', 400);
   }
 
+  // Idempotency check: skip if already processed
+  if (await isEventProcessed(event.id)) {
+    logger.info(`Stripe event ${event.id} already processed, skipping`);
+    return { received: true, duplicate: true };
+  }
+
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
-      await handleCheckoutComplete(session);
+      await handleCheckoutComplete(session, event.id);
       break;
     }
 
     case 'invoice.payment_succeeded': {
       const invoice = event.data.object as Stripe.Invoice;
-      await handleInvoicePaid(invoice);
+      await handleInvoicePaid(invoice, event.id);
       break;
     }
 
     case 'customer.subscription.deleted': {
       const subscription = event.data.object as Stripe.Subscription;
-      await handleSubscriptionCancelled(subscription);
+      await handleSubscriptionCancelled(subscription, event.id);
       break;
     }
 
     default:
       logger.info(`Unhandled Stripe event: ${event.type}`);
+      // Record even unhandled events to prevent reprocessing
+      await prisma.processedStripeEvent.create({ data: { eventId: event.id } });
   }
 
   return { received: true };
 }
 
-async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
+async function handleCheckoutComplete(session: Stripe.Checkout.Session, eventId: string) {
   const userId = session.metadata?.userId;
   const plan = session.metadata?.plan as Plan;
 
@@ -104,34 +119,40 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
     return;
   }
 
-  // Update user with Stripe customer ID
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      stripeCustomerId: session.customer as string,
-    },
-  });
+  // Use transaction for atomicity: record event + update user + create payment + activate plan
+  await prisma.$transaction(async (tx) => {
+    // Mark event as processed within transaction
+    await tx.processedStripeEvent.create({ data: { eventId } });
 
-  // Activate plan
-  await activatePlan(userId, plan);
+    // Update user with Stripe customer ID
+    await tx.user.update({
+      where: { id: userId },
+      data: {
+        stripeCustomerId: session.customer as string,
+      },
+    });
 
-  // Record payment
-  await prisma.payment.create({
-    data: {
-      userId,
-      plan,
-      amount: session.amount_total || PLAN_LIMITS[plan].price,
-      stripePaymentId: (session.payment_intent as string) || session.subscription as string,
-      stripeSessionId: session.id,
-      status: 'COMPLETED',
-      paidAt: new Date(),
-    },
+    // Record payment
+    await tx.payment.create({
+      data: {
+        userId,
+        plan,
+        amount: session.amount_total || PLAN_LIMITS[plan].price,
+        stripePaymentId: (session.payment_intent as string) || session.subscription as string,
+        stripeSessionId: session.id,
+        status: 'COMPLETED',
+        paidAt: new Date(),
+      },
+    });
+
+    // Activate plan within the same transaction
+    await activatePlan(userId, plan, tx);
   });
 
   logger.info(`Checkout complete: User ${userId} activated plan ${plan}`);
 }
 
-async function handleInvoicePaid(invoice: Stripe.Invoice) {
+async function handleInvoicePaid(invoice: Stripe.Invoice, eventId: string) {
   const customerId = invoice.customer as string;
 
   const user = await prisma.user.findFirst({
@@ -143,12 +164,19 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
     return;
   }
 
-  // Renew subscription
-  await renewSubscription(user.id);
+  // Use transaction for atomicity: record event + renew subscription
+  await prisma.$transaction(async (tx) => {
+    // Mark event as processed FIRST within transaction
+    await tx.processedStripeEvent.create({ data: { eventId } });
+
+    // Renew subscription within the same transaction
+    await renewSubscription(user.id, tx);
+  });
+
   logger.info(`Subscription renewed for user ${user.id}`);
 }
 
-async function handleSubscriptionCancelled(subscription: Stripe.Subscription) {
+async function handleSubscriptionCancelled(subscription: Stripe.Subscription, eventId: string) {
   const customerId = subscription.customer as string;
 
   const user = await prisma.user.findFirst({
@@ -160,7 +188,15 @@ async function handleSubscriptionCancelled(subscription: Stripe.Subscription) {
     return;
   }
 
-  await cancelSubscription(user.id);
+  // Use transaction for atomicity: record event + cancel subscription
+  await prisma.$transaction(async (tx) => {
+    // Mark event as processed FIRST within transaction
+    await tx.processedStripeEvent.create({ data: { eventId } });
+
+    // Cancel subscription within the same transaction
+    await cancelSubscription(user.id, tx);
+  });
+
   logger.info(`Subscription cancelled for user ${user.id}`);
 }
 

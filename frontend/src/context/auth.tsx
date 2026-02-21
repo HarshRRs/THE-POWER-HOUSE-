@@ -1,16 +1,20 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
-import api, { getErrorMessage } from "@/lib/api";
+import api, { setAccessToken, getErrorMessage, fetchCsrfToken } from "@/lib/api";
 
 interface User {
     id: string;
     email: string;
     phone?: string | null;
+    whatsappNumber?: string | null;
     telegramChatId?: string | null;
+    role: string;
     plan: string;
     planExpiresAt: string | null;
+    emailVerified?: boolean;
     notifyEmail?: boolean;
+    notifyWhatsapp?: boolean;
     notifyTelegram?: boolean;
     notifySms?: boolean;
     notifyFcm?: boolean;
@@ -20,7 +24,6 @@ interface User {
 
 interface AuthContextType {
     user: User | null;
-    token: string | null;
     isLoading: boolean;
     isAuthenticated: boolean;
     login: (email: string, password: string) => Promise<void>;
@@ -33,7 +36,6 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
-    const [token, setToken] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     const refreshUser = useCallback(async () => {
@@ -42,47 +44,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(res.data.data);
         } catch {
             setUser(null);
-            setToken(null);
-            localStorage.removeItem("rdv_token");
-            localStorage.removeItem("rdv_user");
+            setAccessToken(null);
         }
     }, []);
 
-    // On mount: check for saved token
+    // On mount: fetch CSRF token and try to restore session via refresh token (httpOnly cookie)
     useEffect(() => {
-        const savedToken = localStorage.getItem("rdv_token");
-        if (savedToken) {
-            // eslint-disable-next-line react-hooks/exhaustive-deps
-            setToken(savedToken);
-            refreshUser().finally(() => setIsLoading(false));
-        } else {
-            setIsLoading(false);
+        async function initAuth() {
+            // First, ensure we have a CSRF token
+            await fetchCsrfToken();
+            
+            // Then attempt to get a new access token using the httpOnly cookie
+            try {
+                const res = await api.post("/auth/refresh", {});
+                const { accessToken } = res.data.data;
+                setAccessToken(accessToken);
+                
+                const userRes = await api.get("/auth/me");
+                setUser(userRes.data.data);
+            } catch {
+                setUser(null);
+                setAccessToken(null);
+            } finally {
+                setIsLoading(false);
+            }
         }
-    }, [refreshUser]);
+        
+        initAuth();
+    }, []);
 
     const login = async (email: string, password: string) => {
         const res = await api.post("/auth/login", { email, password });
-        const { user: userData, token: newToken } = res.data.data;
+        const { user: userData, accessToken } = res.data.data;
+        // Refresh token is set as httpOnly cookie by server
         setUser(userData);
-        setToken(newToken);
-        localStorage.setItem("rdv_token", newToken);
-        localStorage.setItem("rdv_user", JSON.stringify(userData));
+        setAccessToken(accessToken);
     };
 
     const register = async (email: string, password: string, phone?: string) => {
         const res = await api.post("/auth/register", { email, password, phone });
-        const { user: userData, token: newToken } = res.data.data;
+        const { user: userData, accessToken } = res.data.data;
+        // Refresh token is set as httpOnly cookie by server
         setUser(userData);
-        setToken(newToken);
-        localStorage.setItem("rdv_token", newToken);
-        localStorage.setItem("rdv_user", JSON.stringify(userData));
+        setAccessToken(accessToken);
     };
 
     const logout = () => {
+        // Fire-and-forget logout to server (clears httpOnly cookie)
+        api.post("/auth/logout", {}).catch(() => {});
         setUser(null);
-        setToken(null);
-        localStorage.removeItem("rdv_token");
-        localStorage.removeItem("rdv_user");
+        setAccessToken(null);
         window.location.href = "/login";
     };
 
@@ -90,9 +101,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         <AuthContext.Provider
             value={{
                 user,
-                token,
                 isLoading,
-                isAuthenticated: !!user && !!token,
+                isAuthenticated: !!user,
                 login,
                 register,
                 logout,
