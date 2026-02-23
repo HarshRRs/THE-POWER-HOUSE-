@@ -199,41 +199,41 @@ export default function NaturalisationFrancaisePrefecture() {
                   <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white font-bold">3</div>
                   <div className="w-0.5 h-full bg-gray-300 mt-2"></div>
                 </div>
-                <div class="pb-8">
-                  <h3 class="font-bold text-gray-800 mb-2">Obtention du RDV préfecture</h3>
-                  <p class="text-gray-600">Réservez un RDV via le site officiel ou utilisez un service de surveillance automatique pour les créneaux disponibles.</p>
+                <div className="pb-8">
+                  <h3 className="font-bold text-gray-800 mb-2">Obtention du RDV préfecture</h3>
+                  <p className="text-gray-600">Réservez un RDV via le site officiel ou utilisez un service de surveillance automatique pour les créneaux disponibles.</p>
                 </div>
               </div>
               
-              <div class="flex">
-                <div class="flex flex-col items-center mr-4">
-                  <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white font-bold">4</div>
-                  <div class="w-0.5 h-full bg-gray-300 mt-2"></div>
+              <div className="flex">
+                <div className="flex flex-col items-center mr-4">
+                  <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white font-bold">4</div>
+                  <div className="w-0.5 h-full bg-gray-300 mt-2"></div>
                 </div>
-                <div class="pb-8">
-                  <h3 class="font-bold text-gray-800 mb-2">Dépôt du dossier</h3>
-                  <p class="text-gray-600">Présentez-vous au RDV avec l'original et une copie de chaque document. Le dépôt prend généralement 1 à 2 heures.</p>
-                </div>
-              </div>
-              
-              <div class="flex">
-                <div class="flex flex-col items-center mr-4">
-                  <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white font-bold">5</div>
-                  <div class="w-0.5 h-full bg-gray-300 mt-2"></div>
-                </div>
-                <div class="pb-8">
-                  <h3 class="font-bold text-gray-800 mb-2">Instruction du dossier</h3>
-                  <p class="text-gray-600">La préfecture instruit votre dossier (6-18 mois). Vous pouvez suivre l'avancement avec votre numéro de dossier.</p>
+                <div className="pb-8">
+                  <h3 className="font-bold text-gray-800 mb-2">Dépôt du dossier</h3>
+                  <p className="text-gray-600">Présentez-vous au RDV avec l'original et une copie de chaque document. Le dépôt prend généralement 1 à 2 heures.</p>
                 </div>
               </div>
               
-              <div class="flex">
-                <div class="flex flex-col items-center mr-4">
-                  <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white font-bold">6</div>
+              <div className="flex">
+                <div className="flex flex-col items-center mr-4">
+                  <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white font-bold">5</div>
+                  <div className="w-0.5 h-full bg-gray-300 mt-2"></div>
+                </div>
+                <div className="pb-8">
+                  <h3 className="font-bold text-gray-800 mb-2">Instruction du dossier</h3>
+                  <p className="text-gray-600">La préfecture instruit votre dossier (6-18 mois). Vous pouvez suivre l'avancement avec votre numéro de dossier.</p>
+                </div>
+              </div>
+              
+              <div className="flex">
+                <div className="flex flex-col items-center mr-4">
+                  <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white font-bold">6</div>
                 </div>
                 <div>
-                  <h3 class="font-bold text-gray-800 mb-2">Convocation pour cérémonie</h3>
-                  <p class="text-gray-600">Si acceptée, vous êtes convoqué pour la cérémonie de naturalisation. Présence obligatoire avec pièce d'identité.</p>
+                  <h3 className="font-bold text-gray-800 mb-2">Convocation pour cérémonie</h3>
+                  <p className="text-gray-600">Si acceptée, vous êtes convoqué pour la cérémonie de naturalisation. Présence obligatoire avec pièce d'identité.</p>
                 </div>
               </div>
             </div>
@@ -241,97 +241,97 @@ export default function NaturalisationFrancaisePrefecture() {
         </section>
 
         <section id="rdv-prefecture">
-          <h2 class="text-2xl font-black text-gray-900 mb-4">Obtention du RDV préfecture naturalisation</h2>
+          <h2 className="text-2xl font-black text-gray-900 mb-4">Obtention du RDV préfecture naturalisation</h2>
           
-          <h3 class="text-xl font-bold text-gray-800 mt-6 mb-3">Plateformes officielles de réservation</h3>
-          <div class="bg-gray-50 rounded-lg p-4 my-4">
-            <h4 class="font-bold text-gray-800 mb-2">Sites de réservation officiels :</h4>
-            <ul class="list-disc pl-5 space-y-1">
-              <li><strong>RDV naturalisation :</strong> <a href="https://administration-etrangers-en-france.interieur.gouv.fr" class="text-primary hover:underline">administration-etrangers-en-france.interieur.gouv.fr</a></li>
-              <li><strong>Service-public.fr :</strong> <a href="https://www.service-public.fr" class="text-primary hover:underline">service-public.fr</a> (point d'entrée général)</li>
+          <h3 className="text-xl font-bold text-gray-800 mt-6 mb-3">Plateformes officielles de réservation</h3>
+          <div className="bg-gray-50 rounded-lg p-4 my-4">
+            <h4 className="font-bold text-gray-800 mb-2">Sites de réservation officiels :</h4>
+            <ul className="list-disc pl-5 space-y-1">
+              <li><strong>RDV naturalisation :</strong> <a href="https://administration-etrangers-en-france.interieur.gouv.fr" className="text-primary hover:underline">administration-etrangers-en-france.interieur.gouv.fr</a></li>
+              <li><strong>Service-public.fr :</strong> <a href="https://www.service-public.fr" className="text-primary hover:underline">service-public.fr</a> (point d'entrée général)</li>
               <li><strong>Préfecture en ligne :</strong> Selon votre département de résidence</li>
             </ul>
           </div>
 
-          <h3 class="text-xl font-bold text-gray-800 mt-6 mb-3">Stratégies pour obtenir un RDV rapidement</h3>
-          <div class="space-y-4">
-            <div class="border-l-4 border-green-500 pl-4">
-              <h4 class="font-bold text-gray-800">⏰ Timing optimal</h4>
-              <p class="text-gray-600">Lundi 8h30-9h30 et vendredi 15h30-16h30 (maximum d'annulations)</p>
+          <h3 className="text-xl font-bold text-gray-800 mt-6 mb-3">Stratégies pour obtenir un RDV rapidement</h3>
+          <div className="space-y-4">
+            <div className="border-l-4 border-green-500 pl-4">
+              <h4 className="font-bold text-gray-800">⏰ Timing optimal</h4>
+              <p className="text-gray-600">Lundi 8h30-9h30 et vendredi 15h30-16h30 (maximum d'annulations)</p>
             </div>
             
-            <div class="border-l-4 border-green-500 pl-4">
-              <h4 class="font-bold text-gray-800">📍 Multi-préfectures</h4>
-              <p class="text-gray-600">Surveillez votre préfecture + 2-3 préfectures voisines dans un rayon de 100km</p>
+            <div className="border-l-4 border-green-500 pl-4">
+              <h4 className="font-bold text-gray-800">📍 Multi-préfectures</h4>
+              <p className="text-gray-600">Surveillez votre préfecture + 2-3 préfectures voisines dans un rayon de 100km</p>
             </div>
             
-            <div class="border-l-4 border-green-500 pl-4">
-              <h4 class="font-bold text-gray-800">🤖 Solution automatisée</h4>
-              <p class="text-gray-600">RDVPriority surveille 24h/24 les RDV naturalisation et alerte dès disponibilité</p>
+            <div className="border-l-4 border-green-500 pl-4">
+              <h4 className="font-bold text-gray-800">🤖 Solution automatisée</h4>
+              <p className="text-gray-600">RDVPriority surveille 24h/24 les RDV naturalisation et alerte dès disponibilité</p>
             </div>
           </div>
 
-          <div class="bg-gradient-to-r from-primary to-accent rounded-xl p-6 text-white my-6">
-            <h4 class="font-bold text-lg mb-2">🚀 Solution RDVPriority pour naturalisation</h4>
-            <p class="mb-3">Surveillance automatique des RDV naturalisation dans toutes les préfectures françaises. Alertes instantanées par email, SMS et Telegram dès qu'un créneau devient disponible.</p>
-            <Link href="/register" class="inline-block bg-white text-primary font-bold px-6 py-3 rounded-lg hover:bg-gray-100 transition-colors">
+          <div className="bg-gradient-to-r from-primary to-accent rounded-xl p-6 text-white my-6">
+            <h4 className="font-bold text-lg mb-2">🚀 Solution RDVPriority pour naturalisation</h4>
+            <p className="mb-3">Surveillance automatique des RDV naturalisation dans toutes les préfectures françaises. Alertes instantanées par email, SMS et Telegram dès qu'un créneau devient disponible.</p>
+            <Link href="/register" className="inline-block bg-white text-primary font-bold px-6 py-3 rounded-lg hover:bg-gray-100 transition-colors">
               Surveiller les RDV naturalisation
             </Link>
           </div>
         </section>
 
         <section id="delais-couts">
-          <h2 class="text-2xl font-black text-gray-900 mb-4">Délais de traitement et coûts</h2>
+          <h2 className="text-2xl font-black text-gray-900 mb-4">Délais de traitement et coûts</h2>
           
-          <h3 class="text-xl font-bold text-gray-800 mt-6 mb-3">Délais moyens de traitement (2024)</h3>
-          <div class="overflow-x-auto">
-            <table class="min-w-full bg-white border rounded-lg">
-              <thead class="bg-gray-50">
+          <h3 className="text-xl font-bold text-gray-800 mt-6 mb-3">Délais moyens de traitement (2024)</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-white border rounded-lg">
+              <thead className="bg-gray-50">
                 <tr>
-                  <th class="py-3 px-4 text-left font-bold text-gray-900">Situation</th>
-                  <th class="py-3 px-4 text-left font-bold text-gray-900">Délai moyen</th>
-                  <th class="py-3 px-4 text-left font-bold text-gray-900">Taux d'acceptation</th>
+                  <th className="py-3 px-4 text-left font-bold text-gray-900">Situation</th>
+                  <th className="py-3 px-4 text-left font-bold text-gray-900">Délai moyen</th>
+                  <th className="py-3 px-4 text-left font-bold text-gray-900">Taux d'acceptation</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200">
                 <tr>
-                  <td class="py-3 px-4 font-medium">Résidence 5 ans</td>
-                  <td class="py-3 px-4">12-18 mois</td>
-                  <td class="py-3 px-4">75%</td>
+                  <td className="py-3 px-4 font-medium">Résidence 5 ans</td>
+                  <td className="py-3 px-4">12-18 mois</td>
+                  <td className="py-3 px-4">75%</td>
                 </tr>
-                <tr class="bg-gray-50">
-                  <td class="py-3 px-4 font-medium">Mariage Français</td>
-                  <td class="py-3 px-4">8-12 mois</td>
-                  <td class="py-3 px-4">82%</td>
+                <tr className="bg-gray-50">
+                  <td className="py-3 px-4 font-medium">Mariage Français</td>
+                  <td className="py-3 px-4">8-12 mois</td>
+                  <td className="py-3 px-4">82%</td>
                 </tr>
                 <tr>
-                  <td class="py-3 px-4 font-medium">Diplômé université</td>
-                  <td class="py-3 px-4">6-10 mois</td>
-                  <td class="py-3 px-4">88%</td>
+                  <td className="py-3 px-4 font-medium">Diplômé université</td>
+                  <td className="py-3 px-4">6-10 mois</td>
+                  <td className="py-3 px-4">88%</td>
                 </tr>
-                <tr class="bg-gray-50">
-                  <td class="py-3 px-4 font-medium">Services exceptionnels</td>
-                  <td class="py-3 px-4">3-6 mois</td>
-                  <td class="py-3 px-4">95%</td>
+                <tr className="bg-gray-50">
+                  <td className="py-3 px-4 font-medium">Services exceptionnels</td>
+                  <td className="py-3 px-4">3-6 mois</td>
+                  <td className="py-3 px-4">95%</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <h3 class="text-xl font-bold text-gray-800 mt-8 mb-3">Coûts associés</h3>
-          <div class="grid md:grid-cols-2 gap-6">
-            <div class="bg-white rounded-xl p-6 border shadow-sm">
-              <h4 class="font-bold text-gray-800 mb-3">Coûts obligatoires</h4>
-              <ul class="space-y-2">
+          <h3 className="text-xl font-bold text-gray-800 mt-8 mb-3">Coûts associés</h3>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-xl p-6 border shadow-sm">
+              <h4 className="font-bold text-gray-800 mb-3">Coûts obligatoires</h4>
+              <ul className="space-y-2">
                 <li><strong>Timbre fiscal :</strong> €55</li>
                 <li><strong>Traductions assermentées :</strong> €50-150</li>
                 <li><strong>Frais de déplacement :</strong> Variable</li>
               </ul>
             </div>
             
-            <div class="bg-white rounded-xl p-6 border shadow-sm">
-              <h4 class="font-bold text-gray-800 mb-3">Coûts facultatifs</h4>
-              <ul class="space-y-2">
+            <div className="bg-white rounded-xl p-6 border shadow-sm">
+              <h4 className="font-bold text-gray-800 mb-3">Coûts facultatifs</h4>
+              <ul className="space-y-2">
                 <li><strong>Conseil juridique :</strong> €300-1500</li>
                 <li><strong>Accompagnement :</strong> €200-800</li>
                 <li><strong>Service de surveillance :</strong> €4,99-29,99/mois</li>
@@ -341,33 +341,33 @@ export default function NaturalisationFrancaisePrefecture() {
         </section>
 
         <section id="erreurs-eviter">
-          <h2 class="text-2xl font-black text-gray-900 mb-4">Erreurs fréquentes à éviter absolument</h2>
+          <h2 className="text-2xl font-black text-gray-900 mb-4">Erreurs fréquentes à éviter absolument</h2>
           
-          <div class="grid md:grid-cols-2 gap-6">
-            <div class="bg-red-50 border-l-4 border-red-500 p-4">
-              <h3 class="font-bold text-red-800 mb-2">❌ Calcul erroné de la durée de résidence</h3>
-              <p class="text-red-700 text-sm">Oublier les absences supérieures à 3 mois ou les séjours à l'étranger non autorisés</p>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="bg-red-50 border-l-4 border-red-500 p-4">
+              <h3 className="font-bold text-red-800 mb-2">❌ Calcul erroné de la durée de résidence</h3>
+              <p className="text-red-700 text-sm">Oublier les absences supérieures à 3 mois ou les séjours à l'étranger non autorisés</p>
             </div>
             
-            <div class="bg-red-50 border-l-4 border-red-500 p-4">
-              <h3 class="font-bold text-red-800 mb-2">❌ Documents incomplets ou périmés</h3>
-              <p class="text-red-700 text-sm">Manquer de pièces justificatives ou utiliser des documents expirés</p>
+            <div className="bg-red-50 border-l-4 border-red-500 p-4">
+              <h3 className="font-bold text-red-800 mb-2">❌ Documents incomplets ou périmés</h3>
+              <p className="text-red-700 text-sm">Manquer de pièces justificatives ou utiliser des documents expirés</p>
             </div>
             
-            <div class="bg-red-50 border-l-4 border-red-500 p-4">
-              <h3 class="font-bold text-red-800 mb-2">❌ Absence de RDV</h3>
-              <p class="text-red-700 text-sm">Se présenter sans rendez-vous dans les préfectures exigeantes</p>
+            <div className="bg-red-50 border-l-4 border-red-500 p-4">
+              <h3 className="font-bold text-red-800 mb-2">❌ Absence de RDV</h3>
+              <p className="text-red-700 text-sm">Se présenter sans rendez-vous dans les préfectures exigeantes</p>
             </div>
             
-            <div class="bg-red-50 border-l-4 border-red-500 p-4">
-              <h3 class="font-bold text-red-800 mb-2">❌ Traductions non conformes</h3>
-              <p class="text-red-700 text-sm">Utiliser des traducteurs non assermentés ou oublier l'apostille</p>
+            <div className="bg-red-50 border-l-4 border-red-500 p-4">
+              <h3 className="font-bold text-red-800 mb-2">❌ Traductions non conformes</h3>
+              <p className="text-red-700 text-sm">Utiliser des traducteurs non assermentés ou oublier l'apostille</p>
             </div>
           </div>
 
-          <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 mt-6">
-            <h3 class="font-bold text-yellow-800 mb-2">⚠️ Conseils de prospection :</h3>
-            <ul class="list-disc pl-5 space-y-1 text-yellow-700">
+          <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 mt-6">
+            <h3 className="font-bold text-yellow-800 mb-2">⚠️ Conseils de prospection :</h3>
+            <ul className="list-disc pl-5 space-y-1 text-yellow-700">
               <li>Faites vérifier votre dossier par un avocat spécialisé avant dépôt</li>
               <li>Gardez des copies de tous les documents déposés</li>
               <li>Notez précisément le numéro de dossier et mot de passe</li>
@@ -377,44 +377,44 @@ export default function NaturalisationFrancaisePrefecture() {
         </section>
 
         {/* FAQ Section */}
-        <section class="bg-gray-50 rounded-xl p-6 mt-12">
-          <h2 class="text-2xl font-black text-gray-900 mb-6">Questions fréquentes sur la naturalisation</h2>
+        <section className="bg-gray-50 rounded-xl p-6 mt-12">
+          <h2 className="text-2xl font-black text-gray-900 mb-6">Questions fréquentes sur la naturalisation</h2>
           
-          <div class="space-y-4">
+          <div className="space-y-4">
             <div>
-              <h3 class="font-bold text-gray-800">Puis-je conserver ma nationalité d'origine ?</h3>
-              <p class="text-gray-600">Oui, la France autorise la double nationalité. Vérifiez les lois de votre pays d'origine car certaines ne le permettent pas.</p>
+              <h3 className="font-bold text-gray-800">Puis-je conserver ma nationalité d'origine ?</h3>
+              <p className="text-gray-600">Oui, la France autorise la double nationalité. Vérifiez les lois de votre pays d'origine car certaines ne le permettent pas.</p>
             </div>
             
             <div>
-              <h3 class="font-bold text-gray-800">Quels sont les motifs de refus les plus fréquents ?</h3>
-              <p class="text-gray-600">Casier judiciaire, faux documents, durée de résidence insuffisante, manque de maîtrise du français, activités contraires aux valeurs républicaines.</p>
+              <h3 className="font-bold text-gray-800">Quels sont les motifs de refus les plus fréquents ?</h3>
+              <p className="text-gray-600">Casier judiciaire, faux documents, durée de résidence insuffisante, manque de maîtrise du français, activités contraires aux valeurs républicaines.</p>
             </div>
             
             <div>
-              <h3 class="font-bold text-gray-800">Puis-je voyager à l'étranger pendant l'instruction ?</h3>
-              <p class="text-gray-600">Oui, mais évitez les absences prolongées. Informez la préfecture de vos déplacements si nécessaire.</p>
+              <h3 className="font-bold text-gray-800">Puis-je voyager à l'étranger pendant l'instruction ?</h3>
+              <p className="text-gray-600">Oui, mais évitez les absences prolongées. Informez la préfecture de vos déplacements si nécessaire.</p>
             </div>
             
             <div>
-              <h3 class="font-bold text-gray-800">Que faire si ma demande est refusée ?</h3>
-              <p class="text-gray-600">Vous pouvez introduire un recours gracieux auprès de la préfecture ou un recours contentieux devant le tribunal administratif.</p>
+              <h3 className="font-bold text-gray-800">Que faire si ma demande est refusée ?</h3>
+              <p className="text-gray-600">Vous pouvez introduire un recours gracieux auprès de la préfecture ou un recours contentieux devant le tribunal administratif.</p>
             </div>
           </div>
         </section>
 
         {/* CTA Section */}
-        <section class="bg-gradient-to-r from-accent to-primary rounded-2xl p-8 text-center text-white mt-12">
-          <h2 class="text-2xl font-black mb-3">Ne perdez pas des mois précieux</h2>
-          <p class="mb-6 max-w-2xl mx-auto">
+        <section className="bg-gradient-to-r from-accent to-primary rounded-2xl p-8 text-center text-white mt-12">
+          <h2 className="text-2xl font-black mb-3">Ne perdez pas des mois précieux</h2>
+          <p className="mb-6 max-w-2xl mx-auto">
             Laissez RDVPriority surveiller les RDV naturalisation 24h/24. 
             Recevez une alerte instantanée dès qu'un créneau se libère dans votre département.
           </p>
-          <div class="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/register" class="px-8 py-4 bg-white text-primary font-bold rounded-lg hover:bg-gray-100 transition-colors">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link href="/register" className="px-8 py-4 bg-white text-primary font-bold rounded-lg hover:bg-gray-100 transition-colors">
               Surveiller les RDV naturalisation
             </Link>
-            <Link href="/#tarifs" class="px-8 py-4 border-2 border-white text-white font-bold rounded-lg hover:bg-white/10 transition-colors">
+            <Link href="/#tarifs" className="px-8 py-4 border-2 border-white text-white font-bold rounded-lg hover:bg-white/10 transition-colors">
               Voir les tarifs
             </Link>
           </div>
