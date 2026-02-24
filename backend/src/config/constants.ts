@@ -45,9 +45,9 @@ export const PLAN_LIMITS: Record<Plan, PlanConfig> = {
 };
 
 export const TIER_INTERVALS = {
-  1: 30,   // Île-de-France critical
-  2: 60,   // Major cities
-  3: 120,  // Others
+  1: 10,   // Île-de-France critical - every 10 seconds
+  2: 20,   // Major cities - every 20 seconds
+  3: 45,   // Others - every 45 seconds
 } as const;
 
 export const TIER_NAMES = {
@@ -81,9 +81,9 @@ export const QUEUE_NAMES = {
 } as const;
 
 export const SCRAPER_CONFIG = {
-  maxBrowsers: 3,
-  pageTimeout: 30000,
+  maxBrowsers: 8,
+  pageTimeout: 20000,
   screenshotDir: './public/screenshots',
-  maxConsecutiveErrors: 5,
-  captchaPauseDuration: 60 * 60 * 1000, // 1 hour
+  maxConsecutiveErrors: 3,
+  captchaPauseDuration: 30 * 60 * 1000, // 30 minutes
 };
