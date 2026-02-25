@@ -61,27 +61,27 @@ export default function StatsGrid() {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
       {statCards.map((card, index) => (
         <div
           key={index}
-          className="glass rounded-xl p-4 border border-border hover:border-primary/50 transition-colors"
+          className="glass rounded-xl p-3 lg:p-4 border border-border hover:border-primary/50 transition-colors"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-muted text-sm">{card.label}</p>
-              <p className="text-2xl font-bold mt-1">
+              <p className="text-muted text-xs lg:text-sm">{card.label}</p>
+              <p className="text-xl lg:text-2xl font-bold mt-1">
                 {typeof card.value === "number" ? card.value : card.value}
                 {card.total && (
-                  <span className="text-muted text-sm font-normal">
+                  <span className="text-muted text-xs font-normal">
                     {" "}
                     / {card.total}
                   </span>
                 )}
               </p>
             </div>
-            <div className={`p-3 rounded-lg ${card.bgColor}`}>
-              <card.icon className={`h-5 w-5 ${card.color}`} />
+            <div className={`p-2 lg:p-3 rounded-lg ${card.bgColor}`}>
+              <card.icon className={`h-4 w-4 lg:h-5 lg:w-5 ${card.color}`} />
             </div>
           </div>
         </div>
