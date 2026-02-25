@@ -111,6 +111,82 @@ model AuditLog {
 }
 
 // ═══════════════════════════════════════
+// CLIENTS (For Booking Agent Business)
+// ═══════════════════════════════════════
+
+model Client {
+  id              String        @id @default(uuid())
+  
+  // Contact Info
+  firstName       String
+  lastName        String
+  email           String?
+  phone           String
+  
+  // Procedure Details
+  procedureType   ProcedureType // Specific procedure subtype
+  prefectureId    String
+  prefecture      Prefecture    @relation(fields: [prefectureId], references: [id])
+  
+  // Status
+  status          ClientStatus  @default(WAITING)
+  priority        Priority      @default(NORMAL)
+  
+  // Business
+  priceAgreed     Float         // What you charge them
+  amountPaid      Float         @default(0)
+  amountDue       Float         @default(0)
+  
+  // Notes
+  notes           String?       // Special requirements
+  documentsReceived Boolean     @default(false)
+  
+  // Tracking
+  alertId         String?       // Link to system alert
+  alert           Alert?        @relation(fields: [alertId], references: [id])
+  
+  // Booking Result
+  bookingDate     DateTime?     // When you booked it
+  bookingTime     String?       // Time slot
+  bookingUrl      String?       // Confirmation link
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@index([status, priority])
+  @@index([prefectureId, status])
+  @@index([procedureType, status])
+}
+
+enum ProcedureType {
+  SALARIE_PAYSIPS
+  ETUDIANT_RENEWAL
+  CHANGEMENT_STATUT_ETUDIANT_SALARIE
+  VIE_FAMILIALE_MARIAGE
+  VIE_FAMILIALE_ENFANT
+  ENTREPRENEUR
+  DUPLICATA_PERDU
+  RENEWAL_ANY
+  NATURALISATION
+  AUTRE
+}
+
+enum ClientStatus {
+  WAITING         // En attente de créneau
+  ALERT_SENT      // Créneau trouvé, alerte envoyée
+  BOOKING_PENDING // En cours de réservation
+  BOOKED          // RDV réservé
+  COMPLETED       // RDV passé, service terminé
+  CANCELLED       // Annulé
+}
+
+enum Priority {
+  NORMAL
+  URGENT_7DAYS
+  EMERGENCY_24H
+}
+
+// ═══════════════════════════════════════
 // ALERTS
 // ═══════════════════════════════════════
 
@@ -132,6 +208,7 @@ model Alert {
   updatedAt       DateTime    @updatedAt
   
   detections      Detection[]
+  clients         Client[]  // Clients linked to this alert
   
   @@unique([userId, prefectureId, procedure])
   @@index([prefectureId, isActive])
@@ -140,7 +217,20 @@ model Alert {
 }
 
 enum Procedure {
-  TITRE_SEJOUR
+  // Titre de séjour - Main categories
+  TITRE_SEJOUR                    // Generic (for prefectures that don't specify)
+  TITRE_SEJOUR_SALARIE            // Employee/work contract
+  TITRE_SEJOUR_ETUDIANT           // Student
+  TITRE_SEJOUR_ENTREPRENEUR       // Self-employed/business owner
+  TITRE_SEJOUR_VPF                // Vie privée et familiale (marriage/family)
+  TITRE_SEJOUR_RENOUVELLEMENT     // Renewal (any type)
+  TITRE_SEJOUR_DUPLICATA          // Lost/stolen card replacement
+  
+  // Change of status
+  CHANGEMENT_STATUT_ETUDIANT_SALARIE  // Student → Employee
+  CHANGEMENT_STATUT_AUTRE             // Other status changes
+  
+  // Other procedures
   NATURALISATION
   VISA
   CARTE_IDENTITE
@@ -199,6 +289,7 @@ model Prefecture {
   alerts          Alert[]
   detections      Detection[]
   scraperLogs     ScraperLog[]
+  clients         Client[]  // For booking agent business
   
   @@index([tier, status])
 }
