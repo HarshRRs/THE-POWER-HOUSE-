@@ -2,6 +2,7 @@ import { Server as SocketServer } from 'socket.io';
 import type { Server as HttpServer } from 'http';
 import logger from '../utils/logger.util.js';
 import { PrismaClient } from '@prisma/client';
+import { pushService } from './notifications/push.service.js';
 
 const prisma = new PrismaClient();
 
@@ -122,6 +123,17 @@ class WebSocketService {
     if (detection.procedure) {
       this.io.to(`procedure:${detection.procedure}`).emit('slot_detected', event);
     }
+
+    // Send push notification to all subscribed users
+    pushService.sendSlotNotification({
+      prefectureName: detection.prefectureName,
+      procedure: detection.procedure || 'Titre de Séjour',
+      slotDate: detection.slotDate || 'N/A',
+      slotTime: detection.slotTime || 'N/A',
+      bookingUrl: detection.bookingUrl,
+    }).catch((err) => {
+      logger.error('Failed to send push notification:', err);
+    });
 
     logger.info(`Slot broadcasted: ${detection.prefectureName} - ${detection.slotsAvailable} slots`);
   }

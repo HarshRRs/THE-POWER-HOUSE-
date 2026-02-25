@@ -8,6 +8,7 @@ import billingRoutes from './billing.routes.js';
 import telegramRoutes from './telegram.routes.js';
 import adminRoutes from './admin.routes.js';
 import bossRoutes from './boss.routes.js';
+import pushRoutes from './push.routes.js';
 
 const router = Router();
 
@@ -20,6 +21,7 @@ router.use('/billing', billingRoutes);
 router.use('/telegram', telegramRoutes);
 router.use('/admin', adminRoutes);
 router.use('/boss', bossRoutes); // Boss Panel API
+router.use('/push', pushRoutes); // Push notifications API
 
 // Stats endpoint (alias to health/stats)
 router.get('/stats', (_req, res) => {
