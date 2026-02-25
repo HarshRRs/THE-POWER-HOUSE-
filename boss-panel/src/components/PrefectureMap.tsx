@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { MapPin } from "lucide-react";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 interface Prefecture {
   id: string;
@@ -18,18 +19,47 @@ interface Props {
 }
 
 export default function PrefectureMap({ selectedProcedure }: Props) {
+  const { isConnected, data } = useWebSocket();
   const [prefectures, setPrefectures] = useState<Prefecture[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Use WebSocket data if available, otherwise fetch from API
   useEffect(() => {
-    fetch("/api/boss/heatmap")
-      .then((res) => res.json())
-      .then((data) => {
-        setPrefectures(data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
+    if (data?.prefectures) {
+      // Transform WebSocket data to include status
+      const transformed = data.prefectures.map((p: any) => ({
+        ...p,
+        status: getStatusFromData(p, data.recentDetections),
+        slotsFound24h: getSlotCount(p.id, data.recentDetections),
+      }));
+      setPrefectures(transformed);
+      setLoading(false);
+    } else {
+      // Fallback to API
+      fetch("/api/boss/heatmap")
+        .then((res) => res.json())
+        .then((data) => {
+          setPrefectures(data);
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
+    }
+  }, [data]);
+
+  const getStatusFromData = (prefecture: any, detections: any[]) => {
+    const count = getSlotCount(prefecture.id, detections);
+    if (count >= 5) return "hot";
+    if (count >= 1) return "warm";
+    return "cold";
+  };
+
+  const getSlotCount = (prefectureId: string, detections: any[]) => {
+    if (!detections) return 0;
+    const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    return detections.filter(
+      (d) => d.prefectureId === prefectureId && new Date(d.detectedAt) > last24h
+    ).length;
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -51,41 +81,47 @@ export default function PrefectureMap({ selectedProcedure }: Props) {
     );
   }
 
+  const activeCount = prefectures.filter((p) => p.status === "hot").length;
+  const totalSlots = prefectures.reduce((acc, p) => acc + p.slotsFound24h, 0);
+
   return (
     <div className="glass rounded-xl p-6 border border-border">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <MapPin className="h-5 w-5 text-primary" />
           Carte des Préfectures
+          {!isConnected && (
+            <span className="text-xs text-danger">(Offline)</span>
+          )}
         </h2>
         <div className="flex items-center gap-4 text-sm">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-success" />
-            <span className="text-muted">Actif (5+ créneaux)</span>
+            <span className="text-muted">Actif (5+)</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-warning" />
-            <span className="text-muted">Modéré (1-4 créneaux)</span>
+            <span className="text-muted">Modéré (1-4)</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-muted" />
-            <span className="text-muted">Calme (0 créneau)</span>
+            <span className="text-muted">Calme (0)</span>
           </div>
         </div>
       </div>
 
-      {/* Simplified Grid Map */}
-      <div className="grid grid-cols-10 gap-2">
+      {/* Grid Map */}
+      <div className="grid grid-cols-10 gap-1.5 sm:gap-2">
         {prefectures.slice(0, 100).map((pref) => (
           <div
             key={pref.id}
-            className={`aspect-square rounded-lg ${getStatusColor(
+            className={`aspect-square rounded-md sm:rounded-lg ${getStatusColor(
               pref.status
             )} cursor-pointer hover:scale-110 transition-transform relative group`}
             title={`${pref.name} - ${pref.slotsFound24h} créneaux`}
           >
             {/* Tooltip */}
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-surface border border-border rounded-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-surface border border-border rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
               <p className="font-semibold">{pref.name}</p>
               <p className="text-muted">{pref.slotsFound24h} créneaux 24h</p>
             </div>
@@ -94,10 +130,12 @@ export default function PrefectureMap({ selectedProcedure }: Props) {
       </div>
 
       <p className="text-center text-muted text-sm mt-4">
-        {prefectures.filter((p) => p.status === "hot").length} préfectures actives |
-        {" "}
-        {prefectures.reduce((acc, p) => acc + p.slotsFound24h, 0)} créneaux trouvés
-        aujourd&apos;hui
+        {activeCount} préfectures actives | {totalSlots} créneaux trouvés aujourd&apos;hui
+        {selectedProcedure !== "ALL" && (
+          <span className="text-primary ml-2">
+            (Filtré: {selectedProcedure})
+          </span>
+        )}
       </p>
     </div>
   );

@@ -1,31 +1,61 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { MapPin, Clock, CheckCircle, TrendingUp } from "lucide-react";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 interface Stats {
   totalPrefectures: number;
   activePrefectures: number;
   slotsFound24h: number;
   slotsFound7d: number;
+  successRate: number;
 }
 
 export default function StatsGrid() {
+  const { isConnected, data } = useWebSocket();
   const [stats, setStats] = useState<Stats>({
     totalPrefectures: 101,
     activePrefectures: 101,
     slotsFound24h: 0,
     slotsFound7d: 0,
+    successRate: 94,
   });
 
+  // Calculate stats from WebSocket data
   useEffect(() => {
-    // Fetch stats from API
+    if (data?.recentDetections) {
+      const now = new Date();
+      const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const last7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+      const slots24h = data.recentDetections.filter(
+        (d) => new Date(d.detectedAt) > last24h
+      ).length;
+
+      const slots7d = data.recentDetections.filter(
+        (d) => new Date(d.detectedAt) > last7d
+      ).length;
+
+      setStats((prev) => ({
+        ...prev,
+        slotsFound24h: slots24h,
+        slotsFound7d: slots7d,
+      }));
+    }
+  }, [data]);
+
+  // Also fetch from API for initial load
+  useEffect(() => {
     fetch("/api/boss/stats")
       .then((res) => res.json())
-      .then((data) => setStats(data))
-      .catch(() => {
-        // Use default values if API not available
-      });
+      .then((apiStats) => {
+        setStats((prev) => ({
+          ...prev,
+          ...apiStats,
+        }));
+      })
+      .catch((err) => console.error("Failed to fetch stats:", err));
   }, []);
 
   const statCards = [
@@ -52,11 +82,11 @@ export default function StatsGrid() {
       bgColor: "bg-warning/10",
     },
     {
-      label: "Taux de succès",
-      value: "94%",
+      label: "Connexion",
+      value: isConnected ? "ONLINE" : "OFFLINE",
       icon: TrendingUp,
-      color: "text-primary",
-      bgColor: "bg-primary/10",
+      color: isConnected ? "text-success" : "text-danger",
+      bgColor: isConnected ? "bg-success/10" : "bg-danger/10",
     },
   ];
 
@@ -71,7 +101,7 @@ export default function StatsGrid() {
             <div>
               <p className="text-muted text-xs lg:text-sm">{card.label}</p>
               <p className="text-xl lg:text-2xl font-bold mt-1">
-                {typeof card.value === "number" ? card.value : card.value}
+                {card.value}
                 {card.total && (
                   <span className="text-muted text-xs font-normal">
                     {" "}

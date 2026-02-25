@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Header from "@/components/Header";
 import StatsGrid from "@/components/StatsGrid";
 import PrefectureMap from "@/components/PrefectureMap";
@@ -8,22 +8,37 @@ import SlotStream from "@/components/SlotStream";
 import PrefectureList from "@/components/PrefectureList";
 import ProcedureFilter from "@/components/ProcedureFilter";
 import MobileNav from "@/components/MobileNav";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 export default function Dashboard() {
   const [selectedProcedure, setSelectedProcedure] = useState<string>("ALL");
-  const [isConnected, setIsConnected] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'map' | 'list' | 'stream'>('dashboard');
-
-  useEffect(() => {
-    setIsConnected(true);
-  }, []);
+  const { isConnected, latestDetection } = useWebSocket();
 
   return (
     <div className="min-h-screen bg-background grid-pattern">
       <Header />
       
       <main className="p-4 md:p-6 pb-24 md:pb-6">
-        {/* Stats Overview - Always visible */}
+        {/* Connection Status Banner */}
+        {!isConnected && (
+          <div className="mb-4 p-3 bg-danger/10 border border-danger/30 rounded-lg text-center">
+            <p className="text-danger text-sm">
+              ⚠️ Connexion en cours... Les données peuvent ne pas être à jour.
+            </p>
+          </div>
+        )}
+
+        {/* Latest Detection Alert */}
+        {latestDetection && (
+          <div className="mb-4 p-3 bg-success/10 border border-success/30 rounded-lg animate-pulse">
+            <p className="text-success text-sm font-medium">
+              🔔 Nouveau créneau détecté: {latestDetection.prefectureName} - {latestDetection.slotDate} {latestDetection.slotTime}
+            </p>
+          </div>
+        )}
+
+        {/* Stats Overview */}
         <StatsGrid />
 
         {/* Desktop Layout */}
