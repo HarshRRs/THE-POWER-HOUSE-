@@ -2,28 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
-
-interface WebSocketData {
-  prefectures: any[];
-  recentDetections: any[];
-  timestamp: string;
-}
-
-interface SlotDetection {
-  prefectureId?: string;
-  prefectureName?: string;
-  consulateId?: string;
-  consulateName?: string;
-  vfsCenterId?: string;
-  vfsCenterName?: string;
-  categoryName?: string;
-  slotsAvailable: number;
-  slotDate?: string;
-  slotTime?: string;
-  bookingUrl: string;
-  procedure?: string;
-  timestamp: string;
-}
+import type { WebSocketData, SlotDetection } from "@/types";
 
 export function useWebSocket() {
   const [isConnected, setIsConnected] = useState(false);
@@ -43,22 +22,22 @@ export function useWebSocket() {
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      console.log("✅ Connected to WebSocket");
+      if (process.env.NODE_ENV === 'development') console.log("Connected to WebSocket");
       setIsConnected(true);
     });
 
     socket.on("disconnect", () => {
-      console.log("❌ Disconnected from WebSocket");
+      if (process.env.NODE_ENV === 'development') console.log("Disconnected from WebSocket");
       setIsConnected(false);
     });
 
     socket.on("initial_data", (initialData: WebSocketData) => {
-      console.log("📊 Received initial data:", initialData);
+      if (process.env.NODE_ENV === 'development') console.log("Received initial data");
       setData(initialData);
     });
 
     socket.on("slot_detected", (detection: SlotDetection) => {
-      console.log("🔔 New slot detected:", detection);
+      if (process.env.NODE_ENV === 'development') console.log("New slot detected:", detection);
       setLatestDetection(detection);
       
       // Update data with new detection
@@ -75,7 +54,7 @@ export function useWebSocket() {
     });
 
     socket.on("prefecture_status_update", (update: any) => {
-      console.log("🔄 Prefecture status update:", update);
+      if (process.env.NODE_ENV === 'development') console.log("Prefecture status update:", update);
       
       setData((prev) => {
         if (!prev) return prev;
@@ -89,7 +68,7 @@ export function useWebSocket() {
     });
 
     socket.on("ticker_update", (update: any) => {
-      console.log("📈 Ticker update:", update);
+      if (process.env.NODE_ENV === 'development') console.log("Ticker update:", update);
     });
 
     return () => {

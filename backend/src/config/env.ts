@@ -9,6 +9,11 @@ const envSchema = z.object({
   
   // Auth
   JWT_SECRET: z.string().min(32),
+  JWT_REFRESH_SECRET: z.string().min(32).optional()
+    .refine(
+      (val) => process.env.NODE_ENV !== 'production' || (val && val.length >= 32),
+      { message: 'JWT_REFRESH_SECRET is required in production (min 32 chars)' }
+    ),
   
   // Stripe
   STRIPE_SECRET_KEY: z.string().optional(),

@@ -16,36 +16,29 @@ interface Stats {
 
 export default function StatsGrid() {
   const { isConnected, data } = useWebSocket();
-  const [stats, setStats] = useState<Stats>({
-    totalPrefectures: 101,
-    activePrefectures: 101,
-    totalConsulates: 1,
-    totalVfsCenters: 0,
-    slotsFound24h: 0,
-    slotsFound7d: 0,
-    successRate: 94,
-  });
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Calculate stats from WebSocket data
   useEffect(() => {
-    if (data?.recentDetections) {
+    if (data?.recentDetections && stats) {
       const now = new Date();
       const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       const last7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
       const slots24h = data.recentDetections.filter(
-        (d) => new Date(d.detectedAt) > last24h
+        (d) => new Date(d.detectedAt ?? d.timestamp ?? '') > last24h
       ).length;
 
       const slots7d = data.recentDetections.filter(
-        (d) => new Date(d.detectedAt) > last7d
+        (d) => new Date(d.detectedAt ?? d.timestamp ?? '') > last7d
       ).length;
 
-      setStats((prev) => ({
+      setStats((prev) => prev ? ({
         ...prev,
         slotsFound24h: slots24h,
         slotsFound7d: slots7d,
-      }));
+      }) : prev);
     }
   }, [data]);
 
@@ -55,46 +48,54 @@ export default function StatsGrid() {
       .then((res) => res.json())
       .then((apiStats) => {
         setStats((prev) => ({
+          totalPrefectures: 0,
+          activePrefectures: 0,
+          totalConsulates: 0,
+          totalVfsCenters: 0,
+          slotsFound24h: 0,
+          slotsFound7d: 0,
+          successRate: 0,
           ...prev,
           ...apiStats,
         }));
       })
-      .catch((err) => console.error("Failed to fetch stats:", err));
+      .catch((err) => console.error("Failed to fetch stats:", err))
+      .finally(() => setLoading(false));
   }, []);
 
   const statCards = [
     {
       label: "Prefectures",
-      value: stats.activePrefectures,
-      total: stats.totalPrefectures,
+      value: stats?.activePrefectures ?? "--",
+      total: stats?.totalPrefectures,
       icon: MapPin,
       color: "text-primary",
       bgColor: "bg-primary/10",
     },
     {
       label: "Consulates",
-      value: stats.totalConsulates,
+      value: stats?.totalConsulates ?? "--",
       icon: Globe,
       color: "text-orange-400",
       bgColor: "bg-orange-400/10",
     },
     {
       label: "VFS Centers",
-      value: stats.totalVfsCenters,
+      value: stats?.totalVfsCenters ?? "--",
       icon: Plane,
       color: "text-blue-400",
       bgColor: "bg-blue-400/10",
     },
     {
       label: "Slots 24h",
-      value: stats.slotsFound24h,
+      value: stats?.slotsFound24h ?? "--",
       icon: Clock,
       color: "text-success",
       bgColor: "bg-success/10",
     },
     {
       label: "Slots 7d",
-      value: stats.slotsFound7d,
+      value: stats?.slotsFound7d ?? "--",
       icon: CheckCircle,
       color: "text-warning",
       bgColor: "bg-warning/10",

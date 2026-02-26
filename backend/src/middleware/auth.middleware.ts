@@ -21,6 +21,17 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
       plan: payload.plan,
       planExpiresAt: payload.planExpiresAt ? new Date(payload.planExpiresAt) : null,
     };
+
+    // Check plan expiry (exempt billing routes so users can renew)
+    if (req.user.planExpiresAt && req.user.planExpiresAt < new Date()) {
+      const isBillingRoute = req.originalUrl.startsWith('/api/billing');
+      const isAuthRoute = req.originalUrl.startsWith('/api/auth');
+      if (!isBillingRoute && !isAuthRoute && req.user.role !== 'ADMIN') {
+        sendError(res, 'Your plan has expired. Please renew your subscription.', 403);
+        return;
+      }
+    }
+
     next();
   } catch {
     sendError(res, 'Invalid or expired token', 401);

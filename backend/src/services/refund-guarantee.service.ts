@@ -1,5 +1,6 @@
 import { prisma } from '../config/database.js';
 import { stripe } from './stripe.service.js';
+import { notificationQueue } from '../config/bullmq.js';
 import logger from '../utils/logger.util.js';
 import type { Plan } from '@prisma/client';
 
@@ -239,12 +240,25 @@ export async function processBatchRefunds(): Promise<{
  * Send refund notification to user
  */
 async function sendRefundNotification(userId: string, amount: number): Promise<void> {
-  // This would integrate with your notification service
-  // For now, just log it
-  logger.info(`Would send refund notification to user ${userId} for €${(amount / 100).toFixed(2)}`);
-  
-  // TODO: Implement actual notification sending
-  // Could send email, SMS, or in-app notification
+  const amountEur = (amount / 100).toFixed(2);
+
+  try {
+    await notificationQueue.add(
+      `refund-notification:${userId}`,
+      {
+        userId,
+        channel: 'EMAIL',
+        type: 'refund_processed',
+        title: 'Votre remboursement RDVPriority',
+        body: `Votre remboursement de ${amountEur} EUR a ete traite avec succes. Le montant sera credite sur votre compte sous 5 a 10 jours ouvrables.`,
+        metadata: { amount, amountEur },
+      },
+      { priority: 2 }
+    );
+    logger.info(`Refund notification queued for user ${userId} (${amountEur} EUR)`);
+  } catch (error) {
+    logger.error(`Failed to queue refund notification for user ${userId}:`, error);
+  }
 }
 
 /**

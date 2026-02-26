@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from 'express';
+import { z } from 'zod';
 import * as bookingService from '../services/booking.service.js';
 import * as captchaService from '../services/captcha.service.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
@@ -11,21 +12,30 @@ const router = Router();
 router.use(authMiddleware);
 router.use(adminMiddleware);
 
+const clientsQuerySchema = z.object({
+  status: z.enum(['ACTIVE', 'INACTIVE', 'COMPLETED']).optional(),
+  bookingStatus: z.enum(['IDLE', 'WAITING_SLOT', 'BOOKING', 'CAPTCHA_WAIT', 'PAYMENT_WAIT', 'BOOKED', 'FAILED']).optional(),
+  system: z.enum(['PREFECTURE', 'VFS', 'EMBASSY']).optional(),
+  autoBook: z.enum(['true', 'false']).optional(),
+});
+
 /**
  * GET /api/booking/clients
  * List all clients with optional filters
  */
 router.get('/clients', async (req: Request, res: Response) => {
   try {
-    const status = req.query.status as string | undefined;
-    const bookingStatus = req.query.bookingStatus as string | undefined;
-    const system = req.query.system as string | undefined;
-    const autoBookStr = req.query.autoBook as string | undefined;
+    const parsed = clientsQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid query parameters', details: parsed.error.flatten().fieldErrors });
+      return;
+    }
+    const { status, bookingStatus, system, autoBook } = parsed.data;
     const clients = await bookingService.getAllClients({
       status: status as any,
       bookingStatus: bookingStatus as any,
       bookingSystem: system as any,
-      autoBook: autoBookStr === 'true' ? true : autoBookStr === 'false' ? false : undefined,
+      autoBook: autoBook === 'true' ? true : autoBook === 'false' ? false : undefined,
     });
     res.json({ clients });
   } catch (error) {
@@ -115,8 +125,7 @@ router.post('/clients', async (req: Request, res: Response) => {
     res.status(201).json({ client });
   } catch (error) {
     logger.error('Error creating client:', error);
-    const message = error instanceof Error ? error.message : 'Failed to create client';
-    res.status(500).json({ error: message });
+    res.status(500).json({ error: 'Failed to create client' });
   }
 });
 

@@ -1,11 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import { Activity } from "lucide-react";
 import { formatTime, getProcedureLabel, getDetectionLocationName } from "@/lib/utils";
 import { useWebSocket } from "@/hooks/useWebSocket";
 
+const INITIAL_DISPLAY_LIMIT = 50;
+const LOAD_MORE_COUNT = 50;
+
 export default function SlotStream() {
   const { isConnected, data, latestDetection } = useWebSocket();
+  const [displayLimit, setDisplayLimit] = useState(INITIAL_DISPLAY_LIMIT);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -21,6 +26,8 @@ export default function SlotStream() {
   };
 
   const events = data?.recentDetections || [];
+  const visibleEvents = events.slice(0, displayLimit);
+  const hasMore = events.length > displayLimit;
 
   return (
     <div className="glass rounded-xl border border-border overflow-hidden">
@@ -43,7 +50,7 @@ export default function SlotStream() {
             </div>
           ) : (
             <div className="space-y-1 p-2">
-              {events.map((event, index) => (
+              {visibleEvents.map((event: any, index: number) => (
                 <div
                   key={event.id || index}
                   className="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface/50 hover:bg-surface transition-colors text-sm"
@@ -63,6 +70,14 @@ export default function SlotStream() {
                   </span>
                 </div>
               ))}
+              {hasMore && (
+                <button
+                  onClick={() => setDisplayLimit(prev => prev + LOAD_MORE_COUNT)}
+                  className="w-full py-2 text-xs text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                >
+                  Load more ({events.length - displayLimit} remaining)
+                </button>
+              )}
             </div>
           )}
         </div>

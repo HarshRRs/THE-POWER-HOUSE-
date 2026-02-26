@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import api from "@/lib/api";
 import LiveTicker from "@/components/LiveTicker";
-import DemoBanner from "@/components/DemoBanner";
 
 /* ═══════════════════════════════════════════════
    Types
@@ -166,10 +165,10 @@ function Hero({ stats, loading }: { stats: Stats | null; loading: boolean }) {
             ))
           ) : (
             [
-              { n: 1247, s: "+", l: "Créneaux ce mois" },
-              { n: stats?.prefecturesMonitored ?? 101, s: "", l: "Préfectures surveillées" },
-              { n: 843, s: "+", l: "Utilisateurs actifs" },
-              { n: 87, s: "%", l: "Taux de succès" },
+              { n: stats?.appointmentsDetected ?? 0, s: "+", l: "Créneaux détectés" },
+              { n: stats?.prefecturesMonitored ?? 0, s: "", l: "Préfectures surveillées" },
+              { n: stats?.activeUsers ?? 0, s: "+", l: "Utilisateurs actifs" },
+              { n: stats?.detectionsLast24h ?? 0, s: "", l: "Détections 24h" },
             ].map((s, i) => (
               <div key={i} className="glass rounded-xl p-3 sm:p-4">
                 <div className="text-xl sm:text-2xl md:text-3xl font-black text-white">
@@ -183,11 +182,11 @@ function Hero({ stats, loading }: { stats: Stats | null; loading: boolean }) {
         <div className="mt-8 max-w-2xl mx-auto bg-gradient-to-r from-primary/20 to-accent/20 rounded-xl p-5 border border-primary/30 text-center">
           <div className="text-white/90 text-sm">
             <span className="font-bold text-green-400">⚡</span>
-            {" "}Plus de 3,000 créneaux détectés ce mois |
+            {" "}Surveillance active 24h/24 — 7j/7 |
             <span className="font-bold text-blue-400"> 🏆</span>
-            {" "}Record : 47 créneaux en 24h hier |
+            {" "}Détections en temps réel |
             <span className="font-bold text-purple-400"> ❤️</span>
-            {" "}94% de satisfaction client
+            {" "}Alertes instantanées
           </div>
         </div>
       </div>
@@ -591,59 +590,6 @@ function Pricing({ plans, loading }: { plans: Plan[]; loading: boolean }) {
 }
 
 /* ═══════════════════════════════════════════════
-   Social Proof
-   ═══════════════════════════════════════════════ */
-function SocialProof({ stats }: { stats: Stats | null }) {
-  const reviews = [
-    { name: "Amira K.", loc: "Paris (75)", text: "J'ai payé 14,99€ et j'ai eu mon créneau en 2 jours. J'aurais dû le faire il y a 3 mois au lieu de perdre mon temps.", time: "RDV obtenu en 2 jours" },
-    { name: "Mohammed B.", loc: "Bobigny (93)", text: "4 mois à rafraîchir le site manuellement. Avec RDVPriority, alerte reçue à 3h du matin, RDV pris en 2 minutes.", time: "RDV obtenu en 5 jours" },
-    { name: "Clara S.", loc: "Lyon (69)", text: "Le plan 7 jours m'a coûté moins cher qu'un café par jour. Mon titre de séjour est en cours de renouvellement.", time: "RDV obtenu en 3 jours" },
-  ];
-
-  return (
-    <motion.section
-      initial={{ opacity: 0 }}
-      whileInView={{ opacity: 1 }}
-      viewport={{ once: true }}
-      className="py-20 bg-white"
-    >
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-black text-gray-900">Ils ont obtenu leur RDV</h2>
-          <p className="text-gray-500 mt-3">
-            {stats ? (
-              <>+<Counter end={stats.activeUsers} /> utilisateurs actifs sur RDVPriority</>
-            ) : (
-              "Des milliers de rendez-vous réservés grâce à RDVPriority"
-            )}
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-6">
-          {reviews.map((r, i) => (
-            <div key={i} className="card-govt bg-white rounded-xl p-6">
-              <div className="flex gap-1 mb-3">
-                {[1, 2, 3, 4, 5].map((j) => (
-                  <span key={j} className="text-warning">★</span>
-                ))}
-              </div>
-              <p className="text-sm text-gray-600 leading-relaxed mb-4">&quot;{r.text}&quot;</p>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-bold text-gray-900 text-sm">{r.name}</p>
-                  <p className="text-xs text-gray-400">{r.loc}</p>
-                </div>
-                <span className="text-xs font-bold text-success bg-success-light px-3 py-1 rounded-full">{r.time}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </motion.section>
-  );
-}
-
-/* ═══════════════════════════════════════════════
    Comparison
    ═══════════════════════════════════════════════ */
 function Comparison() {
@@ -934,12 +880,10 @@ export default function LandingPage() {
       <HowItWorks />
       <Comparison />
       <Pricing plans={plans} loading={loading} />
-      <SocialProof stats={stats} />
       <FAQ />
       <BlogPreview />
       <FinalCTA />
       <Footer />
-      <DemoBanner />
     </main>
   );
 }

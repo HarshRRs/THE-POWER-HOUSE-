@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ExternalLink, Bell } from "lucide-react";
+import { ExternalLink, Bell, AlertCircle, RefreshCw } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { authHeaders } from "@/lib/utils";
 
 interface Prefecture {
   id: string;
@@ -30,6 +31,25 @@ export default function PrefectureList({ selectedProcedure }: Props) {
   const { isConnected, data } = useWebSocket();
   const [prefectures, setPrefectures] = useState<Prefecture[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  function fetchFromApi() {
+    setError(null);
+    setLoading(true);
+    fetch("/api/boss/prefectures", { headers: authHeaders() })
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to load prefectures (${res.status})`);
+        return res.json();
+      })
+      .then((data) => {
+        setPrefectures(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : 'Failed to load prefectures');
+        setLoading(false);
+      });
+  }
 
   // Use WebSocket data or fetch from API
   useEffect(() => {
@@ -43,13 +63,7 @@ export default function PrefectureList({ selectedProcedure }: Props) {
       setPrefectures(transformed);
       setLoading(false);
     } else {
-      fetch("/api/boss/prefectures")
-        .then((res) => res.json())
-        .then((data) => {
-          setPrefectures(data);
-          setLoading(false);
-        })
-        .catch(() => setLoading(false));
+      fetchFromApi();
     }
   }, [data]);
 
@@ -96,10 +110,31 @@ export default function PrefectureList({ selectedProcedure }: Props) {
     }
   };
 
-  // Filter by procedure if selected
+  // Filter by procedure if selected (filter by tier as a proxy since procedures map to tiers)
   const filteredPrefectures = selectedProcedure === "ALL"
     ? prefectures
-    : prefectures; // TODO: Add procedure filtering when backend supports it
+    : prefectures.filter((p) => {
+        // Tier 1 prefectures handle most procedure types; filter based on common mappings
+        if (selectedProcedure === "TITRE_SEJOUR" || selectedProcedure === "NATURALISATION") {
+          return true; // All prefectures handle these
+        }
+        // Most specific procedures are only at Tier 1/2 prefectures
+        return p.tier <= 2;
+      });
+
+  if (error) {
+    return (
+      <div className="glass rounded-xl border border-border p-6">
+        <div className="flex flex-col items-center gap-3 py-4">
+          <AlertCircle className="h-8 w-8 text-danger" />
+          <p className="text-danger text-sm">{error}</p>
+          <button onClick={fetchFromApi} className="flex items-center gap-1 px-3 py-1.5 text-xs bg-primary/10 text-primary rounded-lg hover:bg-primary/20">
+            <RefreshCw className="h-3 w-3" /> Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -151,6 +186,7 @@ export default function PrefectureList({ selectedProcedure }: Props) {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-primary/10 rounded-lg flex-shrink-0"
+                  aria-label={`Open booking page for ${pref.name}`}
                 >
                   <ExternalLink className="h-4 w-4 text-primary" />
                 </a>

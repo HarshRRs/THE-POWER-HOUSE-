@@ -5,6 +5,26 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+
+export function getToken(): string {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('token') || '';
+  }
+  return '';
+}
+
+export function authHeaders(extra?: Record<string, string>): Record<string, string> {
+  return {
+    'Authorization': `Bearer ${getToken()}`,
+    ...extra,
+  };
+}
+
+export function authJsonHeaders(): Record<string, string> {
+  return authHeaders({ 'Content-Type': 'application/json' });
+}
+
 export function formatTime(date: string | Date): string {
   return new Date(date).toLocaleTimeString('fr-FR', {
     hour: '2-digit',

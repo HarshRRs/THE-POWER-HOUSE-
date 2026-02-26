@@ -47,3 +47,7 @@ lerna-debug.log*
 frontend/.env
 backend/.env
 scraper/.env
+
+# Build artifacts and temporary files
+tsconfig.tsbuildinfo
+nul

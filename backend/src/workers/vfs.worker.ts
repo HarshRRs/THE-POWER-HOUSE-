@@ -1,4 +1,4 @@
-import { createWorker, vfsQueue } from '../config/bullmq.js';
+import { createWorker, vfsQueue, notificationQueue } from '../config/bullmq.js';
 import { prisma } from '../config/database.js';
 import { scrapeVfs, cleanupIdleBrowser, closeBrowser } from '../scraper/vfs/index.js';
 import { getVfsConfig } from '../scraper/vfs/vfs.config.js';
@@ -54,8 +54,25 @@ async function processVfsDetection(
       `VFS SLOTS DETECTED: ${result.slotsAvailable} slots at ${center?.name || vfsCenterId} for user ${alert.userId}`
     );
     
-    // TODO: Queue notification job
-    // notificationQueue.add('vfs-slot-alert', { alertId: alert.id, result });
+    // Queue notification job for each alert
+    await notificationQueue.add(
+      `vfs-slot-alert:${alert.id}`,
+      {
+        userId: alert.userId,
+        channel: 'EMAIL',
+        type: 'slot_detected',
+        title: `VFS Appointment Available - ${center?.name || vfsCenterId}`,
+        body: `${result.slotsAvailable} slot(s) found at ${center?.name || vfsCenterId}. Dates: ${result.availableDates.map(d => d.date).join(', ')}`,
+        metadata: {
+          alertId: alert.id,
+          vfsCenterId,
+          slotsAvailable: result.slotsAvailable,
+          availableDates: result.availableDates,
+          bookingUrl: result.bookingUrl,
+        },
+      },
+      { priority: 1 }
+    );
   }
 }
 

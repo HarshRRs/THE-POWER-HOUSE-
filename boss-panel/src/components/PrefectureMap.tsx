@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MapPin } from "lucide-react";
+import { MapPin, AlertCircle, RefreshCw } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { authHeaders } from "@/lib/utils";
 
 interface Prefecture {
   id: string;
@@ -22,6 +23,25 @@ export default function PrefectureMap({ selectedProcedure }: Props) {
   const { isConnected, data } = useWebSocket();
   const [prefectures, setPrefectures] = useState<Prefecture[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  function fetchFromApi() {
+    setError(null);
+    setLoading(true);
+    fetch("/api/boss/heatmap", { headers: authHeaders() })
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to load heatmap (${res.status})`);
+        return res.json();
+      })
+      .then((data) => {
+        setPrefectures(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : 'Failed to load heatmap');
+        setLoading(false);
+      });
+  }
 
   // Use WebSocket data if available, otherwise fetch from API
   useEffect(() => {
@@ -35,14 +55,7 @@ export default function PrefectureMap({ selectedProcedure }: Props) {
       setPrefectures(transformed);
       setLoading(false);
     } else {
-      // Fallback to API
-      fetch("/api/boss/heatmap")
-        .then((res) => res.json())
-        .then((data) => {
-          setPrefectures(data);
-          setLoading(false);
-        })
-        .catch(() => setLoading(false));
+      fetchFromApi();
     }
   }, [data]);
 
@@ -71,6 +84,20 @@ export default function PrefectureMap({ selectedProcedure }: Props) {
         return "bg-muted";
     }
   };
+
+  if (error) {
+    return (
+      <div className="glass rounded-xl p-6 border border-border">
+        <div className="flex flex-col items-center gap-3 py-4">
+          <AlertCircle className="h-8 w-8 text-danger" />
+          <p className="text-danger text-sm">{error}</p>
+          <button onClick={fetchFromApi} className="flex items-center gap-1 px-3 py-1.5 text-xs bg-primary/10 text-primary rounded-lg hover:bg-primary/20">
+            <RefreshCw className="h-3 w-3" /> Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

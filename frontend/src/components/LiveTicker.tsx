@@ -1,18 +1,30 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import api from "@/lib/api";
 
-const RECENT_SUCCESSES = [
-    "🔥 Julien V. a obtenu un RDV à Nanterre (il y a 2 min)",
-    "✅ Sarah L. a sécurisé un créneau à Bobigny (il y a 5 min)",
-    "🔥 Mohamed B. a trouvé un RDV à Créteil (il y a 8 min)",
-    "✅ Thomas D. a obtenu un RDV à Versailles (il y a 12 min)",
-    "🔥 Sophie M. a sécurisé un créneau à Évry (il y a 15 min)",
-    "✅ Nicolas P. a trouvé un RDV à Cergy (il y a 19 min)",
-    "🔥 Emma R. a obtenu un RDV à Raincy (il y a 22 min)",
+const FALLBACK_SUCCESSES = [
+    "Surveillance active des prefectures en cours...",
+    "Detecteur de creneaux en fonctionnement...",
+    "Monitoring en temps reel des creneaux disponibles...",
 ];
 
 export default function LiveTicker() {
+    const [messages, setMessages] = useState<string[]>(FALLBACK_SUCCESSES);
+
+    useEffect(() => {
+        api.get("/health/recent-successes")
+            .then((res) => {
+                const data = res.data?.data;
+                if (Array.isArray(data) && data.length > 0) {
+                    setMessages(data);
+                }
+            })
+            .catch(() => {
+                // Keep fallback messages
+            });
+    }, []);
     return (
         <div className="bg-primary/5 border-b border-primary/10 overflow-hidden py-2 relative z-50">
             <div className="flex items-center gap-4">
@@ -29,7 +41,7 @@ export default function LiveTicker() {
                             duration: 20, // Adjust speed here
                         }}
                     >
-                        {[...RECENT_SUCCESSES, ...RECENT_SUCCESSES, ...RECENT_SUCCESSES].map((text, i) => (
+                        {[...messages, ...messages, ...messages].map((text, i) => (
                             <span key={i} className="text-sm text-gray-600 font-medium flex items-center gap-2">
                                 {text}
                             </span>

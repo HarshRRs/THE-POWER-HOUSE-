@@ -79,8 +79,8 @@ router.post(
   refreshLimiter,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Read refresh token from httpOnly cookie (preferred) or body (fallback for migration)
-      const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
+      // Read refresh token from httpOnly cookie only
+      const refreshToken = req.cookies?.refreshToken;
       if (!refreshToken) {
         sendError(res, 'Refresh token required', 400);
         return;
@@ -101,8 +101,8 @@ router.post(
   '/logout',
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Read refresh token from cookie or body
-      const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
+      // Read refresh token from httpOnly cookie only
+      const refreshToken = req.cookies?.refreshToken;
       if (refreshToken) {
         await revokeRefreshToken(refreshToken);
       }

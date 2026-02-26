@@ -7,13 +7,16 @@ export default function VerificationBanner() {
     const [sending, setSending] = useState(false);
     const [sent, setSent] = useState(false);
 
+    const [error, setError] = useState(false);
+
     const handleResend = async () => {
         setSending(true);
+        setError(false);
         try {
             await api.post("/auth/resend-verification");
             setSent(true);
         } catch {
-            // Silently fail - don't block the UI
+            setError(true);
         } finally {
             setSending(false);
         }
@@ -27,6 +30,8 @@ export default function VerificationBanner() {
                 </p>
                 {sent ? (
                     <span className="text-xs font-bold text-green-600 whitespace-nowrap">Email envoye !</span>
+                ) : error ? (
+                    <span className="text-xs font-bold text-red-600 whitespace-nowrap">Echec de l&apos;envoi. Reessayez.</span>
                 ) : (
                     <button
                         onClick={handleResend}

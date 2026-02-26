@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../config/database.js';
+import { scraperQueue } from '../config/bullmq.js';
 import { analyticsService } from '../services/analytics.service.js';
 import { websocketService } from '../services/websocket.service.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
@@ -171,8 +172,23 @@ router.get('/prefecture/:id/details', async (req, res): Promise<void> => {
 router.post('/prefecture/:id/check', async (req, res) => {
   try {
     const { id } = req.params;
-    // TODO: Trigger scraper job for this prefecture
-    res.json({ message: 'Check triggered', prefectureId: id });
+
+    // Verify the prefecture exists
+    const prefecture = await prisma.prefecture.findUnique({ where: { id } });
+    if (!prefecture) {
+      res.status(404).json({ error: 'Prefecture not found' });
+      return;
+    }
+
+    // Queue an immediate scraper job for this prefecture
+    const job = await scraperQueue.add(
+      `manual-check:${id}`,
+      { prefectureId: id, tier: prefecture.tier, manual: true },
+      { priority: 1 } // High priority for manual checks
+    );
+
+    logger.info(`Manual scraper check triggered for prefecture ${id} (job: ${job?.id})`);
+    res.json({ message: 'Check triggered', prefectureId: id, jobId: job?.id || null });
   } catch (error) {
     logger.error('Error triggering check:', error);
     res.status(500).json({ error: 'Failed to trigger check' });
