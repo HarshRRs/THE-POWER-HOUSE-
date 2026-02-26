@@ -1,11 +1,16 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/database.js';
 import { analyticsService } from '../services/analytics.service.js';
 import { websocketService } from '../services/websocket.service.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
+import { adminMiddleware } from '../middleware/admin.middleware.js';
 import logger from '../utils/logger.util.js';
 
 const router = Router();
-const prisma = new PrismaClient();
+
+// All boss panel routes require auth + admin role
+router.use(authMiddleware);
+router.use(adminMiddleware);
 
 /**
  * Boss Panel API Routes
@@ -13,7 +18,7 @@ const prisma = new PrismaClient();
  */
 
 // Get all prefectures with live status
-router.get('/prefectures', async (req, res) => {
+router.get('/prefectures', async (_req, res) => {
   try {
     const prefectures = await prisma.prefecture.findMany({
       where: { status: 'ACTIVE' },
@@ -67,7 +72,7 @@ router.get('/prefectures', async (req, res) => {
 });
 
 // Get heat map data
-router.get('/heatmap', async (req, res) => {
+router.get('/heatmap', async (_req, res) => {
   try {
     const heatmapData = await analyticsService.getHeatMapData();
     res.json(heatmapData);
@@ -90,16 +95,17 @@ router.get('/slot-stream', async (req, res) => {
 });
 
 // Get predictive analytics for a prefecture
-router.get('/predict/:prefectureId', async (req, res) => {
+router.get('/predict/:prefectureId', async (req, res): Promise<void> => {
   try {
     const { prefectureId } = req.params;
     const prediction = await analyticsService.predictNextSlot(prefectureId);
     
     if (!prediction) {
-      return res.json({ 
+      res.json({ 
         prediction: null,
         message: 'Not enough data for prediction' 
       });
+      return;
     }
 
     res.json({
@@ -115,7 +121,7 @@ router.get('/predict/:prefectureId', async (req, res) => {
 });
 
 // Get dashboard statistics
-router.get('/stats', async (req, res) => {
+router.get('/stats', async (_req, res) => {
   try {
     const stats = await analyticsService.getStats();
     res.json(stats);
@@ -126,7 +132,7 @@ router.get('/stats', async (req, res) => {
 });
 
 // Get prefecture details with history
-router.get('/prefecture/:id/details', async (req, res) => {
+router.get('/prefecture/:id/details', async (req, res): Promise<void> => {
   try {
     const { id } = req.params;
     
@@ -143,7 +149,8 @@ router.get('/prefecture/:id/details', async (req, res) => {
     ]);
 
     if (!prefecture) {
-      return res.status(404).json({ error: 'Prefecture not found' });
+      res.status(404).json({ error: 'Prefecture not found' });
+      return;
     }
 
     res.json({
@@ -173,7 +180,7 @@ router.post('/prefecture/:id/check', async (req, res) => {
 });
 
 // Get active WebSocket connections (monitoring)
-router.get('/connections', (req, res) => {
+router.get('/connections', (_req, res) => {
   res.json({
     activeConnections: websocketService.getActiveConnections(),
   });

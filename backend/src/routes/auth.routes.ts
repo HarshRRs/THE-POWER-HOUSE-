@@ -149,12 +149,13 @@ router.post(
 // GET /api/auth/verify-email/:token
 router.get(
   '/verify-email/:token',
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, _next: NextFunction) => {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     try {
       await verifyEmail(req.params.token as string);
-      sendMessage(res, 'Email verified successfully.');
-    } catch (error) {
-      next(error);
+      res.redirect(`${frontendUrl}/dashboard?verified=true`);
+    } catch {
+      res.redirect(`${frontendUrl}/login?verify_error=true`);
     }
   }
 );

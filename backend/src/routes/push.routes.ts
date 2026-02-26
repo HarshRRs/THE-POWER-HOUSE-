@@ -9,14 +9,15 @@ const router = Router();
  * Get VAPID public key
  * GET /api/push/vapid-public-key
  */
-router.get('/vapid-public-key', (req, res) => {
+router.get('/vapid-public-key', (_req, res): void => {
   const publicKey = pushService.getPublicKey();
   
   if (!publicKey) {
-    return res.status(500).json({ 
+    res.status(500).json({ 
       error: 'VAPID keys not configured',
       message: 'Server needs VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in environment'
     });
+    return;
   }
 
   res.json({ publicKey });
@@ -26,16 +27,17 @@ router.get('/vapid-public-key', (req, res) => {
  * Subscribe to push notifications
  * POST /api/push/subscribe
  */
-router.post('/subscribe', authMiddleware, async (req, res) => {
+router.post('/subscribe', authMiddleware, async (req, res): Promise<void> => {
   try {
     const userId = req.user!.id;
     const subscription = req.body;
 
     if (!subscription || !subscription.endpoint || !subscription.keys) {
-      return res.status(400).json({ 
+      res.status(400).json({ 
         error: 'Invalid subscription data',
         message: 'Subscription must include endpoint and keys'
       });
+      return;
     }
 
     await pushService.saveSubscription(userId, subscription);
@@ -59,15 +61,16 @@ router.post('/subscribe', authMiddleware, async (req, res) => {
  * Unsubscribe from push notifications
  * POST /api/push/unsubscribe
  */
-router.post('/unsubscribe', async (req, res) => {
+router.post('/unsubscribe', authMiddleware, async (req, res): Promise<void> => {
   try {
     const { endpoint } = req.body;
 
     if (!endpoint) {
-      return res.status(400).json({ 
+      res.status(400).json({ 
         error: 'Endpoint required',
         message: 'Subscription endpoint is required'
       });
+      return;
     }
 
     await pushService.removeSubscription(endpoint);

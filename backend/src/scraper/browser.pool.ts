@@ -3,6 +3,7 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import type { Browser, BrowserContext, Page } from 'playwright';
 import logger from '../utils/logger.util.js';
 import { SCRAPER_CONFIG } from '../config/constants.js';
+import { BOOTSTRAP_CONFIG } from '../config/bootstrap.config.js';
 import { proxyService, type ProxyConfig } from './proxy.service.js';
 
 // Apply stealth plugin
@@ -277,7 +278,7 @@ class BrowserPool {
         };
 
         // Prevent automation detection via permissions
-        var originalQuery = window.navigator.permissions.query;
+        var originalQuery = window.navigator.permissions.query.bind(window.navigator.permissions);
         window.navigator.permissions.query = function(parameters) {
           if (parameters.name === 'notifications') {
             return Promise.resolve({ state: 'prompt', onchange: null });
@@ -302,7 +303,8 @@ class BrowserPool {
     const page = await context.newPage();
 
     // Add human-like behavior
-    page.setDefaultTimeout(SCRAPER_CONFIG.pageTimeout);
+    const pageTimeout = BOOTSTRAP_CONFIG.enabled ? BOOTSTRAP_CONFIG.pageTimeout : SCRAPER_CONFIG.pageTimeout;
+    page.setDefaultTimeout(pageTimeout);
 
     // Block unnecessary resources to speed up scraping
     await page.route('**/*', (route) => {
@@ -355,7 +357,8 @@ let browserPool: BrowserPool | null = null;
 
 export async function getBrowserPool(): Promise<BrowserPool> {
   if (!browserPool) {
-    browserPool = new BrowserPool();
+    const maxBrowsers = BOOTSTRAP_CONFIG.enabled ? BOOTSTRAP_CONFIG.maxBrowsers : SCRAPER_CONFIG.maxBrowsers;
+    browserPool = new BrowserPool(maxBrowsers);
     await browserPool.initialize();
   }
   return browserPool;

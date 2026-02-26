@@ -1,7 +1,7 @@
 "use client";
 
 import { Activity } from "lucide-react";
-import { formatTime, getProcedureLabel } from "@/lib/utils";
+import { formatTime, getProcedureLabel, getDetectionLocationName } from "@/lib/utils";
 import { useWebSocket } from "@/hooks/useWebSocket";
 
 export default function SlotStream() {
@@ -52,7 +52,7 @@ export default function SlotStream() {
                     {formatTime(event.detectedAt || event.timestamp)}
                   </span>
                   <span>{getStatusIcon(event.status || 'AVAILABLE')}</span>
-                  <span className="font-medium">{event.prefectureName}</span>
+                  <span className="font-medium">{getDetectionLocationName(event)}</span>
                   <span className="text-muted">-</span>
                   <span className="text-primary">
                     {getProcedureLabel(event.procedure || 'TITRE_SEJOUR')}

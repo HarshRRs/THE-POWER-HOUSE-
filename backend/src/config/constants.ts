@@ -76,9 +76,36 @@ export const RATE_LIMITS = {
 
 export const QUEUE_NAMES = {
   scraper: 'scraper',
+  consulate: 'consulate',
+  vfs: 'vfs',
+  booking: 'booking',
   notifications: 'notifications',
   maintenance: 'maintenance',
 } as const;
+
+export const BOOKING_CONFIG = {
+  maxBookingTimeMs: 60000,     // Max 60 seconds per booking attempt
+  maxRetries: 10,              // Max retries before giving up
+  captchaTimeoutMs: 120000,    // 2 minutes max for CAPTCHA solve
+  screenshotDir: './screenshots/bookings',
+  pageTimeoutMs: 30000,
+};
+
+export const CONSULATE_CONFIG = {
+  maxConsecutiveErrors: 5,
+  csrfTokenTtlMs: 15 * 60 * 1000,
+  requestDelayMs: 500,
+  maxDatesToCheck: 30,
+};
+
+export const VFS_CONFIG = {
+  maxConsecutiveErrors: 5,
+  browserIdleTimeoutMs: 10 * 60 * 1000, // 10 minutes
+  requestDelayMs: 3000, // 3 seconds between requests (rate limiting)
+  pageTimeoutMs: 60000, // 60 seconds for page load
+  cloudflareWaitMs: 30000, // 30 seconds max for cloudflare
+  screenshotDir: './screenshots/vfs',
+};
 
 export const SCRAPER_CONFIG = {
   maxBrowsers: 8,

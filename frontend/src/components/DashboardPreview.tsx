@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+// Dashboard Preview graphic
 
 export default function DashboardPreview() {
   return (
@@ -18,7 +18,7 @@ export default function DashboardPreview() {
             dashboard.rdvpriority.fr
           </div>
         </div>
-        
+
         {/* Dashboard Content */}
         <div className="p-6">
           {/* Header Stats */}
@@ -40,7 +40,7 @@ export default function DashboardPreview() {
               <div className="text-sm text-gray-400">Success Rate</div>
             </div>
           </div>
-          
+
           {/* Main Content Area */}
           <div className="grid grid-cols-3 gap-4">
             {/* Left Panel - Alerts */}
@@ -70,7 +70,7 @@ export default function DashboardPreview() {
                 </div>
               </div>
             </div>
-            
+
             {/* Right Panel - Notifications */}
             <div className="bg-gray-800 rounded-lg p-4">
               <h3 className="text-white font-semibold mb-3">Notifications</h3>
@@ -101,7 +101,7 @@ export default function DashboardPreview() {
           </div>
         </div>
       </div>
-      
+
       {/* Floating Elements for realism */}
       <div className="absolute -top-4 -right-4 w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full opacity-20 blur-xl"></div>
       <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-gradient-to-br from-green-500 to-teal-600 rounded-full opacity-20 blur-xl"></div>

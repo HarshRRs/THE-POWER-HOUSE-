@@ -121,13 +121,50 @@ model Client {
   // Contact Info
   firstName       String
   lastName        String
-  email           String?
+  email           String?       // Booking confirmation goes here
   phone           String
   
-  // Procedure Details
+  // Personal Details (for form filling)
+  dateOfBirth     DateTime?
+  nationality     String        @default("Indian")
+  passportNumber  String?
+  foreignerNumber String?       // AGDREF number (for prefecture renewals)
+  passportFileNumber String?    // For Indian Embassy bookings
+  
+  // Booking Target System
+  bookingSystem   BookingSystem @default(PREFECTURE)
+  
+  // Prefecture-specific
   procedureType   ProcedureType // Specific procedure subtype
-  prefectureId    String
-  prefecture      Prefecture    @relation(fields: [prefectureId], references: [id])
+  prefectureId    String?
+  prefecture      Prefecture?   @relation(fields: [prefectureId], references: [id])
+  procedure       Procedure?    // Links to alert/detection system
+  
+  // VFS-specific
+  vfsCenterId     String?
+  vfsCenter       VfsCenter?    @relation(fields: [vfsCenterId], references: [id])
+  vfsLoginEmail   String?
+  vfsLoginPassword String?      // Encrypted
+  destinationCountry String?
+  preferredCity   String?
+  visaCategory    String?
+  
+  // Embassy-specific
+  embassyServiceType String?    // e.g., PASSPORT_RENEWAL, OCI_REGISTRATION
+  consulateId     String?
+  consulate       Consulate?    @relation(fields: [consulateId], references: [id])
+  
+  // Date Preferences
+  datePreference  DatePreference @default(EARLIEST)
+  preferredAfter  DateTime?     // Book after this date
+  preferredBefore DateTime?     // Book before this date
+  
+  // Auto-Booking
+  autoBook        Boolean       @default(false)
+  bookingStatus   BookingStatus @default(IDLE)
+  bookingAttempts Int           @default(0)
+  lastAttemptAt   DateTime?
+  lastAttemptError String?
   
   // Status
   status          ClientStatus  @default(WAITING)
@@ -147,16 +184,61 @@ model Client {
   alert           Alert?        @relation(fields: [alertId], references: [id])
   
   // Booking Result
-  bookingDate     DateTime?     // When you booked it
+  bookingDate     DateTime?     // When the appointment is
   bookingTime     String?       // Time slot
   bookingUrl      String?       // Confirmation link
+  bookingRef      String?       // Reference number from confirmation
+  bookingScreenshot String?     // Screenshot path of confirmation
+  bookedAt        DateTime?     // When the system booked it
   
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   
+  bookingLogs     BookingLog[]
+  
   @@index([status, priority])
   @@index([prefectureId, status])
   @@index([procedureType, status])
+  @@index([bookingSystem, autoBook, bookingStatus])
+  @@index([vfsCenterId, status])
+}
+
+enum BookingSystem {
+  PREFECTURE
+  VFS
+  EMBASSY
+}
+
+enum BookingStatus {
+  IDLE          // Not actively booking
+  WAITING_SLOT  // Waiting for slot to appear
+  BOOKING       // Currently in booking process
+  CAPTCHA_WAIT  // Waiting for CAPTCHA solve (manual or 2Captcha)
+  PAYMENT_WAIT  // VFS: waiting for admin to complete payment
+  BOOKED        // Successfully booked
+  FAILED        // Booking failed
+}
+
+enum DatePreference {
+  EARLIEST      // First available date
+  AFTER         // After preferredAfter date
+  BEFORE        // Before preferredBefore date
+  BETWEEN       // Between preferredAfter and preferredBefore
+}
+
+// Booking attempt log for audit trail
+model BookingLog {
+  id              String    @id @default(uuid())
+  clientId        String
+  client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  action          String    // SLOT_DETECTED, FORM_FILLED, CAPTCHA_SENT, CAPTCHA_SOLVED, SUBMITTED, BOOKED, FAILED
+  details         String?   // Extra info
+  screenshotPath  String?   // Screenshot at this step
+  
+  createdAt       DateTime  @default(now())
+  
+  @@index([clientId, createdAt])
 }
 
 enum ProcedureType {
@@ -196,8 +278,17 @@ model Alert {
   userId          String
   user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  prefectureId    String
-  prefecture      Prefecture  @relation(fields: [prefectureId], references: [id])
+  targetType      TargetType  @default(PREFECTURE)
+  
+  prefectureId    String?
+  prefecture      Prefecture? @relation(fields: [prefectureId], references: [id])
+  
+  consulateId     String?
+  consulate       Consulate?  @relation(fields: [consulateId], references: [id])
+  
+  vfsCenterId     String?
+  vfsCenter       VfsCenter?  @relation(fields: [vfsCenterId], references: [id])
+  
   procedure       Procedure
   isActive        Boolean     @default(true)
   
@@ -212,7 +303,11 @@ model Alert {
   clients         Client[]  // Clients linked to this alert
   
   @@unique([userId, prefectureId, procedure])
+  @@unique([userId, consulateId, procedure])
+  @@unique([userId, vfsCenterId, procedure])
   @@index([prefectureId, isActive])
+  @@index([consulateId, isActive])
+  @@index([vfsCenterId, isActive])
   @@index([userId])
   @@index([userId, isActive, createdAt])  // For listing user's active alerts
 }
@@ -239,6 +334,83 @@ enum Procedure {
   PERMIS_CONDUIRE
   CARTE_GRISE
   AUTRE
+
+  // Indian Embassy - Passport
+  PASSPORT_RENEWAL
+  PASSPORT_REISSUE
+  PASSPORT_NEW
+  PASSPORT_TATKAL
+  // Indian Embassy - OCI
+  OCI_REGISTRATION
+  OCI_RENEWAL
+  OCI_MISC
+  // Indian Embassy - Other
+  VISA_CONSULAR
+  BIRTH_REGISTRATION
+  CONSULAR_OTHER
+
+  // VFS Italy (from India) - Schengen & National visas
+  SCHENGEN_TOURIST_ITALY
+  SCHENGEN_BUSINESS_ITALY
+  STUDENT_VISA_ITALY
+  WORK_VISA_ITALY
+  SEASONAL_WORK_VISA_ITALY       // Seasonal Work (National D)
+
+  // VFS Germany (from India) - Schengen & National visas
+  SCHENGEN_TOURIST_GERMANY
+  SCHENGEN_BUSINESS_GERMANY
+  STUDENT_VISA_GERMANY
+  WORK_VISA_GERMANY
+  OPPORTUNITY_CARD_GERMANY       // Chancenkarte (National D)
+
+  // VFS France (from India) - Schengen & National visas
+  SCHENGEN_TOURIST_FRANCE
+  SCHENGEN_BUSINESS_FRANCE
+  STUDENT_VISA_FRANCE
+  WORK_VISA_FRANCE
+
+  // VFS Switzerland (from India) - Schengen & National visas
+  SCHENGEN_TOURIST_SWITZERLAND
+  SCHENGEN_BUSINESS_SWITZERLAND
+  STUDENT_VISA_SWITZERLAND
+  WORK_VISA_SWITZERLAND
+
+  // VFS Austria (from India) - Schengen & National visas
+  SCHENGEN_TOURIST_AUSTRIA
+  SCHENGEN_BUSINESS_AUSTRIA
+  STUDENT_VISA_AUSTRIA
+  WORK_VISA_AUSTRIA
+
+  // VFS Belgium (from India) - Schengen & National visas
+  SCHENGEN_TOURIST_BELGIUM
+  SCHENGEN_BUSINESS_BELGIUM
+  STUDENT_VISA_BELGIUM
+  WORK_VISA_BELGIUM
+
+  // VFS Netherlands (from India) - Schengen & National visas
+  SCHENGEN_TOURIST_NETHERLANDS
+  SCHENGEN_BUSINESS_NETHERLANDS
+  STUDENT_VISA_NETHERLANDS
+  WORK_VISA_NETHERLANDS
+
+  // VFS Portugal (from India) - Schengen & National visas
+  SCHENGEN_TOURIST_PORTUGAL
+  SCHENGEN_BUSINESS_PORTUGAL
+  STUDENT_VISA_PORTUGAL
+  WORK_VISA_PORTUGAL
+  JOB_SEEKER_VISA_PORTUGAL       // Job Seeker Visa (National D)
+}
+
+enum TargetType {
+  PREFECTURE
+  CONSULATE
+  VFS_CENTER
+}
+
+enum ConsulateStatus {
+  ACTIVE
+  PAUSED
+  ERROR
 }
 
 // ═══════════════════════════════════════
@@ -250,8 +422,15 @@ model Detection {
   alertId         String
   alert           Alert     @relation(fields: [alertId], references: [id], onDelete: Cascade)
   
-  prefectureId    String
-  prefecture      Prefecture @relation(fields: [prefectureId], references: [id])
+  prefectureId    String?
+  prefecture      Prefecture? @relation(fields: [prefectureId], references: [id])
+  
+  consulateId     String?
+  consulate       Consulate?  @relation(fields: [consulateId], references: [id])
+  
+  vfsCenterId     String?
+  vfsCenter       VfsCenter?  @relation(fields: [vfsCenterId], references: [id])
+  
   slotsAvailable  Int
   slotDate        String?
   slotTime        String?
@@ -261,6 +440,8 @@ model Detection {
   detectedAt      DateTime  @default(now())
   
   @@index([prefectureId, detectedAt])
+  @@index([consulateId, detectedAt])
+  @@index([vfsCenterId, detectedAt])
   @@index([alertId])
 }
 
@@ -417,4 +598,70 @@ model ScraperLog {
   
   @@index([prefectureId, createdAt])
   @@index([status, createdAt])
+}
+
+// ═══════════════════════════════════════
+// CONSULATE CONFIG
+// ═══════════════════════════════════════
+
+model Consulate {
+  id                String          @id
+  name              String
+  country           String
+  city              String
+  type              String          // "embassy", "consulate"
+  baseUrl           String
+  checkInterval     Int             @default(120)
+  
+  status            ConsulateStatus @default(ACTIVE)
+  lastScrapedAt     DateTime?
+  consecutiveErrors Int             @default(0)
+  
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  alerts            Alert[]
+  detections        Detection[]
+  clients           Client[]
+  
+  @@index([status])
+}
+
+// ═══════════════════════════════════════
+// VFS CENTER CONFIG (European Visas from India)
+// ═══════════════════════════════════════
+
+model VfsCenter {
+  id                  String        @id
+  configId            String        // Reference to VfsConfig (e.g., 'vfs-italy-india')
+  name                String        // e.g., 'VFS Italy - New Delhi'
+  destinationCountry  String        // e.g., 'Italy'
+  sourceCountry       String        // e.g., 'India'
+  city                String        // e.g., 'New Delhi'
+  centerCode          String        // VFS center code
+  bookingUrl          String
+  checkInterval       Int           @default(300) // 5 minutes default
+  
+  status              VfsCenterStatus @default(ACTIVE)
+  lastScrapedAt       DateTime?
+  lastSlotFoundAt     DateTime?
+  consecutiveErrors   Int           @default(0)
+  
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  
+  alerts              Alert[]
+  detections          Detection[]
+  clients             Client[]
+  
+  @@index([configId, status])
+  @@index([destinationCountry, status])
+  @@index([status])
+}
+
+enum VfsCenterStatus {
+  ACTIVE
+  PAUSED
+  ERROR
+  CAPTCHA_BLOCKED
 }

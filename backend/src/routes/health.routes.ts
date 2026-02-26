@@ -24,11 +24,15 @@ router.get('/', async (_req: Request, res: Response) => {
     checks.database = 'error';
   }
 
-  try {
-    await redis.ping();
-    checks.redis = 'ok';
-  } catch {
-    checks.redis = 'error';
+  if (redis) {
+    try {
+      await redis.ping();
+      checks.redis = 'ok';
+    } catch {
+      checks.redis = 'error';
+    }
+  } else {
+    checks.redis = 'not_configured';
   }
 
   try {
@@ -50,7 +54,7 @@ router.get('/', async (_req: Request, res: Response) => {
     checks.queues = 'error';
   }
 
-  const allOk = checks.database === 'ok' && checks.redis === 'ok';
+  const allOk = checks.database === 'ok' && (checks.redis === 'ok' || checks.redis === 'not_configured');
   const status = allOk ? 200 : 503;
 
   res.status(status).json({
@@ -63,7 +67,9 @@ router.get('/', async (_req: Request, res: Response) => {
 router.get('/ready', async (_req: Request, res: Response) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
-    await redis.ping();
+    if (redis) {
+      await redis.ping();
+    }
     res.status(200).json({ ready: true });
   } catch {
     res.status(503).json({ ready: false });
@@ -99,16 +105,14 @@ router.get('/stats', async (_req: Request, res: Response) => {
       prefecturesMonitored: prefectureCount,
       activeUsers: activeUserCount,
       detectionsLast24h: recentDetections,
-      uptime: '99.9%',
     });
   } catch {
-    // Return mock data if database not ready
+    // Return zeros if database not ready
     sendSuccess(res, {
-      appointmentsDetected: 14832,
-      prefecturesMonitored: 101,
-      activeUsers: 9847,
-      detectionsLast24h: 127,
-      uptime: '99.9%',
+      appointmentsDetected: 0,
+      prefecturesMonitored: 0,
+      activeUsers: 0,
+      detectionsLast24h: 0,
     });
   }
 });

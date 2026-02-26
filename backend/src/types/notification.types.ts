@@ -22,9 +22,13 @@ export interface NotificationMetadata {
 }
 
 export interface SlotDetectionData {
-  prefectureId: string;
-  prefectureName: string;
-  department: string;
+  prefectureId?: string;
+  consulateId?: string;
+  prefectureName?: string;
+  consulateName?: string;
+  department?: string;
+  country?: string;
+  categoryName?: string;
   slotsAvailable: number;
   bookingUrl: string;
   slotDate?: string;

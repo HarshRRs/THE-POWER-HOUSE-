@@ -1,8 +1,6 @@
 import webpush from 'web-push';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../config/database.js';
 import logger from '../../utils/logger.util.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Push Notification Service
@@ -28,16 +26,14 @@ class PushService {
     } else {
       // Generate new keys if not exists
       this.vapidKeys = webpush.generateVAPIDKeys();
-      logger.info('Generated new VAPID keys');
-      logger.info(`Public Key: ${this.vapidKeys.publicKey}`);
-      logger.info('Add these to your .env file!');
+      logger.info('Generated new VAPID keys. Add these to your .env file!');
     }
 
     // Set VAPID details
     webpush.setVapidDetails(
       'mailto:admin@rdvpriority.fr',
-      this.vapidKeys.publicKey,
-      this.vapidKeys.privateKey
+      this.vapidKeys!.publicKey,
+      this.vapidKeys!.privateKey
     );
   }
 
@@ -51,7 +47,7 @@ class PushService {
   /**
    * Save a push subscription to database
    */
-  async saveSubscription(userId: string, subscription: webpush.PushSubscription): Promise<void> {
+  async saveSubscription(userId: string, subscription: { endpoint: string; keys: { p256dh: string; auth: string } }): Promise<void> {
     try {
       await prisma.pushSubscription.upsert({
         where: {

@@ -6,7 +6,8 @@ const DEDUP_PREFIX = 'dedup:';
 const DEFAULT_TTL_SECONDS = 3600; // 1 hour
 
 export interface DeduplicationKey {
-  prefectureId: string;
+  prefectureId?: string;
+  consulateId?: string;
   alertId: string;
   slotDate?: string;
   slotTime?: string;
@@ -27,11 +28,13 @@ class DeduplicationService {
 
   /**
    * Generate a unique hash key for deduplication
+   * Key format: dedup:{prefectureId}:{hash} - prefectureId prefix enables per-prefecture operations
    */
   private generateKey(data: DeduplicationKey): string {
-    const keyString = `${data.prefectureId}:${data.alertId}:${data.slotDate || ''}:${data.slotTime || ''}`;
+    const targetId = data.prefectureId || data.consulateId || 'unknown';
+    const keyString = `${targetId}:${data.alertId}:${data.slotDate || ''}:${data.slotTime || ''}`;
     const hash = crypto.createHash('sha256').update(keyString).digest('hex').substring(0, 16);
-    return `${DEDUP_PREFIX}${hash}`;
+    return `${DEDUP_PREFIX}${targetId}:${hash}`;
   }
 
   /**
@@ -46,7 +49,7 @@ class DeduplicationService {
       const exists = await redis.exists(redisKey);
       
       if (exists) {
-        logger.debug(`DeduplicationService: Duplicate detected for ${key.prefectureId}:${key.alertId}`);
+        logger.debug(`DeduplicationService: Duplicate detected for ${key.prefectureId || key.consulateId}:${key.alertId}`);
         return true;
       }
       
@@ -67,7 +70,7 @@ class DeduplicationService {
     try {
       const redisKey = this.generateKey(key);
       await redis.set(redisKey, Date.now().toString(), 'EX', this.ttlSeconds);
-      logger.debug(`DeduplicationService: Marked ${key.prefectureId}:${key.alertId} as sent`);
+      logger.debug(`DeduplicationService: Marked ${key.prefectureId || key.consulateId}:${key.alertId} as sent`);
     } catch (error) {
       logger.error('DeduplicationService: Redis error during mark as sent', error);
     }
@@ -92,10 +95,10 @@ class DeduplicationService {
       );
 
       if (result === 'OK') {
-        logger.debug(`DeduplicationService: New notification for ${key.prefectureId}:${key.alertId}`);
+        logger.debug(`DeduplicationService: New notification for ${key.prefectureId || key.consulateId}:${key.alertId}`);
         return true;
       } else {
-        logger.debug(`DeduplicationService: Duplicate blocked for ${key.prefectureId}:${key.alertId}`);
+        logger.debug(`DeduplicationService: Duplicate blocked for ${key.prefectureId || key.consulateId}:${key.alertId}`);
         return false;
       }
     } catch (error) {
@@ -112,7 +115,7 @@ class DeduplicationService {
     try {
       const redisKey = this.generateKey(key);
       await redis.del(redisKey);
-      logger.debug(`DeduplicationService: Cleared ${key.prefectureId}:${key.alertId}`);
+      logger.debug(`DeduplicationService: Cleared ${key.prefectureId || key.consulateId}:${key.alertId}`);
     } catch (error) {
       logger.error('DeduplicationService: Redis error during clear', error);
     }
@@ -123,7 +126,7 @@ class DeduplicationService {
    */
   async clearPrefecture(prefectureId: string): Promise<number> {
     try {
-      const pattern = `${DEDUP_PREFIX}*`;
+      const pattern = `${DEDUP_PREFIX}${prefectureId}:*`;
       const keys = await redis.keys(pattern);
       
       if (keys.length === 0) return 0;

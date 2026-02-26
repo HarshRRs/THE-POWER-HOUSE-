@@ -10,8 +10,13 @@ interface WebSocketData {
 }
 
 interface SlotDetection {
-  prefectureId: string;
-  prefectureName: string;
+  prefectureId?: string;
+  prefectureName?: string;
+  consulateId?: string;
+  consulateName?: string;
+  vfsCenterId?: string;
+  vfsCenterName?: string;
+  categoryName?: string;
   slotsAvailable: number;
   slotDate?: string;
   slotTime?: string;

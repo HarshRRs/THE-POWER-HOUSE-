@@ -140,7 +140,7 @@ export async function startScraperWorker(workerId: string, concurrency = 3) {
         throw error; // Let BullMQ handle retry
       }
     },
-    concurrency
+    effectiveConcurrency
   );
 
   if (worker) {
@@ -204,7 +204,11 @@ export async function scheduleScraperJobs() {
     } else {
       // Remove job if no active alerts
       try {
-        await scraperQueue.removeRepeatableByKey(jobId);
+        await scraperQueue.removeRepeatable(
+          `scrape:${pref.id}`,
+          { every: effectiveInterval * 1000, },
+          jobId
+        );
         logger.debug(`Removed schedule for ${pref.id} (no active alerts)`);
       } catch {
         // Job might not exist

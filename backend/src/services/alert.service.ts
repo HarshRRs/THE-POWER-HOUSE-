@@ -5,7 +5,7 @@ import type { Plan, Procedure } from '@prisma/client';
 import type { CreateAlertInput } from '../validators/alert.validator.js';
 
 export async function createAlert(userId: string, userPlan: Plan, input: CreateAlertInput) {
-  const { prefectureId, procedure } = input;
+  const { targetType, prefectureId, consulateId, procedure } = input;
 
   // Check plan limits
   const planConfig = PLAN_LIMITS[userPlan];
@@ -23,9 +23,55 @@ export async function createAlert(userId: string, userPlan: Plan, input: CreateA
     throw new ApiError(`Your plan allows a maximum of ${planConfig.maxAlerts} active alert(s)`, 403);
   }
 
-  // Check if prefecture exists
+  if (targetType === 'CONSULATE') {
+    // Validate consulate exists
+    const consulate = await prisma.consulate.findUnique({
+      where: { id: consulateId! },
+    });
+
+    if (!consulate) {
+      throw new ApiError('Consulate not found', 404);
+    }
+
+    // Check for duplicate alert
+    const existingAlert = await prisma.alert.findUnique({
+      where: {
+        userId_consulateId_procedure: {
+          userId,
+          consulateId: consulateId!,
+          procedure: procedure as Procedure,
+        },
+      },
+    });
+
+    if (existingAlert) {
+      throw new ApiError('You already have an alert for this consulate and procedure', 409);
+    }
+
+    const alert = await prisma.alert.create({
+      data: {
+        userId,
+        targetType: 'CONSULATE',
+        consulateId: consulateId!,
+        procedure: procedure as Procedure,
+      },
+      include: {
+        consulate: {
+          select: {
+            name: true,
+            country: true,
+            city: true,
+          },
+        },
+      },
+    });
+
+    return alert;
+  }
+
+  // Default: PREFECTURE target
   const prefecture = await prisma.prefecture.findUnique({
-    where: { id: prefectureId },
+    where: { id: prefectureId! },
   });
 
   if (!prefecture) {
@@ -37,7 +83,7 @@ export async function createAlert(userId: string, userPlan: Plan, input: CreateA
     where: {
       userId_prefectureId_procedure: {
         userId,
-        prefectureId,
+        prefectureId: prefectureId!,
         procedure: procedure as Procedure,
       },
     },
@@ -50,7 +96,8 @@ export async function createAlert(userId: string, userPlan: Plan, input: CreateA
   const alert = await prisma.alert.create({
     data: {
       userId,
-      prefectureId,
+      targetType: 'PREFECTURE',
+      prefectureId: prefectureId!,
       procedure: procedure as Procedure,
     },
     include: {
@@ -80,6 +127,14 @@ export async function getUserAlerts(userId: string) {
           status: true,
         },
       },
+      consulate: {
+        select: {
+          name: true,
+          country: true,
+          city: true,
+          status: true,
+        },
+      },
       _count: {
         select: {
           detections: true,
@@ -97,6 +152,7 @@ export async function getAlertById(alertId: string, userId: string) {
     where: { id: alertId, userId },
     include: {
       prefecture: true,
+      consulate: true,
       detections: {
         orderBy: { detectedAt: 'desc' },
         take: 10,
@@ -130,6 +186,13 @@ export async function toggleAlert(alertId: string, userId: string, isActive?: bo
         select: {
           name: true,
           department: true,
+        },
+      },
+      consulate: {
+        select: {
+          name: true,
+          country: true,
+          city: true,
         },
       },
     },

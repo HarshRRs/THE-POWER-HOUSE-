@@ -4,6 +4,7 @@ import type { Request, Response } from 'express';
 import { prisma } from '../config/database.js';
 import { sendTelegram, extractChatId, type TelegramUpdate } from '../services/notifications/telegram.service.js';
 import { sendSuccess, sendError } from '../utils/responses.util.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
 import logger from '../utils/logger.util.js';
 
 const router = Router();
@@ -65,14 +66,14 @@ router.post('/webhook', async (req: Request, res: Response) => {
 });
 
 // POST /api/telegram/link - Generate link code for user
-router.post('/link', async (req: Request, res: Response) => {
+router.post('/link', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const userId = req.body.userId;
-    
-    if (!userId) {
-      sendError(res, 'User ID required', 400);
+    if (!req.user) {
+      sendError(res, 'Authentication required', 401);
       return;
     }
+
+    const userId = req.user.id;
 
     // Generate cryptographically secure 8-char code
     const linkCode = crypto.randomBytes(4).toString('hex').toUpperCase();

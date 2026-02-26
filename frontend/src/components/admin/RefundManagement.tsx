@@ -23,14 +23,15 @@ export default function RefundManagement() {
 
   const checkEligibility = async () => {
     if (!userId) return;
-    
+
     setLoading(true);
     setMessage("");
     try {
       const res = await api.get(`/admin/refunds/check/${userId}`);
       setEligibility(res.data.data);
-    } catch (error: any) {
-      setMessage(error.response?.data?.error || "Failed to check eligibility");
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      setMessage(err.response?.data?.error || "Failed to check eligibility");
       setEligibility(null);
     } finally {
       setLoading(false);
@@ -39,7 +40,7 @@ export default function RefundManagement() {
 
   const processRefund = async () => {
     if (!userId || !reason) return;
-    
+
     setLoading(true);
     setMessage("");
     try {
@@ -48,8 +49,9 @@ export default function RefundManagement() {
       setEligibility(null);
       setUserId("");
       setReason("");
-    } catch (error: any) {
-      setMessage(error.response?.data?.error || "Failed to process refund");
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      setMessage(err.response?.data?.error || "Failed to process refund");
     } finally {
       setLoading(false);
     }
@@ -62,8 +64,9 @@ export default function RefundManagement() {
       const res = await api.post("/admin/refunds/batch");
       const data = res.data.data;
       setMessage(`Batch processing completed: ${data.totalProcessed} processed, ${data.successfulRefunds} successful, ${data.failedRefunds} failed`);
-    } catch (error: any) {
-      setMessage(error.response?.data?.error || "Failed to process batch refunds");
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      setMessage(err.response?.data?.error || "Failed to process batch refunds");
     } finally {
       setBatchLoading(false);
     }
@@ -84,7 +87,7 @@ export default function RefundManagement() {
       {/* Manual Refund Section */}
       <div className="card-govt bg-white rounded-xl p-6">
         <h2 className="text-lg font-bold text-gray-900 mb-4">Remboursement Manuel</h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-2">User ID</label>
@@ -96,7 +99,7 @@ export default function RefundManagement() {
               className="w-full input-mobile"
             />
           </div>
-          
+
           <div className="flex items-end">
             <button
               onClick={checkEligibility}
@@ -117,11 +120,11 @@ export default function RefundManagement() {
               Détections trouvées: {eligibility.totalDetections}
             </p>
             <p className={`text-sm font-bold ${eligibility.eligibleForRefund ? "text-green-700" : "text-yellow-700"}`}>
-              {eligibility.eligibleForRefund 
-                ? "✅ Éligible pour remboursement automatique" 
+              {eligibility.eligibleForRefund
+                ? "✅ Éligible pour remboursement automatique"
                 : `❌ Non éligible: ${eligibility.reason}`}
             </p>
-            
+
             {eligibility.eligibleForRefund && (
               <div className="mt-4">
                 <label className="block text-sm font-bold text-gray-700 mb-2">Raison du remboursement</label>

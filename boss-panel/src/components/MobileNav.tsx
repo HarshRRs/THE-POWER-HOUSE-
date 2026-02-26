@@ -1,41 +1,50 @@
-"use client";
+'use client';
 
-import { LayoutDashboard, Map, List, Activity } from "lucide-react";
+import { LayoutDashboard, Users, Activity, MoreHorizontal } from 'lucide-react';
 
-interface Props {
-  activeTab: 'dashboard' | 'map' | 'list' | 'stream';
-  onTabChange: (tab: 'dashboard' | 'map' | 'list' | 'stream') => void;
+interface MobileNavProps {
+  activeTab: string;
+  onTabChange: (tab: string) => void;
 }
 
-const tabs = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'map', label: 'Map', icon: Map },
-  { id: 'list', label: 'List', icon: List },
+const navItems = [
+  { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
+  { id: 'clients', label: 'Clients', icon: Users },
   { id: 'stream', label: 'Live', icon: Activity },
-] as const;
+  { id: 'more', label: 'More', icon: MoreHorizontal },
+];
 
-export default function MobileNav({ activeTab, onTabChange }: Props) {
+export default function MobileNav({ activeTab, onTabChange }: MobileNavProps) {
+  const handleClick = (id: string) => {
+    if (id === 'more') {
+      onTabChange('prefectures');
+    } else {
+      onTabChange(id);
+    }
+  };
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 lg:hidden glass border-t border-border z-50">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-border z-50 mobile-safe-bottom">
       <div className="flex items-center justify-around py-2">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id || (item.id === 'more' && 
+            ['prefectures', 'vfs', 'alerts', 'settings'].includes(activeTab));
           
           return (
             <button
-              key={tab.id}
-              onClick={() => onTabChange(tab.id)}
-              className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${
+              key={item.id}
+              onClick={() => handleClick(item.id)}
+              className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all relative ${
                 isActive 
-                  ? 'text-primary bg-primary/10' 
-                  : 'text-muted hover:text-white'
+                  ? 'text-gold' 
+                  : 'text-muted hover:text-text'
               }`}
             >
-              <Icon className="h-5 w-5" />
-              <span className="text-xs font-medium">{tab.label}</span>
+              <Icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 2} />
+              <span className="text-[10px] font-medium">{item.label}</span>
               {isActive && (
-                <div className="absolute bottom-1 w-1 h-1 rounded-full bg-primary" />
+                <div className="absolute -top-1 w-1 h-1 rounded-full bg-gold shadow-gold" />
               )}
             </button>
           );

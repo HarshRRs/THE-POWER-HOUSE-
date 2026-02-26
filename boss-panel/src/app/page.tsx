@@ -1,81 +1,78 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import Header from "@/components/Header";
-import StatsGrid from "@/components/StatsGrid";
-import PrefectureMap from "@/components/PrefectureMap";
-import SlotStream from "@/components/SlotStream";
-import PrefectureList from "@/components/PrefectureList";
-import ProcedureFilter from "@/components/ProcedureFilter";
-import MobileNav from "@/components/MobileNav";
-import { useWebSocket } from "@/hooks/useWebSocket";
+import { useState } from 'react';
+import Sidebar from '@/components/Sidebar';
+import MobileNav from '@/components/MobileNav';
+import DashboardView from '@/components/views/DashboardView';
+import ClientsView from '@/components/views/ClientsView';
+import PrefecturesView from '@/components/views/PrefecturesView';
+import VfsView from '@/components/views/VfsView';
+import StreamView from '@/components/views/StreamView';
+import AlertsView from '@/components/views/AlertsView';
+import SettingsView from '@/components/views/SettingsView';
 
-export default function Dashboard() {
-  const [selectedProcedure, setSelectedProcedure] = useState<string>("ALL");
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'map' | 'list' | 'stream'>('dashboard');
-  const { isConnected, latestDetection } = useWebSocket();
+export default function BossDashboard() {
+  const [activeTab, setActiveTab] = useState('dashboard');
+
+  const renderView = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return <DashboardView onNavigate={setActiveTab} />;
+      case 'clients':
+        return <ClientsView />;
+      case 'prefectures':
+        return <PrefecturesView />;
+      case 'vfs':
+        return <VfsView />;
+      case 'stream':
+        return <StreamView />;
+      case 'alerts':
+        return <AlertsView />;
+      case 'settings':
+        return <SettingsView />;
+      default:
+        return <DashboardView />;
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-background grid-pattern">
-      <Header />
-      
-      <main className="p-4 md:p-6 pb-24 md:pb-6">
-        {/* Connection Status Banner */}
-        {!isConnected && (
-          <div className="mb-4 p-3 bg-danger/10 border border-danger/30 rounded-lg text-center">
-            <p className="text-danger text-sm">
-              ⚠️ Connexion en cours... Les données peuvent ne pas être à jour.
-            </p>
-          </div>
-        )}
+    <div className="min-h-screen bg-background">
+      {/* Sidebar */}
+      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
-        {/* Latest Detection Alert */}
-        {latestDetection && (
-          <div className="mb-4 p-3 bg-success/10 border border-success/30 rounded-lg animate-pulse">
-            <p className="text-success text-sm font-medium">
-              🔔 Nouveau créneau détecté: {latestDetection.prefectureName} - {latestDetection.slotDate} {latestDetection.slotTime}
-            </p>
-          </div>
-        )}
-
-        {/* Stats Overview */}
-        <StatsGrid />
-
-        {/* Desktop Layout */}
-        <div className="hidden lg:grid mt-6 grid-cols-12 gap-6">
-          <div className="col-span-8 space-y-6">
-            <ProcedureFilter 
-              selected={selectedProcedure}
-              onSelect={setSelectedProcedure}
-            />
-            <PrefectureMap selectedProcedure={selectedProcedure} />
-            <SlotStream />
-          </div>
-          <div className="col-span-4">
-            <PrefectureList selectedProcedure={selectedProcedure} />
+      {/* Main Content Area */}
+      <main className="lg:ml-64 min-h-screen pb-20 lg:pb-8">
+        {/* Fixed Header for Desktop */}
+        <div className="hidden lg:block sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
+          <div className="px-8 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-semibold text-text tracking-tight">
+                  {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+                </h1>
+                <p className="text-sm text-text-muted mt-0.5">
+                  {activeTab === 'dashboard' && 'Monitor your appointment system'}
+                  {activeTab === 'clients' && 'Manage your clients'}
+                  {activeTab === 'prefectures' && 'View prefecture availability'}
+                  {activeTab === 'vfs' && 'VFS center management'}
+                  {activeTab === 'stream' && 'Live activity feed'}
+                  {activeTab === 'alerts' && 'Configure notifications'}
+                  {activeTab === 'settings' && 'System configuration'}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-gold animate-pulse" />
+                <span className="text-sm text-text-muted">System Online</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Mobile Layout - Tab based */}
-        <div className="lg:hidden mt-4 space-y-4">
-          {activeTab === 'dashboard' && (
-            <>
-              <ProcedureFilter 
-                selected={selectedProcedure}
-                onSelect={setSelectedProcedure}
-              />
-              <SlotStream />
-            </>
-          )}
-          {activeTab === 'map' && (
-            <PrefectureMap selectedProcedure={selectedProcedure} />
-          )}
-          {activeTab === 'list' && (
-            <PrefectureList selectedProcedure={selectedProcedure} />
-          )}
-          {activeTab === 'stream' && (
-            <SlotStream />
-          )}
+        {/* Content */}
+        <div className="pt-16 lg:pt-0">
+          <div className="px-4 lg:px-8 py-4 lg:py-8">
+            {renderView()}
+          </div>
         </div>
       </main>
 

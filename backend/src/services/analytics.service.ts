@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/database.js';
 import logger from '../utils/logger.util.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Analytics Service for Predictive Slot Detection
@@ -148,7 +146,7 @@ class AnalyticsService {
 
       return detections.map(d => ({
         id: d.id,
-        prefectureName: d.prefecture.name,
+        prefectureName: d.prefecture?.name || 'Unknown',
         procedure: 'TITRE_SEJOUR', // TODO: Get from detection
         slotDate: d.slotDate || 'N/A',
         slotTime: d.slotTime || 'N/A',
@@ -194,7 +192,7 @@ class AnalyticsService {
       });
 
       const prefectureNames = await prisma.prefecture.findMany({
-        where: { id: { in: topPrefectures.map(t => t.prefectureId) } },
+        where: { id: { in: topPrefectures.map(t => t.prefectureId).filter((id): id is string => id !== null) } },
         select: { id: true, name: true },
       });
 
@@ -206,7 +204,7 @@ class AnalyticsService {
         slotsFound24h: slots24h,
         slotsFound7d: slots7d,
         topPrefectures: topPrefectures.map(t => ({
-          name: nameMap.get(t.prefectureId) || 'Unknown',
+          name: nameMap.get(t.prefectureId!) || 'Unknown',
           count: t._count.id,
         })),
       };

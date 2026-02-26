@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MapPin, Clock, CheckCircle, TrendingUp } from "lucide-react";
+import { MapPin, Clock, CheckCircle, TrendingUp, Globe, Plane } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
 
 interface Stats {
   totalPrefectures: number;
   activePrefectures: number;
+  totalConsulates: number;
+  totalVfsCenters: number;
   slotsFound24h: number;
   slotsFound7d: number;
   successRate: number;
@@ -17,6 +19,8 @@ export default function StatsGrid() {
   const [stats, setStats] = useState<Stats>({
     totalPrefectures: 101,
     activePrefectures: 101,
+    totalConsulates: 1,
+    totalVfsCenters: 0,
     slotsFound24h: 0,
     slotsFound7d: 0,
     successRate: 94,
@@ -60,7 +64,7 @@ export default function StatsGrid() {
 
   const statCards = [
     {
-      label: "Préfectures",
+      label: "Prefectures",
       value: stats.activePrefectures,
       total: stats.totalPrefectures,
       icon: MapPin,
@@ -68,21 +72,35 @@ export default function StatsGrid() {
       bgColor: "bg-primary/10",
     },
     {
-      label: "Créneaux 24h",
+      label: "Consulates",
+      value: stats.totalConsulates,
+      icon: Globe,
+      color: "text-orange-400",
+      bgColor: "bg-orange-400/10",
+    },
+    {
+      label: "VFS Centers",
+      value: stats.totalVfsCenters,
+      icon: Plane,
+      color: "text-blue-400",
+      bgColor: "bg-blue-400/10",
+    },
+    {
+      label: "Slots 24h",
       value: stats.slotsFound24h,
       icon: Clock,
       color: "text-success",
       bgColor: "bg-success/10",
     },
     {
-      label: "Créneaux 7j",
+      label: "Slots 7d",
       value: stats.slotsFound7d,
       icon: CheckCircle,
       color: "text-warning",
       bgColor: "bg-warning/10",
     },
     {
-      label: "Connexion",
+      label: "Connection",
       value: isConnected ? "ONLINE" : "OFFLINE",
       icon: TrendingUp,
       color: isConnected ? "text-success" : "text-danger",
@@ -91,7 +109,7 @@ export default function StatsGrid() {
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 lg:gap-4">
       {statCards.map((card, index) => (
         <div
           key={index}

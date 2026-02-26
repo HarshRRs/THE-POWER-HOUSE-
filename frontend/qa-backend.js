@@ -8,8 +8,8 @@ async function runQA() {
         const res = await fetch(`${apiBase}/health/stats`);
         const health = await res.json();
         console.log('✅ Health/Stats:', health.success ? 'OK' : 'FAIL');
-    } catch (e) {
-        console.log('❌ Health/Stats: FAIL', e.cause || e.message);
+    } catch {
+        console.log('❌ Health/Stats: FAIL');
     }
 
     // 2. Prefectures
@@ -17,7 +17,7 @@ async function runQA() {
         const res = await fetch(`${apiBase}/prefectures`);
         const prefs = await res.json();
         console.log(`✅ Prefectures: ${prefs.data ? prefs.data.length : 0} found`);
-    } catch (e) {
+    } catch {
         console.log('❌ Prefectures: FAIL');
     }
 
@@ -26,7 +26,7 @@ async function runQA() {
         const res = await fetch(`${apiBase}/billing/plans`);
         const plans = await res.json();
         console.log(`✅ Billing Plans: ${plans.data ? plans.data.length : 0} found`);
-    } catch (e) {
+    } catch {
         console.log('❌ Billing Plans: FAIL');
     }
 
@@ -52,7 +52,7 @@ async function runQA() {
         } else {
             console.log('❌ Register: FAIL (Expected in Offline Mode)', reg.message);
         }
-    } catch (e) {
+    } catch {
         console.log('❌ Register: Network/Server Error');
     }
 }

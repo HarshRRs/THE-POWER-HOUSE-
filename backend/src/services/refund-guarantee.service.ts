@@ -137,7 +137,7 @@ export async function processAutomaticRefund(userId: string): Promise<{
     }
 
     // Process refund through Stripe
-    const refund = await stripe.refunds.create({
+    await stripe.refunds.create({
       payment_intent: recentPayment.stripePaymentId,
       reason: 'requested_by_customer',
     });

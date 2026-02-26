@@ -182,11 +182,11 @@ function Hero({ stats, loading }: { stats: Stats | null; loading: boolean }) {
         </div>
         <div className="mt-8 max-w-2xl mx-auto bg-gradient-to-r from-primary/20 to-accent/20 rounded-xl p-5 border border-primary/30 text-center">
           <div className="text-white/90 text-sm">
-            <span className="font-bold text-green-400">⚡</span> 
-            {" "}Plus de 3,000 créneaux détectés ce mois | 
-            <span className="font-bold text-blue-400"> 🏆</span> 
-            {" "}Record : 47 créneaux en 24h hier | 
-            <span className="font-bold text-purple-400"> ❤️</span> 
+            <span className="font-bold text-green-400">⚡</span>
+            {" "}Plus de 3,000 créneaux détectés ce mois |
+            <span className="font-bold text-blue-400"> 🏆</span>
+            {" "}Record : 47 créneaux en 24h hier |
+            <span className="font-bold text-purple-400"> ❤️</span>
             {" "}94% de satisfaction client
           </div>
         </div>
@@ -306,7 +306,6 @@ function LiveSituation({ prefectures, loading }: { prefectures: Prefecture[]; lo
     })
     .slice(0, 6);
 
-  // Fix for hydration mismatch (Date.now() is impure during render)
   const [now, setNow] = useState<number | null>(null);
 
   useEffect(() => {
@@ -760,7 +759,7 @@ function BlogPreview() {
   ];
 
   return (
-    <motion.section 
+    <motion.section
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
@@ -774,7 +773,7 @@ function BlogPreview() {
 
         <div className="grid md:grid-cols-3 gap-6 mb-8">
           {blogPosts.map((post, index) => (
-            <Link 
+            <Link
               key={index}
               href={`/blog/${post.slug}`}
               className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
@@ -796,8 +795,8 @@ function BlogPreview() {
         </div>
 
         <div className="text-center">
-          <Link 
-            href="/blog" 
+          <Link
+            href="/blog"
             className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white font-bold rounded-lg hover:bg-primary/90 transition-colors"
           >
             Voir tous les articles

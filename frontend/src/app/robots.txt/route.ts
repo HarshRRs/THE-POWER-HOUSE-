@@ -1,4 +1,4 @@
-import { headers } from 'next/headers'
+// Robots.txt generator
 
 export async function GET() {
   const robotsTxt = `User-agent: *

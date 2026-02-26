@@ -9,15 +9,12 @@ interface CountdownTimerProps {
 }
 
 export default function CountdownTimer({ expiresAt, className = "", showLabel = true }: CountdownTimerProps) {
-    const [timeLeft, setTimeLeft] = useState("");
-    const [percentage, setPercentage] = useState(100);
+    const [timeLeft, setTimeLeft] = useState(expiresAt ? "" : "Aucun plan");
+    const [percentage, setPercentage] = useState(expiresAt ? 100 : 0);
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         if (!expiresAt) {
-            // eslint-disable-next-line react-hooks/exhaustive-deps
-            setTimeLeft("Aucun plan");
-            setPercentage(0);
             return;
         }
 

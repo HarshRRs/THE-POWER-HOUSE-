@@ -134,6 +134,8 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
       await saveScreenshot(screenshot, screenshotPath);
 
       // Try to solve if service is enabled and we have the siteKey
+      let captchaSolved = false;
+
       if (captchaService.isEnabled() && captchaResult.siteKey && captchaResult.type) {
         logger.info(`Attempting CAPTCHA solve for ${config.id}`);
 
@@ -181,6 +183,13 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
 
             await randomDelay(1000, 2000);
 
+            // Wait for page to potentially navigate after CAPTCHA solve
+            try {
+              await page.waitForLoadState('networkidle', { timeout: 10000 });
+            } catch {
+              // Timeout is acceptable - page may not navigate
+            }
+
             // Check if CAPTCHA is still present
             const newContent = await page.content();
             const newCaptchaResult = await captchaService.detectCaptcha(newContent, page.url());
@@ -188,7 +197,8 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
             if (!newCaptchaResult.detected) {
               logger.info(`CAPTCHA solved successfully for ${config.id}`);
               if (proxy) proxyService.reportSuccess(proxy, targetDomain);
-              // Continue with scraping...
+              captchaSolved = true;
+              // Fall through to continue normal scraping flow below
             }
           } catch (solveError) {
             logger.error(`CAPTCHA injection failed for ${config.id}:`, solveError);
@@ -196,17 +206,19 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
         }
       }
 
-      // Still CAPTCHA blocked
-      if (proxy) proxyService.reportFailure(proxy, targetDomain);
+      // If CAPTCHA was not solved, return captcha status
+      if (!captchaSolved) {
+        if (proxy) proxyService.reportFailure(proxy, targetDomain);
 
-      return {
-        status: 'captcha',
-        slotsAvailable: 0,
-        bookingUrl: pageUrl,
-        screenshotPath,
-        errorMessage: `CAPTCHA type: ${captchaResult.type || 'unknown'}`,
-        responseTimeMs: Date.now() - startTime,
-      };
+        return {
+          status: 'captcha',
+          slotsAvailable: 0,
+          bookingUrl: pageUrl,
+          screenshotPath,
+          errorMessage: `CAPTCHA type: ${captchaResult.type || 'unknown'}`,
+          responseTimeMs: Date.now() - startTime,
+        };
+      }
     }
 
     // Handle cookie consent if present

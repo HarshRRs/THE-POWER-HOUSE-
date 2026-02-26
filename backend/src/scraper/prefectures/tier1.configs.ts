@@ -31,7 +31,6 @@ const GOUV_BOOKING_SELECTORS = {
     '.no-availability',                    // No availability message
     '.aucun-creneau',                      // French "no slot"
     '.text-danger',                        // Red text usually means no slots
-    'p:contains("aucun")',                 // Text containing "aucun" (none)
     '.message-info',                       // Info message
   ].join(', '),
   
@@ -79,7 +78,7 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     bookingSystem: 'custom',
     selectors: {
       availableSlot: '.slot-available, .creneau-libre, .fc-event, button.btn-success:not([disabled])',
-      noSlotIndicator: '.alert-warning, .aucun-creneau, .no-slot, .text-muted:contains("aucun")',
+      noSlotIndicator: '.alert-warning, .aucun-creneau, .no-slot, .text-muted',
       slotDate: '.slot-date, .date-rdv',
       slotTime: '.slot-time, .heure-rdv',
       cookieAccept: '#tarteaucitronAllDenied2, .tarteaucitronAllow, #cookie-accept',

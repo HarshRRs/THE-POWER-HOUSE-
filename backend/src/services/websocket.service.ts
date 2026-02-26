@@ -1,10 +1,8 @@
 import { Server as SocketServer } from 'socket.io';
 import type { Server as HttpServer } from 'http';
 import logger from '../utils/logger.util.js';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/database.js';
 import { pushService } from './notifications/push.service.js';
-
-const prisma = new PrismaClient();
 
 /**
  * WebSocket Service for Real-Time Boss Panel

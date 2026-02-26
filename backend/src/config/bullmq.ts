@@ -16,15 +16,15 @@ function createMockQueue(name: string) {
     getCompletedCount: async () => 0,
     getFailed: async () => [],
     getJob: async () => null,
-    close: async () => {},
+    close: async () => { },
   };
 }
 
 function createMockQueueEvents() {
   return {
-    close: async () => {},
-    on: () => {},
-    off: () => {},
+    close: async () => { },
+    on: () => { },
+    off: () => { },
   };
 }
 
@@ -55,6 +55,30 @@ export const scraperQueue = createQueue(QUEUE_NAMES.scraper, {
   },
 });
 
+export const consulateQueue = createQueue(QUEUE_NAMES.consulate, {
+  defaultJobOptions: {
+    removeOnComplete: 100,
+    removeOnFail: 50,
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 5000,
+    },
+  },
+});
+
+export const vfsQueue = createQueue(QUEUE_NAMES.vfs, {
+  defaultJobOptions: {
+    removeOnComplete: 100,
+    removeOnFail: 50,
+    attempts: 2, // VFS scraping is expensive, limit retries
+    backoff: {
+      type: 'exponential',
+      delay: 10000, // Longer delay due to Cloudflare
+    },
+  },
+});
+
 export const notificationQueue = createQueue(QUEUE_NAMES.notifications, {
   defaultJobOptions: {
     removeOnComplete: 100,
@@ -74,8 +98,17 @@ export const maintenanceQueue = createQueue(QUEUE_NAMES.maintenance, {
   },
 });
 
+export const autobookQueue = createQueue('autobook', {
+  defaultJobOptions: {
+    removeOnComplete: 100,
+    removeOnFail: 100,
+    attempts: 1, // Usually we don't want to retry form-filling automatically
+  },
+});
+
 export const scraperQueueEvents = createQueueEvents(QUEUE_NAMES.scraper);
 export const notificationQueueEvents = createQueueEvents(QUEUE_NAMES.notifications);
+export const autobookQueueEvents = createQueueEvents('autobook');
 
 export function createWorker<T>(
   queueName: string,
@@ -95,9 +128,13 @@ export function createWorker<T>(
 export async function closeQueues(): Promise<void> {
   await Promise.all([
     scraperQueue.close(),
+    consulateQueue.close(),
+    vfsQueue.close(),
     notificationQueue.close(),
     maintenanceQueue.close(),
+    autobookQueue.close(),
     scraperQueueEvents.close(),
     notificationQueueEvents.close(),
+    autobookQueueEvents.close(),
   ]);
 }

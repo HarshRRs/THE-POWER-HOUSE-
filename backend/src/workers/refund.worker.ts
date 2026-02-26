@@ -12,7 +12,7 @@ const REFUND_QUEUE_NAME = 'refund-processing';
 export async function startRefundWorker(concurrency = 1) {
   const worker = new Worker(
     REFUND_QUEUE_NAME,
-    async (job) => {
+    async (_job) => {
       try {
         logger.info('Starting refund processing batch...');
         
