@@ -58,14 +58,21 @@ export function randomEmail() {
  * Generate a random password
  */
 export function randomPassword() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghjkmnpqrstuvwxyz';
+  const digits = '23456789';
   const specials = '!@#$%&*';
+  // Guarantee at least one of each required category
   let password = '';
-  for (let i = 0; i < 10; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
+  password += upper.charAt(Math.floor(Math.random() * upper.length));
+  password += lower.charAt(Math.floor(Math.random() * lower.length));
+  password += digits.charAt(Math.floor(Math.random() * digits.length));
   password += specials.charAt(Math.floor(Math.random() * specials.length));
-  password += randomIntBetween(10, 99);
+  // Fill remaining 8 chars from mixed set
+  const all = upper + lower + digits + specials;
+  for (let i = 0; i < 8; i++) {
+    password += all.charAt(Math.floor(Math.random() * all.length));
+  }
   return password;
 }
 
