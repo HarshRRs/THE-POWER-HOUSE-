@@ -1,0 +1,64 @@
+﻿
+C:\Users\SHAH HARSH\.gemini\antigravity\scratch\rdvpriority\frontend\qa-backend.js
+  20:14  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+  29:14  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+  55:14  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\SHAH HARSH\.gemini\antigravity\scratch\rdvpriority\frontend\src\app\dashboard\admin\logs\page.tsx
+  6:8  warning  'StatusBadge' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\SHAH HARSH\.gemini\antigravity\scratch\rdvpriority\frontend\src\app\page.tsx
+  313:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\SHAH HARSH\.gemini\antigravity\scratch\rdvpriority\frontend\src\app\page.tsx:313:5
+  311 |
+  312 |   useEffect(() => {
+> 313 |     setNow(Date.now());
+      |     ^^^^^^ Avoid calling setState() directly within an effect
+  314 |     const interval = setInterval(() => setNow(Date.now()), 60000); // Update every minute
+  315 |     return () => clearInterval(interval);
+  316 |   }, []);  react-hooks/set-state-in-effect
+
+C:\Users\SHAH HARSH\.gemini\antigravity\scratch\rdvpriority\frontend\src\app\robots.txt\route.ts
+  1:10  warning  'headers' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\SHAH HARSH\.gemini\antigravity\scratch\rdvpriority\frontend\src\components\CountdownTimer.tsx
+  19:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\SHAH HARSH\.gemini\antigravity\scratch\rdvpriority\frontend\src\components\CountdownTimer.tsx:19:13
+  17 |         if (!expiresAt) {
+  18 |              
+> 19 |             setTimeLeft("Aucun plan");
+     |             ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  20 |             setPercentage(0);
+  21 |             return;
+  22 |         }  react-hooks/set-state-in-effect
+
+C:\Users\SHAH HARSH\.gemini\antigravity\scratch\rdvpriority\frontend\src\components\DashboardPreview.tsx
+  3:8  warning  'Image' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\SHAH HARSH\.gemini\antigravity\scratch\rdvpriority\frontend\src\components\EnhancedMetrics.tsx
+  32:70  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\SHAH HARSH\.gemini\antigravity\scratch\rdvpriority\frontend\src\components\admin\DataTable.tsx
+  22:60  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\SHAH HARSH\.gemini\antigravity\scratch\rdvpriority\frontend\src\components\admin\RefundManagement.tsx
+  32:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  51:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  65:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+Γ£û 13 problems (7 errors, 6 warnings)
+
