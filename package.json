@@ -6,10 +6,6 @@
         "start": "cd backend && npm start",
         "build": "cd frontend && npm install && npm run build"
     },
-    "workspaces": [
-        "frontend",
-        "backend"
-    ],
     "dependencies": {
         "socket.io": "^4.8.3"
     }
