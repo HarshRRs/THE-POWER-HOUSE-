@@ -10,7 +10,8 @@ const nextConfig: NextConfig = {
 let config: NextConfig = nextConfig;
 
 if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
-  // Dynamic import to avoid loading @sentry/nextjs when not needed
+  // Dynamic require to avoid loading @sentry/nextjs when not needed
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { withSentryConfig } = require("@sentry/nextjs");
 
   config = withSentryConfig(nextConfig, {

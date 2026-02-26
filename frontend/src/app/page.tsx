@@ -305,10 +305,9 @@ function LiveSituation({ prefectures, loading }: { prefectures: Prefecture[]; lo
     })
     .slice(0, 6);
 
-  const [now, setNow] = useState<number | null>(null);
+  const [now, setNow] = useState<number | null>(() => typeof window !== 'undefined' ? Date.now() : null);
 
   useEffect(() => {
-    setNow(Date.now());
     const interval = setInterval(() => setNow(Date.now()), 60000); // Update every minute
     return () => clearInterval(interval);
   }, []);
