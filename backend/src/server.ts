@@ -25,10 +25,16 @@ const httpServer = createServer(app);
 // Sentry request handler must be first middleware
 setupSentryMiddleware(app);
 
+// Allowed origins for CORS
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:3000',
+  process.env.ADMIN_URL || 'http://localhost:3001',
+].filter(Boolean);
+
 // Socket.io setup with JWT auth
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: allowedOrigins,
     methods: ['GET', 'POST'],
   },
 });
@@ -84,7 +90,7 @@ app.use((req, _res, next) => {
 app.use(helmet());
 app.use(cookieParser());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: allowedOrigins,
   credentials: true,
 }));
 
