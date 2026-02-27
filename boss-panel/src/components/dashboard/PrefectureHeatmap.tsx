@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { MapPin, Zap } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
 
 interface Prefecture {
   id: string;
@@ -25,7 +26,7 @@ export default function PrefectureHeatmap() {
       }));
       setPrefectures(transformed);
     } else {
-      fetch('/api/boss/heatmap')
+      apiFetch('/api/boss/heatmap')
         .then((res) => res.json())
         .then((data) => setPrefectures(data));
     }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { MapPin, Globe, Clock, CheckCircle, Zap } from 'lucide-react';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { apiFetch } from '@/lib/api';
 
 interface Stats {
   totalPrefectures: number;
@@ -41,7 +42,7 @@ export default function StatsCards() {
   }, [data]);
 
   useEffect(() => {
-    fetch('/api/boss/stats')
+    apiFetch('/api/boss/stats')
       .then((res) => res.json())
       .then((apiStats) => {
         setStats((prev) => ({

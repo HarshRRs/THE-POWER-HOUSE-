@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import LoginPage from '@/components/LoginPage';
 import Sidebar from '@/components/Sidebar';
 import MobileNav from '@/components/MobileNav';
 import DashboardView from '@/components/views/DashboardView';
@@ -11,7 +13,7 @@ import StreamView from '@/components/views/StreamView';
 import AlertsView from '@/components/views/AlertsView';
 import SettingsView from '@/components/views/SettingsView';
 
-export default function BossDashboard() {
+function Dashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
 
   const renderView = () => {
@@ -79,5 +81,23 @@ export default function BossDashboard() {
       {/* Mobile Navigation */}
       <MobileNav activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
+  );
+}
+
+function AuthenticatedApp() {
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
+
+  return <Dashboard />;
+}
+
+export default function BossDashboard() {
+  return (
+    <AuthProvider>
+      <AuthenticatedApp />
+    </AuthProvider>
   );
 }

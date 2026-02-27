@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { MapPin, Search, ExternalLink, Filter, Zap } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
 
 interface Prefecture {
   id: string;
@@ -21,7 +22,7 @@ export default function PrefecturesView() {
   const [tierFilter, setTierFilter] = useState('all');
 
   useEffect(() => {
-    fetch('/api/boss/prefectures')
+    apiFetch('/api/boss/prefectures')
       .then(res => res.json())
       .then(data => {
         setPrefectures(data);
