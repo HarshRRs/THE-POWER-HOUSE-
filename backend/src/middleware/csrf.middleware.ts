@@ -18,14 +18,15 @@ const CSRF_COOKIE_OPTIONS = {
 };
 
 // Paths to exclude from CSRF protection
+// NOTE: These paths are relative to /api since middleware is mounted at app.use('/api', csrfProtection)
 const EXCLUDED_PATHS = [
-  '/api/billing/webhook', // Stripe webhook has its own signature verification
-  '/api/telegram/webhook', // Telegram webhook
-  '/api/auth/login', // Pre-auth: no session to protect
-  '/api/auth/register', // Pre-auth: no session to protect
-  '/api/auth/forgot-password', // Pre-auth: no session to protect
-  '/api/auth/reset-password', // Pre-auth: token-based verification
-  '/api/auth/refresh', // Uses httpOnly cookie for auth
+  '/billing/webhook', // Stripe webhook has its own signature verification
+  '/telegram/webhook', // Telegram webhook
+  '/auth/login', // Pre-auth: no session to protect
+  '/auth/register', // Pre-auth: no session to protect
+  '/auth/forgot-password', // Pre-auth: no session to protect
+  '/auth/reset-password', // Pre-auth: token-based verification
+  '/auth/refresh', // Uses httpOnly cookie for auth
 ];
 
 // Methods that require CSRF protection
