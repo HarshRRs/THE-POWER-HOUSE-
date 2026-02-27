@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { apiFetch } from '@/lib/api';
 
 interface AuthContextType {
   token: string | null;
@@ -15,7 +16,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check for stored token on mount
     const stored = localStorage.getItem('boss_token');
     if (stored) {
       setToken(stored);
@@ -24,11 +24,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await apiFetch('/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
-        credentials: 'include',
       });
 
       if (!res.ok) {
@@ -36,7 +34,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const data = await res.json();
-      // API wraps response in { success, data: { accessToken, user } }
       const accessToken = data.data?.accessToken;
       if (accessToken) {
         setToken(accessToken);
