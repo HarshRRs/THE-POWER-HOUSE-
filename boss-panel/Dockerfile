@@ -33,6 +33,7 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
 # Copy standalone build output
+# Check both paths: direct and nested (depends on monorepo config)
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
@@ -41,4 +42,5 @@ USER nextjs
 
 EXPOSE 3001
 
-CMD ["node", "server.js"]
+# server.js may be at root or in /app/ subdirectory
+CMD ["sh", "-c", "if [ -f server.js ]; then node server.js; else node app/server.js; fi"]
