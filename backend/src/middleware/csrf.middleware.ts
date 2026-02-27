@@ -21,6 +21,11 @@ const CSRF_COOKIE_OPTIONS = {
 const EXCLUDED_PATHS = [
   '/api/billing/webhook', // Stripe webhook has its own signature verification
   '/api/telegram/webhook', // Telegram webhook
+  '/api/auth/login', // Pre-auth: no session to protect
+  '/api/auth/register', // Pre-auth: no session to protect
+  '/api/auth/forgot-password', // Pre-auth: no session to protect
+  '/api/auth/reset-password', // Pre-auth: token-based verification
+  '/api/auth/refresh', // Uses httpOnly cookie for auth
 ];
 
 // Methods that require CSRF protection

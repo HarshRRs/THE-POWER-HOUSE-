@@ -6,7 +6,7 @@ import { apiFetch } from '@/lib/api';
 interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
 }
 
@@ -22,27 +22,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await apiFetch('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        return false;
+        return { success: false, error: data.error || `Login failed (${res.status})` };
       }
 
-      const data = await res.json();
       const accessToken = data.data?.accessToken;
       if (accessToken) {
         setToken(accessToken);
         localStorage.setItem('boss_token', accessToken);
-        return true;
+        return { success: true };
       }
-      return false;
-    } catch {
-      return false;
+      return { success: false, error: 'No access token in response' };
+    } catch (err) {
+      return { success: false, error: `Network error: ${err instanceof Error ? err.message : 'unknown'}` };
     }
   };
 

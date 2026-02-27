@@ -16,10 +16,10 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
-    const success = await login(email, password);
+    const result = await login(email, password);
     
-    if (!success) {
-      setError('Invalid credentials');
+    if (!result.success) {
+      setError(result.error || 'Login failed');
     }
     setLoading(false);
   };
