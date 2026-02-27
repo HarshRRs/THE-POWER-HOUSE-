@@ -35,7 +35,7 @@ services:
     image: redis:7-alpine
     container_name: rdv_redis
     restart: always
-    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --maxmemory 256mb --maxmemory-policy noeviction
     volumes:
       - redisdata:/data
     networks:
