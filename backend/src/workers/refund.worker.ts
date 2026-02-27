@@ -1,5 +1,4 @@
-import { Worker } from 'bullmq';
-import { redis } from '../config/redis.js';
+import { createWorker } from '../config/bullmq.js';
 import { processBatchRefunds } from '../services/refund-guarantee.service.js';
 import logger from '../utils/logger.util.js';
 
@@ -10,7 +9,7 @@ const REFUND_QUEUE_NAME = 'refund-processing';
  * Processes automatic refunds for users who didn't get appointments
  */
 export async function startRefundWorker(concurrency = 1) {
-  const worker = new Worker(
+  const worker = createWorker(
     REFUND_QUEUE_NAME,
     async (_job) => {
       try {
@@ -22,28 +21,23 @@ export async function startRefundWorker(concurrency = 1) {
           `Refund processing completed: ${result.totalProcessed} processed, ` +
           `${result.successfulRefunds} successful, ${result.failedRefunds} failed`
         );
-        
-        return result;
       } catch (error) {
         logger.error('Refund processing failed:', error);
         throw error;
       }
     },
-    {
-      connection: redis,
-      concurrency,
-      removeOnComplete: { count: 100 },
-      removeOnFail: { count: 100 },
-    }
+    concurrency
   );
 
-  worker.on('completed', (job) => {
-    logger.info(`Refund job ${job.id} completed successfully`);
-  });
+  if (worker) {
+    worker.on('completed', (job) => {
+      logger.info(`Refund job ${job.id} completed successfully`);
+    });
 
-  worker.on('failed', (job, err) => {
-    logger.error(`Refund job ${job?.id} failed:`, err);
-  });
+    worker.on('failed', (job, err) => {
+      logger.error(`Refund job ${job?.id} failed:`, err);
+    });
+  }
 
   logger.info(`Refund worker started with concurrency ${concurrency}`);
   return worker;
