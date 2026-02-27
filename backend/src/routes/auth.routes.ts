@@ -16,6 +16,7 @@ import { authMiddleware } from '../middleware/auth.middleware.js';
 import { authLimiter, refreshLimiter } from '../middleware/rateLimiter.middleware.js';
 import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from '../validators/auth.validator.js';
 import { sendSuccess, sendError, sendMessage } from '../utils/responses.util.js';
+import { ApiError } from '../utils/responses.util.js';
 import { REFRESH_TOKEN_DURATION_MS } from '../utils/jwt.util.js';
 
 const router = Router();
@@ -57,7 +58,7 @@ router.post(
   '/login',
   authLimiter,
   validateBody(loginSchema),
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, _next: NextFunction) => {
     try {
       const result = await loginUser(req.body);
       // Set refresh token as httpOnly cookie
@@ -68,7 +69,12 @@ router.post(
         user: result.user 
       });
     } catch (error) {
-      next(error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      if (err instanceof ApiError) {
+        sendError(res, err.message, err.statusCode);
+      } else {
+        sendError(res, `Login error: ${err.message}`, 500);
+      }
     }
   }
 );
