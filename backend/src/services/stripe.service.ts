@@ -6,7 +6,25 @@ import { ApiError } from '../utils/responses.util.js';
 import logger from '../utils/logger.util.js';
 import type { Plan } from '@prisma/client';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
+let _stripe: Stripe | null = null;
+
+function getStripe(): Stripe {
+  if (!_stripe) {
+    const apiKey = process.env.STRIPE_SECRET_KEY;
+    if (!apiKey) {
+      throw new ApiError('Stripe API key not configured', 500);
+    }
+    _stripe = new Stripe(apiKey);
+  }
+  return _stripe;
+}
+
+// Keep backward-compatible export (lazy getter)
+const stripe = new Proxy({} as Stripe, {
+  get(_target, prop) {
+    return (getStripe() as unknown as Record<string | symbol, unknown>)[prop];
+  },
+});
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
