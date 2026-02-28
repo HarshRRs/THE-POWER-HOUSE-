@@ -458,6 +458,7 @@ model Prefecture {
   tier            Int       @default(3)
   
   bookingUrl      String
+  originalBookingUrl String?           // Never changes, reference point
   checkInterval   Int       @default(120)
   selectors       Json
   
@@ -466,6 +467,11 @@ model Prefecture {
   lastSlotFoundAt DateTime?
   consecutiveErrors Int     @default(0)
   
+  // URL Discovery fields
+  urlLastValidatedAt     DateTime?
+  urlConsecutiveFailures Int       @default(0)
+  urlDiscoveryEnabled    Boolean   @default(true)
+  
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   
@@ -473,6 +479,7 @@ model Prefecture {
   detections      Detection[]
   scraperLogs     ScraperLog[]
   clients         Client[]  // For booking agent business
+  urlHistory      UrlHistory[]
   
   @@index([tier, status])
 }
@@ -595,6 +602,11 @@ model ScraperLog {
   errorMessage    String?
   screenshotPath  String?
   
+  // URL tracking fields
+  finalUrl        String?
+  redirectCount   Int       @default(0)
+  urlChanged      Boolean   @default(false)
+  
   createdAt       DateTime  @default(now())
   
   @@index([prefectureId, createdAt])
@@ -665,4 +677,45 @@ enum VfsCenterStatus {
   PAUSED
   ERROR
   CAPTCHA_BLOCKED
+}
+
+// ═══════════════════════════════════════
+// URL DISCOVERY (Auto-healing URL system)
+// ═══════════════════════════════════════
+
+model UrlHistory {
+  id                String              @id @default(uuid())
+  prefectureId      String
+  prefecture        Prefecture          @relation(fields: [prefectureId], references: [id], onDelete: Cascade)
+  
+  oldUrl            String
+  newUrl            String
+  redirectChain     Json                // Array of URLs in redirect path
+  
+  discoveryMethod   UrlDiscoveryMethod
+  validationStatus  UrlValidationStatus @default(PENDING)
+  confidence        Float               // 0-1 confidence score
+  validationDetails Json?               // Indicators found during validation
+  
+  appliedAt         DateTime?           // When URL was actually updated
+  discoveredBy      String?             // Worker ID or admin user ID
+  
+  createdAt         DateTime            @default(now())
+  
+  @@index([prefectureId, createdAt])
+  @@index([validationStatus])
+}
+
+enum UrlDiscoveryMethod {
+  REDIRECT        // Detected via HTTP redirect
+  PATTERN_MATCH   // Found via pattern-based search
+  ADMIN_UPDATE    // Manually updated by admin
+  FALLBACK        // Found via fallback URL attempt
+}
+
+enum UrlValidationStatus {
+  PENDING         // Awaiting admin approval
+  VALIDATED       // Admin approved
+  REJECTED        // Admin rejected
+  AUTO_APPROVED   // Auto-approved (high confidence)
 }

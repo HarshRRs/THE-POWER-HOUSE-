@@ -99,60 +99,16 @@ router.get('/stats', authMiddleware, adminMiddleware, async (_req: Request, res:
 });
 
 /**
- * GET /api/vfs/:id
- * Get a specific VFS center
+ * GET /api/vfs/alerts
+ * Get all VFS alerts (admin only)
  */
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/alerts', async (_req: Request, res: Response) => {
   try {
-    const id = req.params.id as string;
-    const center = await vfsService.getVfsCenterById(id);
-    if (!center) {
-      res.status(404).json({ error: 'VFS center not found' });
-      return;
-    }
-    res.json({ center });
+    const alerts = await vfsService.getVfsAlerts();
+    res.json({ alerts });
   } catch (error) {
-    logger.error('Error fetching VFS center:', error);
-    res.status(500).json({ error: 'Failed to fetch VFS center' });
-  }
-});
-
-/**
- * PATCH /api/vfs/:id/status
- * Update VFS center status (admin only)
- */
-router.patch('/:id/status', authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
-  try {
-    const { status } = req.body;
-    const id = req.params.id as string;
-    
-    if (!['ACTIVE', 'PAUSED', 'ERROR', 'CAPTCHA_BLOCKED'].includes(status)) {
-      res.status(400).json({ error: 'Invalid status' });
-      return;
-    }
-
-    const center = await vfsService.updateVfsCenterStatus(id, status);
-    res.json({ center });
-  } catch (error) {
-    logger.error('Error updating VFS center status:', error);
-    res.status(500).json({ error: 'Failed to update VFS center status' });
-  }
-});
-
-/**
- * POST /api/vfs/sync
- * Sync VFS centers from config to database (admin only)
- */
-router.post('/sync', authMiddleware, adminMiddleware, async (_req: Request, res: Response) => {
-  try {
-    const result = await vfsService.syncVfsCentersFromConfig();
-    res.json({ 
-      message: 'VFS centers synced successfully',
-      ...result 
-    });
-  } catch (error) {
-    logger.error('Error syncing VFS centers:', error);
-    res.status(500).json({ error: 'Failed to sync VFS centers' });
+    logger.error('Error fetching VFS alerts:', error);
+    res.status(500).json({ error: 'Failed to fetch VFS alerts' });
   }
 });
 
@@ -199,16 +155,60 @@ router.post('/alerts', async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/vfs/alerts
- * Get all VFS alerts (admin only)
+ * POST /api/vfs/sync
+ * Sync VFS centers from config to database (admin only)
  */
-router.get('/alerts', async (_req: Request, res: Response) => {
+router.post('/sync', authMiddleware, adminMiddleware, async (_req: Request, res: Response) => {
   try {
-    const alerts = await vfsService.getVfsAlerts();
-    res.json({ alerts });
+    const result = await vfsService.syncVfsCentersFromConfig();
+    res.json({ 
+      message: 'VFS centers synced successfully',
+      ...result 
+    });
   } catch (error) {
-    logger.error('Error fetching VFS alerts:', error);
-    res.status(500).json({ error: 'Failed to fetch VFS alerts' });
+    logger.error('Error syncing VFS centers:', error);
+    res.status(500).json({ error: 'Failed to sync VFS centers' });
+  }
+});
+
+/**
+ * GET /api/vfs/:id
+ * Get a specific VFS center
+ */
+router.get('/:id', async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const center = await vfsService.getVfsCenterById(id);
+    if (!center) {
+      res.status(404).json({ error: 'VFS center not found' });
+      return;
+    }
+    res.json({ center });
+  } catch (error) {
+    logger.error('Error fetching VFS center:', error);
+    res.status(500).json({ error: 'Failed to fetch VFS center' });
+  }
+});
+
+/**
+ * PATCH /api/vfs/:id/status
+ * Update VFS center status (admin only)
+ */
+router.patch('/:id/status', authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { status } = req.body;
+    const id = req.params.id as string;
+    
+    if (!['ACTIVE', 'PAUSED', 'ERROR', 'CAPTCHA_BLOCKED'].includes(status)) {
+      res.status(400).json({ error: 'Invalid status' });
+      return;
+    }
+
+    const center = await vfsService.updateVfsCenterStatus(id, status);
+    res.json({ center });
+  } catch (error) {
+    logger.error('Error updating VFS center status:', error);
+    res.status(500).json({ error: 'Failed to update VFS center status' });
   }
 });
 

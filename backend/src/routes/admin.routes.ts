@@ -657,4 +657,113 @@ router.get('/logs', validateQuery(logsQuerySchema), async (req: Request, res: Re
   }
 });
 
+// ══════════════════════════════════════
+// URL DISCOVERY MANAGEMENT
+// ══════════════════════════════════════
+
+import {
+  getPendingUrlChanges,
+  approveUrlChange,
+  rejectUrlChange,
+  manualUrlUpdate,
+} from '../services/url-discovery.service.js';
+
+// ──────────────────────────────────────
+// GET /api/admin/url-changes - Get pending URL changes
+// ──────────────────────────────────────
+router.get('/url-changes', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const changes = await getPendingUrlChanges();
+    sendSuccess(res, { changes });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ──────────────────────────────────────
+// POST /api/admin/prefectures/:id/url/approve - Approve URL change
+// ──────────────────────────────────────
+router.post('/prefectures/:id/url/approve', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { urlHistoryId } = req.body;
+    
+    if (!urlHistoryId || typeof urlHistoryId !== 'string') {
+      sendError(res, 'urlHistoryId is required', 400);
+      return;
+    }
+    
+    await approveUrlChange(urlHistoryId);
+    sendSuccess(res, { message: 'URL change approved and applied' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ──────────────────────────────────────
+// POST /api/admin/prefectures/:id/url/reject - Reject URL change
+// ──────────────────────────────────────
+router.post('/prefectures/:id/url/reject', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { urlHistoryId } = req.body;
+    
+    if (!urlHistoryId || typeof urlHistoryId !== 'string') {
+      sendError(res, 'urlHistoryId is required', 400);
+      return;
+    }
+    
+    await rejectUrlChange(urlHistoryId);
+    sendSuccess(res, { message: 'URL change rejected' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ──────────────────────────────────────
+// POST /api/admin/prefectures/:id/url/manual - Manual URL update
+// ──────────────────────────────────────
+router.post('/prefectures/:id/url/manual', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const prefectureId = req.params.id as string;
+    const { newUrl } = req.body;
+    const adminUserId = (req as Request & { user?: { id: string } }).user?.id;
+    
+    if (!newUrl || typeof newUrl !== 'string') {
+      sendError(res, 'newUrl is required', 400);
+      return;
+    }
+    
+    // Basic URL validation
+    try {
+      new URL(newUrl);
+    } catch {
+      sendError(res, 'Invalid URL format', 400);
+      return;
+    }
+    
+    await manualUrlUpdate(prefectureId, newUrl, adminUserId);
+    sendSuccess(res, { message: 'URL updated successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ──────────────────────────────────────
+// GET /api/admin/prefectures/:id/url/history - Get URL history
+// ──────────────────────────────────────
+router.get('/prefectures/:id/url/history', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const prefectureId = req.params.id as string;
+    
+    const history = await prisma.urlHistory.findMany({
+      where: { prefectureId },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+    
+    sendSuccess(res, { history });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

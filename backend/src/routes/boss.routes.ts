@@ -202,4 +202,46 @@ router.get('/connections', (_req, res) => {
   });
 });
 
+// Get top prefectures by slots found in last 24h
+router.get('/top-prefectures', async (_req, res) => {
+  try {
+    const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    // Get detection counts per prefecture in last 24h
+    const detectionCounts = await prisma.detection.groupBy({
+      by: ['prefectureId'],
+      where: {
+        detectedAt: { gte: last24h },
+      },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+      take: 10,
+    });
+
+    // Get prefecture details for the top ones
+    const prefectureIds = detectionCounts.map(d => d.prefectureId);
+    const prefectures = await prisma.prefecture.findMany({
+      where: { id: { in: prefectureIds } },
+      select: {
+        id: true,
+        name: true,
+        department: true,
+        bookingUrl: true,
+      },
+    });
+
+    const prefectureMap = new Map(prefectures.map(p => [p.id, p]));
+
+    const topPrefectures = detectionCounts.map(d => ({
+      ...prefectureMap.get(d.prefectureId),
+      slotsFound24h: d._count.id,
+    })).filter(p => p.id); // Filter out any missing prefectures
+
+    res.json(topPrefectures);
+  } catch (error) {
+    logger.error('Error fetching top prefectures:', error);
+    res.status(500).json({ error: 'Failed to fetch top prefectures' });
+  }
+});
+
 export default router;

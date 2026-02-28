@@ -178,6 +178,26 @@ class WebSocketService {
   getActiveConnections(): number {
     return this.activeConnections;
   }
+
+  /**
+   * Broadcast to boss panel (generic event)
+   */
+  broadcast(event: string, data: Record<string, unknown>): void {
+    if (!this.io) return;
+    
+    this.io.emit(event, {
+      ...data,
+      timestamp: new Date().toISOString(),
+    });
+  }
 }
 
 export const websocketService = new WebSocketService();
+
+/**
+ * Helper function to broadcast to boss panel
+ */
+export function broadcastToBossPanel(data: Record<string, unknown>): void {
+  const eventType = (data.type as string) || 'notification';
+  websocketService.broadcast(eventType, data);
+}

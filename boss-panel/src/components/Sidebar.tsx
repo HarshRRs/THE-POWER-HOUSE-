@@ -51,11 +51,17 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
               </h1>
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-cyan animate-pulse" />
-            <p className="text-xs text-cyan font-medium tracking-wider uppercase">
-              System Online
-            </p>
+          <div className="mt-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-cyan animate-pulse" />
+              <p className="text-xs text-cyan font-medium tracking-wider uppercase">
+                System Online
+              </p>
+            </div>
+          </div>
+          <div className="mt-2 text-right">
+            <p className="text-sm font-semibold text-amber-400">Har Har Mahadev</p>
+            <p className="text-xs text-orange-400">JAY Shakti Maa</p>
           </div>
         </div>
 

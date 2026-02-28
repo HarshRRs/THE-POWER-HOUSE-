@@ -52,15 +52,13 @@ export async function startScraperWorker(workerId: string, concurrency = 3) {
           where: {
             prefectureId,
             isActive: true,
-            user: {
-              plan: { not: 'NONE' },
-              planExpiresAt: { gt: new Date() },
-            },
           },
           select: { id: true },
         });
 
-        if (alerts.length === 0) {
+        // Always scrape priority prefectures for monitoring, even without alerts
+        const isPriority = BOOTSTRAP_CONFIG.priorityPrefectureIds.includes(prefectureId);
+        if (alerts.length === 0 && !isPriority) {
           logger.debug(`No active alerts for ${prefectureId}, skipping`);
           return;
         }
@@ -78,6 +76,9 @@ export async function startScraperWorker(workerId: string, concurrency = 3) {
             responseTimeMs: result.responseTimeMs,
             errorMessage: result.errorMessage,
             screenshotPath: result.screenshotPath,
+            finalUrl: result.finalUrl,
+            redirectCount: result.redirectCount || 0,
+            urlChanged: result.urlChanged || false,
           },
         });
 
@@ -173,24 +174,21 @@ export async function scheduleScraperJobs() {
       continue;
     }
 
-    // Check if there are active paying users
+    // Check if there are active alerts or if it's a priority prefecture
     const alertCount = await prisma.alert.count({
       where: {
         prefectureId: pref.id,
         isActive: true,
-        user: {
-          plan: { not: 'NONE' },
-          planExpiresAt: { gt: new Date() },
-        },
       },
     });
 
+    const isPriority = BOOTSTRAP_CONFIG.priorityPrefectureIds.includes(pref.id);
     const jobId = `repeat:${pref.id}`;
     
     // Use bootstrap-aware interval
     const effectiveInterval = getEffectiveInterval(pref.checkInterval);
 
-    if (alertCount > 0) {
+    if (alertCount > 0 || isPriority) {
       // Add or update repeatable job
       await scraperQueue.add(
         `scrape:${pref.id}`,

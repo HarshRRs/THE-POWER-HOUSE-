@@ -20,6 +20,11 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-6">
+          <div className="text-right">
+            <p className="text-sm font-semibold text-primary">Har Har Mahadev</p>
+            <p className="text-xs text-warning">JAY Shakti Maa</p>
+          </div>
+
           <div className="flex items-center gap-2 text-sm">
             <Radio className="h-4 w-4 text-success" />
             <span className="text-muted">System:</span>

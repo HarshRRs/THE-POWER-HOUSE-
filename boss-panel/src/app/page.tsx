@@ -62,9 +62,15 @@ function Dashboard() {
                   {activeTab === 'settings' && 'System configuration'}
                 </p>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-gold animate-pulse" />
-                <span className="text-sm text-text-muted">System Online</span>
+              <div className="flex items-center gap-6">
+                <div className="text-right">
+                  <p className="text-sm font-semibold text-gold">Har Har Mahadev</p>
+                  <p className="text-xs text-amber-400">JAY Shakti Maa</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-gold animate-pulse" />
+                  <span className="text-sm text-text-muted">System Online</span>
+                </div>
               </div>
             </div>
           </div>

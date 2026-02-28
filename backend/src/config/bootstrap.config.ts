@@ -1,23 +1,17 @@
 /**
  * BOOTSTRAP MODE CONFIGURATION
  * =============================
- * Optimized for €15-20/month budget
+ * Controls which prefectures are actively monitored.
  * 
- * Enable by setting: BOOTSTRAP_MODE=true in .env
- * 
- * What Bootstrap Mode Does:
- * - Longer scraping intervals (saves proxy bandwidth)
- * - Only monitors TOP 5 high-demand prefectures
- * - Single browser instance (saves RAM)
- * - Manual CAPTCHA solving via Telegram alerts
- * - Aggressive caching to minimize requests
+ * BOOTSTRAP_MODE=true  -> Monitor TOP 20 high-demand prefectures at full speed
+ * BOOTSTRAP_MODE=false -> Monitor ALL prefectures (requires more resources)
  */
 
 export interface BootstrapConfig {
   enabled: boolean;
   
   // Scraping settings
-  scraperIntervalMultiplier: number;  // Multiply normal intervals by this
+  scraperIntervalMultiplier: number;
   maxBrowsers: number;
   pageTimeout: number;
   
@@ -39,27 +33,44 @@ const isBootstrapMode = process.env.BOOTSTRAP_MODE === 'true';
 export const BOOTSTRAP_CONFIG: BootstrapConfig = {
   enabled: isBootstrapMode,
   
-  // Scraping: 3x slower to save bandwidth
-  scraperIntervalMultiplier: isBootstrapMode ? 3 : 1,
-  maxBrowsers: isBootstrapMode ? 1 : 3,
-  pageTimeout: 45000, // Longer timeout for slow proxies
+  // Full speed for 20 prefectures, normal speed for all
+  scraperIntervalMultiplier: 1,
+  maxBrowsers: isBootstrapMode ? 2 : 3,
+  pageTimeout: 30000,
   
-  // Only monitor top 5 prefectures in bootstrap mode
-  maxPrefectures: isBootstrapMode ? 5 : 999,
+  // Monitor top 20 high-demand prefectures (Tier 1 + Tier 2)
+  maxPrefectures: isBootstrapMode ? 20 : 999,
   priorityPrefectureIds: [
-    'paris_75',      // Paris - Highest demand
-    'bobigny_93',    // Seine-Saint-Denis
-    'creteil_94',    // Val-de-Marne
-    'lyon_69',       // Lyon
-    'marseille_13',  // Marseille
+    // TIER 1 - Île-de-France (8 prefectures)
+    'paris_75',       // Paris - Highest demand
+    'bobigny_93',     // Seine-Saint-Denis
+    'creteil_94',     // Val-de-Marne
+    'nanterre_92',    // Hauts-de-Seine
+    'evry_91',        // Essonne
+    'cergy_95',       // Val-d'Oise
+    'melun_77',       // Seine-et-Marne
+    'versailles_78',  // Yvelines
+    // TIER 2 - Major Cities (12 prefectures)
+    'lyon_69',        // Lyon
+    'marseille_13',   // Marseille
+    'toulouse_31',    // Toulouse
+    'lille_59',       // Lille
+    'nantes_44',      // Nantes
+    'bordeaux_33',    // Bordeaux
+    'montpellier_34', // Montpellier
+    'strasbourg_67',  // Strasbourg
+    'nice_06',        // Nice
+    'rouen_76',       // Rouen
+    'rennes_35',      // Rennes
+    'grenoble_38',    // Grenoble
   ],
   
-  // Save bandwidth
-  skipScreenshots: isBootstrapMode,
-  minIntervalSeconds: isBootstrapMode ? 180 : 30, // 3 min minimum in bootstrap
+  // Full monitoring: take screenshots, fast intervals
+  skipScreenshots: false,
+  minIntervalSeconds: 30, // 30s minimum for high monitoring
   
   // Manual CAPTCHA - send Telegram alert instead of auto-solving
-  manualCaptchaMode: isBootstrapMode || !process.env.TWOCAPTCHA_API_KEY,
+  manualCaptchaMode: !process.env.TWOCAPTCHA_API_KEY,
   captchaAlertTelegramId: process.env.ADMIN_TELEGRAM_CHAT_ID || null,
 };
 

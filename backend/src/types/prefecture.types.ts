@@ -33,6 +33,10 @@ export interface ScrapeResult {
   screenshotPath?: string;
   errorMessage?: string;
   responseTimeMs: number;
+  // URL tracking fields
+  finalUrl?: string;
+  redirectCount?: number;
+  urlChanged?: boolean;
 }
 
 export interface ScrapeJobData {

@@ -11,12 +11,16 @@ export function useWebSocket() {
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
-    // Connect to WebSocket
-    const socket = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000", {
-      transports: ["websocket"],
+    // Connect to WebSocket - strip /api from API URL since socket.io is at root
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+    const wsUrl = apiUrl.replace(/\/api\/?$/, '');
+    const socket = io(wsUrl, {
+      transports: ["polling", "websocket"],
       reconnection: true,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
     });
 
     socketRef.current = socket;

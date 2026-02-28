@@ -4,6 +4,7 @@ import { proxyService } from './proxy.service.js';
 import { captchaService } from './captcha.service.js';
 import { generateScreenshotPath, saveScreenshot } from '../utils/screenshot.util.js';
 import { randomDelay } from '../utils/retry.util.js';
+import { handleUrlChange } from '../services/url-discovery.service.js';
 import logger from '../utils/logger.util.js';
 
 // Enhanced CAPTCHA selectors for common protection systems
@@ -59,10 +60,35 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
     // Navigate to booking page
     logger.debug(`Scraping ${config.name} (${config.id}): ${config.bookingUrl}`);
 
+    // Track redirects during navigation
+    const redirectChain: string[] = [config.bookingUrl];
+    
     const response = await page.goto(config.bookingUrl, {
       waitUntil: 'networkidle',
       timeout: 30000,
     });
+
+    // Capture final URL after all redirects
+    const finalUrl = page.url();
+    const urlChanged = finalUrl !== config.bookingUrl && 
+                       !finalUrl.includes('error') && 
+                       !finalUrl.includes('404');
+    
+    if (finalUrl !== config.bookingUrl) {
+      redirectChain.push(finalUrl);
+    }
+
+    // Handle URL change detection (async, don't await to not block scraping)
+    if (urlChanged) {
+      handleUrlChange({
+        prefectureId: config.id,
+        originalUrl: config.bookingUrl,
+        finalUrl,
+        redirectChain,
+        page,
+        config,
+      }).catch(err => logger.error('URL change handling error:', err));
+    }
 
     // Check for HTTP errors
     if (response && response.status() >= 400) {
@@ -341,6 +367,9 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
         slotsAvailable: 0,
         bookingUrl: page.url(),
         responseTimeMs: Date.now() - startTime,
+        finalUrl,
+        redirectCount: redirectChain.length - 1,
+        urlChanged,
       };
     }
 
@@ -376,6 +405,9 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
         bookingUrl: page.url(),
         screenshotPath,
         responseTimeMs: Date.now() - startTime,
+        finalUrl,
+        redirectCount: redirectChain.length - 1,
+        urlChanged,
       };
     }
 
@@ -387,6 +419,9 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
       slotsAvailable: 0,
       bookingUrl: page.url(),
       responseTimeMs: Date.now() - startTime,
+      finalUrl,
+      redirectCount: redirectChain.length - 1,
+      urlChanged,
     };
 
   } catch (error) {
