@@ -219,7 +219,7 @@ router.get('/top-prefectures', async (_req, res) => {
     });
 
     // Get prefecture details for the top ones
-    const prefectureIds = detectionCounts.map(d => d.prefectureId);
+    const prefectureIds = detectionCounts.map(d => d.prefectureId).filter((id): id is string => id !== null);
     const prefectures = await prisma.prefecture.findMany({
       where: { id: { in: prefectureIds } },
       select: {
@@ -233,7 +233,7 @@ router.get('/top-prefectures', async (_req, res) => {
     const prefectureMap = new Map(prefectures.map(p => [p.id, p]));
 
     const topPrefectures = detectionCounts.map(d => ({
-      ...prefectureMap.get(d.prefectureId),
+      ...prefectureMap.get(d.prefectureId!),
       slotsFound24h: d._count.id,
     })).filter(p => p.id); // Filter out any missing prefectures
 
