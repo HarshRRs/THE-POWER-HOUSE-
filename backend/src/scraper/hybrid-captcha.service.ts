@@ -154,7 +154,7 @@ class HybridCaptchaSolver {
   /**
    * Get Tesseract configuration based on CAPTCHA type
    */
-  private getTesseractConfig(type: SimpleCaptchaType): Partial<Tesseract.RecognizeOptions> {
+  private getTesseractConfig(type: SimpleCaptchaType): Record<string, unknown> {
     switch (type) {
       case 'numeric':
         return {
