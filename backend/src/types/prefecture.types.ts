@@ -60,8 +60,12 @@ export interface ScrapeResult {
   finalUrl?: string;
   redirectCount?: number;
   urlChanged?: boolean;
+  // Category tracking fields
+  categoryCode?: string;
+  categoryName?: string;
 }
 
 export interface ScrapeJobData {
   prefectureId: string;
+  categoryCode?: string;  // For category-level scraping
 }

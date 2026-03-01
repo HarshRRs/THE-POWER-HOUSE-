@@ -11,6 +11,8 @@ import {
   Menu,
   X,
   Zap,
+  Grid3x3,
+  TrendingUp,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -19,7 +21,7 @@ interface SidebarProps {
 }
 
 const menuItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'dashboard', label: 'Command Center', icon: LayoutDashboard },
   { id: 'clients', label: 'Clients', icon: Users },
   { id: 'vfs', label: 'VFS Centers', icon: Globe },
   { id: 'stream', label: 'Live Stream', icon: Activity },

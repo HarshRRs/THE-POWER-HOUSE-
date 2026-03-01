@@ -1,13 +1,16 @@
 import { createWorker } from '../config/bullmq.js';
 import { prisma } from '../config/database.js';
-import { autobookPrefecture } from '../scraper/autobook/prefecture.autobook.js';
+import { bookPrefectureAppointment } from '../booking/prefecture.booking.js';
 import { updateBookingStatus, markAsBooked, markBookingFailed } from '../services/booking.service.js';
 import logger from '../utils/logger.util.js';
 
 export interface AutobookJobData {
     clientId: string;
     prefectureId: string;
+    categoryCode: string;  // Required for category-specific booking
     bookingUrl: string;
+    slotDate: string;
+    slotTime?: string;
 }
 
 export async function startAutobookWorker(workerId: string, concurrency = 2) {
@@ -16,31 +19,35 @@ export async function startAutobookWorker(workerId: string, concurrency = 2) {
     const worker = createWorker<AutobookJobData>(
         'autobook',
         async (job) => {
-            const { clientId, bookingUrl } = job.data;
+            const { clientId, categoryCode, slotDate, slotTime } = job.data;
 
-            const client = await prisma.client.findUnique({ where: { id: clientId } });
+            const client = await prisma.client.findUnique({ 
+                where: { id: clientId },
+                include: { prefecture: true }
+            });
             if (!client) {
                 logger.error(`Client ${clientId} not found for autobook job`);
                 return;
             }
 
-            logger.info(`Processing autobook job for Client ${clientId} => ${client.firstName} ${client.lastName}`);
+            logger.info(`Processing autobook job for Client ${clientId} => ${client.firstName} ${client.lastName} (category: ${categoryCode})`);
 
             try {
                 // Optimistically set status to BOOKING
-                await updateBookingStatus(clientId, 'BOOKING', `Executing Playwright auto-fill against ${bookingUrl}`);
+                await updateBookingStatus(clientId, 'BOOKING', `Auto-booking for category ${categoryCode}, slot ${slotDate} ${slotTime || ''}`);
 
-                // Run automation
-                const result = await autobookPrefecture(client, bookingUrl);
+                // Run the booking automation with category support and Turnstile handling
+                const result = await bookPrefectureAppointment(client, categoryCode, slotDate, slotTime);
 
                 if (result.success && result.bookingRef) {
                     await markAsBooked(clientId, {
-                        bookingDate: new Date(),
+                        bookingDate: result.bookingDate || new Date(slotDate),
+                        bookingTime: result.bookingTime,
                         bookingRef: result.bookingRef,
-                        bookingUrl,
+                        bookingUrl: job.data.bookingUrl,
                         bookingScreenshot: result.screenshotPath
                     });
-                    logger.info(`Successfully auto-booked client ${clientId}`);
+                    logger.info(`Successfully auto-booked client ${clientId} for ${slotDate}`);
                 } else {
                     throw new Error(result.error || 'Unknown booking error');
                 }

@@ -4,8 +4,8 @@ import type { PrefectureConfig } from '../../types/prefecture.types.js';
 // These have the highest demand and need maximum scraping frequency
 // 
 // UPDATED: All URLs verified and corrected based on investigation
-// - 3 prefectures WITHOUT CAPTCHA: Paris (ANTS), Bobigny (ezbooking), Lyon (ANEF)
-// - 7 prefectures WITH CAPTCHA: Use RDV-Préfecture system (2Captcha required)
+// - 4 prefectures WITHOUT CAPTCHA: Paris (ANTS), Bobigny (ezbooking), Melun (ANEF), Lyon (ANEF)
+// - 6 prefectures WITH CAPTCHA: Use RDV-Préfecture system (2Captcha required)
 
 export const TIER1_PREFECTURES: PrefectureConfig[] = [
   // ═══════════════════════════════════════
@@ -136,6 +136,7 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
   
   // ═══════════════════════════════════════
   // VAL-D'OISE (95) - Cergy-Pontoise - RDV-Préfecture - CAPTCHA
+  // Guichet 1: demarche/1380 | Guichet 2: demarche/9481
   // ═══════════════════════════════════════
   {
     id: 'cergy_95',
@@ -143,23 +144,24 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     department: '95',
     region: 'Île-de-France',
     tier: 1,
-    bookingUrl: 'https://www.rdv-prefecture.interieur.gouv.fr/',
+    bookingUrl: 'https://www.rdv-prefecture.interieur.gouv.fr/rdvpref/reservation/demarche/1380/',
     checkInterval: 30,
     bookingSystem: 'rdv-prefecture',
     selectors: {
+      takeAppointmentBtn: '.q-btn.bg-primary.text-white, a[href*="cgu"]',
       captchaInput: 'input[name="captchaUsercode"]',
       captchaId: 'input[name="captchaId"]',
-      departmentDropdown: 'select[name="department"], .department-select',
       nextButton: 'button.q-btn.bg-primary',
-      availableSlot: '.slot-available',
-      noSlotIndicator: '.aucun-creneau, .text-warning',
+      availableSlot: '.q-btn--unelevated, .slot-available',
+      noSlotIndicator: '.text-warning, .aucun-creneau',
       captchaDetect: 'input[name="captchaUsercode"]',
     },
     procedures: ['TITRE_SEJOUR'],
   },
   
   // ═══════════════════════════════════════
-  // SEINE-ET-MARNE (77) - Melun - RDV-Préfecture - CAPTCHA
+  // SEINE-ET-MARNE (77) - Melun - ANEF Platform - NO CAPTCHA
+  // Seine-et-Marne uses ANEF for most titre de séjour procedures
   // ═══════════════════════════════════════
   {
     id: 'melun_77',
@@ -167,17 +169,23 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     department: '77',
     region: 'Île-de-France',
     tier: 1,
-    bookingUrl: 'https://www.rdv-prefecture.interieur.gouv.fr/',
+    bookingUrl: 'https://administration-etrangers-en-france.interieur.gouv.fr/',
     checkInterval: 30,
-    bookingSystem: 'rdv-prefecture',
+    bookingSystem: 'anef',
     selectors: {
-      captchaInput: 'input[name="captchaUsercode"]',
-      captchaId: 'input[name="captchaId"]',
-      departmentDropdown: 'select[name="department"], .department-select',
-      nextButton: 'button.q-btn.bg-primary',
-      availableSlot: '.slot-available',
-      noSlotIndicator: '.aucun-creneau, .text-warning',
-      captchaDetect: 'input[name="captchaUsercode"]',
+      // ANEF uses FranceConnect or email login
+      loginButton: '.fr-btn, button.fr-btn',
+      franceConnectBtn: '#franceconnect-button, .france-connect-btn',
+      emailInput: 'input[type="email"]',
+      passwordInput: 'input[type="password"]',
+      // Navigation
+      newApplicationBtn: 'a[href*="nouvelle"], .new-application',
+      appointmentBtn: 'a[href*="rendez-vous"], .appointment-link',
+      // Calendar
+      availableSlot: '.slot-available, .creneau, .calendar-day.available, .fr-table tbody tr',
+      noSlotIndicator: '.no-appointment, .alert-warning, .aucun-creneau',
+      cookieAccept: '.tarteaucitronAllow, .cookie-accept',
+      captchaDetect: '', // NO CAPTCHA
     },
     procedures: ['TITRE_SEJOUR'],
   },

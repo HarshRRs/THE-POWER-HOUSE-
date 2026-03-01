@@ -8,6 +8,7 @@ import logger from '../utils/logger.util.js';
  * - Image CAPTCHA (base64 image → text answer)
  * - reCAPTCHA v2 (sitekey + url → token)
  * - hCaptcha (sitekey + url → token)
+ * - Cloudflare Turnstile (sitekey + url → token)
  */
 
 const TWO_CAPTCHA_API_KEY = process.env.TWOCAPTCHA_API_KEY || process.env.TWO_CAPTCHA_API_KEY || '';
@@ -173,6 +174,145 @@ export async function solveHCaptcha(siteKey: string, pageUrl: string): Promise<C
     const msg = error instanceof Error ? error.message : 'Unknown error';
     return { success: false, answer: '', error: msg };
   }
+}
+
+/**
+ * Solve Cloudflare Turnstile
+ * Used for: RDV-Prefecture sites that use Cloudflare protection
+ * 
+ * This is triggered AFTER the application CAPTCHA is solved,
+ * when the form submission redirects to /_validerCaptcha
+ * 
+ * For managed challenge pages, additional metadata is required:
+ * - action: from cType in _cf_chl_opt (e.g., "managed")
+ * - data: from cRay in _cf_chl_opt (Cloudflare Ray ID)
+ * - pagedata: from cH in _cf_chl_opt (challenge hash)
+ * - userAgent: browser's user agent string
+ * 
+ * Cost: ~$0.003 per solve (same as other CAPTCHAs)
+ */
+export async function solveTurnstile(
+  siteKey: string,
+  pageUrl: string,
+  challengeMetadata?: {
+    action?: string;
+    cData?: string;
+    chlPageData?: string;
+    userAgent?: string;
+  },
+): Promise<CaptchaResult> {
+  const startTime = Date.now();
+  
+  if (!TWO_CAPTCHA_API_KEY) {
+    return { success: false, answer: '', error: 'API key not configured' };
+  }
+
+  const MAX_RETRIES = 3;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      // Use createTask API for Cloudflare challenge pages (requires metadata)
+      if (challengeMetadata?.chlPageData) {
+        const task: Record<string, unknown> = {
+          type: 'TurnstileTaskProxyless',
+          websiteURL: pageUrl,
+          websiteKey: siteKey,
+        };
+        if (challengeMetadata.action) task.action = challengeMetadata.action;
+        if (challengeMetadata.cData) task.data = challengeMetadata.cData;
+        if (challengeMetadata.chlPageData) task.pagedata = challengeMetadata.chlPageData;
+        if (challengeMetadata.userAgent) task.userAgent = challengeMetadata.userAgent;
+
+        const submitRes = await fetch('https://api.2captcha.com/createTask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clientKey: TWO_CAPTCHA_API_KEY, task }),
+        });
+        const submitData = await submitRes.json() as { errorId: number; errorCode?: string; taskId?: number };
+
+        if (submitData.errorId !== 0) {
+          logger.error(`Turnstile createTask failed: ${submitData.errorCode}`);
+          if (attempt < MAX_RETRIES) { await sleep(2000); continue; }
+          return { success: false, answer: '', error: submitData.errorCode };
+        }
+
+        const taskId = submitData.taskId;
+        logger.debug(`Turnstile task submitted (attempt ${attempt}), ID: ${taskId}`);
+
+        // Poll for result
+        await sleep(10000);
+        const deadline = Date.now() + MAX_WAIT_MS;
+        while (Date.now() < deadline) {
+          const resultRes = await fetch('https://api.2captcha.com/getTaskResult', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ clientKey: TWO_CAPTCHA_API_KEY, taskId }),
+          });
+          const resultData = await resultRes.json() as {
+            errorId: number; status: string; solution?: { token: string }; errorCode?: string;
+          };
+
+          if (resultData.status === 'ready' && resultData.solution?.token) {
+            const solveTimeMs = Date.now() - startTime;
+            logger.info(`Turnstile solved in ${solveTimeMs}ms (attempt ${attempt})`);
+            return { success: true, answer: resultData.solution.token, solveTimeMs, cost: 0.003 };
+          }
+
+          if (resultData.errorId !== 0 && resultData.errorCode !== 'CAPCHA_NOT_READY') {
+            if (resultData.errorCode === 'ERROR_CAPTCHA_UNSOLVABLE' && attempt < MAX_RETRIES) {
+              logger.warn(`Turnstile unsolvable on attempt ${attempt}, retrying...`);
+              break; // Break poll, retry outer loop
+            }
+            return { success: false, answer: '', error: resultData.errorCode };
+          }
+          await sleep(POLL_INTERVAL_MS);
+        }
+        continue; // Retry
+      }
+
+      // Fallback: Legacy API for standalone Turnstile widgets
+      const submitUrl = `${TWO_CAPTCHA_BASE}/in.php`;
+      const submitBody = new URLSearchParams({
+        key: TWO_CAPTCHA_API_KEY,
+        method: 'turnstile',
+        sitekey: siteKey,
+        pageurl: pageUrl,
+        json: '1',
+      });
+      if (challengeMetadata?.action) submitBody.set('action', challengeMetadata.action);
+      if (challengeMetadata?.cData) submitBody.set('data', challengeMetadata.cData);
+
+      const submitRes = await fetch(submitUrl, { method: 'POST', body: submitBody });
+      const submitData = await submitRes.json() as { status: number; request: string };
+
+      if (submitData.status !== 1) {
+        logger.error(`Turnstile submit failed: ${submitData.request}`);
+        if (attempt < MAX_RETRIES) { await sleep(2000); continue; }
+        return { success: false, answer: '', error: submitData.request };
+      }
+
+      const captchaId = submitData.request;
+      logger.debug(`Turnstile submitted (legacy, attempt ${attempt}), ID: ${captchaId}`);
+
+      const answer = await pollForResult(captchaId);
+      const solveTimeMs = Date.now() - startTime;
+
+      if (answer) {
+        logger.info(`Turnstile solved in ${solveTimeMs}ms`);
+        return { success: true, answer, captchaId, solveTimeMs, cost: 0.003 };
+      }
+
+      if (attempt < MAX_RETRIES) continue;
+      return { success: false, answer: '', captchaId, error: 'Timeout waiting for Turnstile solution' };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      logger.error(`Turnstile error (attempt ${attempt}): ${msg}`);
+      if (attempt === MAX_RETRIES) return { success: false, answer: '', error: msg };
+      await sleep(2000);
+    }
+  }
+
+  return { success: false, answer: '', error: 'All retries exhausted' };
 }
 
 /**

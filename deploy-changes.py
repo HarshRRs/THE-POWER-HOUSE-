@@ -6,16 +6,15 @@ REMOTE_BASE = '/opt/rdvpriority'
 
 # Files to upload (local relative path -> remote relative path)
 FILES = [
-    # Backend - Active prefectures config
-    ('backend/src/scraper/prefectures/index.ts', 'backend/src/scraper/prefectures/index.ts'),
-    ('backend/prisma/seed.ts', 'backend/prisma/seed.ts'),
-    ('backend/src/services/prefecture.service.ts', 'backend/src/services/prefecture.service.ts'),
-    # Frontend - Only show active prefectures
-    ('frontend/src/hooks/usePrefectures.ts', 'frontend/src/hooks/usePrefectures.ts'),
-    # Boss Panel - Remove prefectures tab
-    ('boss-panel/src/components/Sidebar.tsx', 'boss-panel/src/components/Sidebar.tsx'),
-    ('boss-panel/src/components/MobileNav.tsx', 'boss-panel/src/components/MobileNav.tsx'),
-    ('boss-panel/src/app/page.tsx', 'boss-panel/src/app/page.tsx'),
+    # Backend - WebSocket CORS fix
+    ('backend/src/services/websocket.service.ts', 'backend/src/services/websocket.service.ts'),
+    # Boss Panel - Dashboard component fixes (API response parsing)
+    ('boss-panel/src/components/dashboard/PowerStatsGrid.tsx', 'boss-panel/src/components/dashboard/PowerStatsGrid.tsx'),
+    ('boss-panel/src/components/dashboard/SlotMatrix.tsx', 'boss-panel/src/components/dashboard/SlotMatrix.tsx'),
+    ('boss-panel/src/components/dashboard/SystemHealth.tsx', 'boss-panel/src/components/dashboard/SystemHealth.tsx'),
+    ('boss-panel/src/components/dashboard/ManualBookingModal.tsx', 'boss-panel/src/components/dashboard/ManualBookingModal.tsx'),
+    # Boss Panel - WebSocket authentication fix
+    ('boss-panel/src/hooks/useWebSocket.ts', 'boss-panel/src/hooks/useWebSocket.ts'),
 ]
 
 print('Connecting to server...')
@@ -35,8 +34,8 @@ sftp.close()
 print('All files uploaded.')
 
 # Rebuild all containers
-print('\nRebuilding all containers...')
-cmd = 'cd /opt/rdvpriority && docker compose -f docker-compose.prod.yml build --no-cache api frontend boss-panel 2>&1'
+print('\nRebuilding api and boss-panel containers...')
+cmd = 'cd /opt/rdvpriority && docker compose -f docker-compose.prod.yml build --no-cache api boss-panel 2>&1'
 channel = ssh.get_transport().open_session()
 channel.settimeout(600)
 channel.exec_command(cmd)
@@ -63,19 +62,11 @@ print(f'\nBuild exit code: {exit_code}')
 if exit_code == 0:
     print('\nRestarting containers...')
     stdin, stdout, stderr = ssh.exec_command(
-        'cd /opt/rdvpriority && docker compose -f docker-compose.prod.yml up -d api frontend boss-panel 2>&1',
+        'cd /opt/rdvpriority && docker compose -f docker-compose.prod.yml up -d api boss-panel 2>&1',
         timeout=120
     )
     result = stdout.read().decode('utf-8', errors='replace')
     print(result)
-    
-    print('\nRunning seed to activate only 10 prefectures...')
-    stdin, stdout, stderr = ssh.exec_command(
-        'cd /opt/rdvpriority && docker compose -f docker-compose.prod.yml exec -T api npx prisma db seed 2>&1',
-        timeout=60
-    )
-    seed_result = stdout.read().decode('utf-8', errors='replace')
-    print(seed_result)
     print('Deployment complete!')
 else:
     print('BUILD FAILED - check output above')

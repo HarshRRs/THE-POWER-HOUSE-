@@ -140,6 +140,7 @@ model Client {
   prefectureId    String?
   prefecture      Prefecture?   @relation(fields: [prefectureId], references: [id])
   procedure       Procedure?    // Links to alert/detection system
+  categoryCode    String?       // Demarche code for RDV-Prefecture matching
   
   // VFS-specific
   vfsCenterId     String?
@@ -199,6 +200,7 @@ model Client {
   
   @@index([status, priority])
   @@index([prefectureId, status])
+  @@index([prefectureId, categoryCode, status])
   @@index([procedureType, status])
   @@index([bookingSystem, autoBook, bookingStatus])
   @@index([vfsCenterId, status])
@@ -283,6 +285,7 @@ model Alert {
   
   prefectureId    String?
   prefecture      Prefecture? @relation(fields: [prefectureId], references: [id])
+  categoryCode    String?     // Demarche code for category-level alerts
   
   consulateId     String?
   consulate       Consulate?  @relation(fields: [consulateId], references: [id])
@@ -304,9 +307,11 @@ model Alert {
   clients         Client[]  // Clients linked to this alert
   
   @@unique([userId, prefectureId, procedure])
+  @@unique([userId, prefectureId, categoryCode, procedure])
   @@unique([userId, consulateId, procedure])
   @@unique([userId, vfsCenterId, procedure])
   @@index([prefectureId, isActive])
+  @@index([prefectureId, categoryCode, isActive])
   @@index([consulateId, isActive])
   @@index([vfsCenterId, isActive])
   @@index([userId])
@@ -426,6 +431,11 @@ model Detection {
   prefectureId    String?
   prefecture      Prefecture? @relation(fields: [prefectureId], references: [id])
   
+  // Category tracking for RDV-Prefecture
+  categoryCode    String?     // Demarche code (e.g., "16040")
+  categoryId      String?
+  category        PrefectureCategory? @relation(fields: [categoryId], references: [id])
+  
   consulateId     String?
   consulate       Consulate?  @relation(fields: [consulateId], references: [id])
   
@@ -441,6 +451,7 @@ model Detection {
   detectedAt      DateTime  @default(now())
   
   @@index([prefectureId, detectedAt])
+  @@index([prefectureId, categoryCode, detectedAt])
   @@index([consulateId, detectedAt])
   @@index([vfsCenterId, detectedAt])
   @@index([alertId])
@@ -480,11 +491,51 @@ model Prefecture {
   scraperLogs     ScraperLog[]
   clients         Client[]  // For booking agent business
   urlHistory      UrlHistory[]
+  categories      PrefectureCategory[]  // Categories with demarche codes
   
   @@index([tier, status])
 }
 
+// ═══════════════════════════════════════
+// PREFECTURE CATEGORIES (Demarche codes for RDV-Prefecture)
+// ═══════════════════════════════════════
+
+model PrefectureCategory {
+  id              String          @id @default(uuid())
+  prefectureId    String
+  prefecture      Prefecture      @relation(fields: [prefectureId], references: [id], onDelete: Cascade)
+  
+  code            String          // Demarche code (e.g., "16040", "1922")
+  name            String          // Display name (e.g., "Renouvellement salarié")
+  procedure       Procedure       // Maps to Procedure enum
+  categoryUrl     String          // Full URL with demarche code
+  
+  // Tracking
+  lastScrapedAt   DateTime?
+  lastSlotFoundAt DateTime?
+  
+  // Status per category
+  status          CategoryStatus  @default(ACTIVE)
+  consecutiveErrors Int           @default(0)
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  detections      Detection[]
+  
+  @@unique([prefectureId, code])
+  @@index([prefectureId, status])
+  @@index([status])
+}
+
 enum PrefectureStatus {
+  ACTIVE
+  PAUSED
+  ERROR
+  CAPTCHA
+}
+
+enum CategoryStatus {
   ACTIVE
   PAUSED
   ERROR
@@ -594,6 +645,7 @@ model ScraperLog {
   id              String    @id @default(uuid())
   prefectureId    String
   prefecture      Prefecture @relation(fields: [prefectureId], references: [id])
+  categoryCode    String?   // Demarche code for category-level scraping
   workerId        String
   
   status          String
@@ -610,6 +662,7 @@ model ScraperLog {
   createdAt       DateTime  @default(now())
   
   @@index([prefectureId, createdAt])
+  @@index([prefectureId, categoryCode, createdAt])
   @@index([status, createdAt])
 }
 

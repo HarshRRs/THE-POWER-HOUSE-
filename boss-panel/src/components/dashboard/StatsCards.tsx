@@ -41,8 +41,9 @@ export default function StatsCards() {
 
   useEffect(() => {
     apiFetch('/api/boss/stats')
-      .then((res) => res.json())
-      .then((apiStats) => {
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => {
+        const apiStats = json?.success && json?.data ? json.data : json || {};
         setStats((prev) => ({
           totalConsulates: 0,
           totalVfsCenters: 0,

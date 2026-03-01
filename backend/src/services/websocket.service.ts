@@ -15,7 +15,10 @@ class WebSocketService {
   initialize(server: HttpServer): void {
     this.io = new SocketServer(server, {
       cors: {
-        origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+        origin: [
+          process.env.FRONTEND_URL || 'http://localhost:3000',
+          'http://localhost:3001', // Boss panel
+        ],
         credentials: true,
       },
     });
@@ -170,6 +173,29 @@ class WebSocketService {
       ...data,
       time: new Date().toLocaleTimeString('fr-FR'),
     });
+  }
+
+  /**
+   * Broadcast slot matrix cell update
+   * Emits when a category's status changes (slot found, error, etc.)
+   */
+  broadcastSlotMatrixUpdate(update: {
+    prefectureId: string;
+    categoryCode: string;
+    categoryName?: string;
+    status: 'available' | 'recent' | 'no_slots' | 'not_checked' | 'error' | 'captcha';
+    slotsCount?: number;
+    slotDate?: string;
+    slotTime?: string;
+  }): void {
+    if (!this.io) return;
+
+    this.io.emit('slot_matrix_update', {
+      ...update,
+      timestamp: new Date().toISOString(),
+    });
+
+    logger.debug(`Slot matrix update: ${update.prefectureId}:${update.categoryCode} -> ${update.status}`);
   }
 
   /**

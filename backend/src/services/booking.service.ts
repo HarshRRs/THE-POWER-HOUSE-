@@ -170,9 +170,10 @@ export async function findMatchingClients(params: {
   vfsCenterId?: string;
   consulateId?: string;
   procedure?: Procedure;
+  categoryCode?: string;  // NEW: Category code for RDV-Prefecture matching
   slotDate?: Date;
 }): Promise<Client[]> {
-  const { system, prefectureId, vfsCenterId, consulateId, procedure, slotDate } = params;
+  const { system, prefectureId, vfsCenterId, consulateId, procedure, categoryCode, slotDate } = params;
 
   const whereClause: any = {
     bookingSystem: system,
@@ -184,6 +185,10 @@ export async function findMatchingClients(params: {
   // Match by location
   if (system === 'PREFECTURE' && prefectureId) {
     whereClause.prefectureId = prefectureId;
+    // Also match by category code if provided
+    if (categoryCode) {
+      whereClause.categoryCode = categoryCode;
+    }
   } else if (system === 'VFS' && vfsCenterId) {
     whereClause.vfsCenterId = vfsCenterId;
   } else if (system === 'EMBASSY' && consulateId) {

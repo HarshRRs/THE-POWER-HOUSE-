@@ -1,7 +1,10 @@
-import { chromium, type Browser, type Page, type BrowserContext } from 'playwright';
+import { firefox, type Browser, type Page, type BrowserContext } from 'playwright';
 import type { Client } from '@prisma/client';
 import * as bookingService from '../services/booking.service.js';
 import * as captchaService from '../services/captcha.service.js';
+import { turnstileCookieService, extractCfClearanceCookie } from '../services/turnstile-cookie.service.js';
+import { prisma } from '../config/database.js';
+import { getCategoryUrl } from '../config/prefecture-categories.config.js';
 import logger from '../utils/logger.util.js';
 import path from 'path';
 import fs from 'fs';
@@ -9,14 +12,18 @@ import fs from 'fs';
 /**
  * Prefecture Auto-Booking Worker
  * 
+ * Uses Firefox via Playwright to bypass Cloudflare Turnstile managed challenges.
+ * Firefox uses Playwright's own protocol (not CDP), which Cloudflare cannot detect.
+ * 
  * Flow:
  * 1. Slot detected by scraper
  * 2. Find matching clients
- * 3. Open prefecture booking page
+ * 3. Open prefecture booking page (Firefox)
  * 4. Fill client details
  * 5. Select date/time
- * 6. Solve CAPTCHA via 2Captcha
- * 7. Submit and capture confirmation
+ * 6. Solve image CAPTCHA via 2Captcha
+ * 7. Submit form (Turnstile bypassed automatically)
+ * 8. Capture confirmation
  */
 
 const SCREENSHOT_DIR = process.env.SCREENSHOT_DIR || './screenshots/bookings';
@@ -30,22 +37,14 @@ async function getBrowser(): Promise<Browser> {
     return browserInstance;
   }
 
-  browserInstance = await chromium.launch({
+  // Use Firefox to bypass Cloudflare Turnstile detection
+  // Firefox + Playwright uses its own protocol (NOT Chrome DevTools Protocol)
+  // which Cloudflare's managed challenge pages cannot detect
+  browserInstance = await firefox.launch({
     headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--disable-accelerated-2d-canvas',
-      '--single-process',
-      '--no-first-run',
-      '--no-zygote',
-      '--disable-extensions',
-      '--disable-background-networking',
-      '--disable-blink-features=AutomationControlled',
-      '--js-flags=--max-old-space-size=128',
-    ],
+    firefoxUserPrefs: {
+      'dom.webdriver.enabled': false,
+    },
   });
 
   return browserInstance;
@@ -53,7 +52,6 @@ async function getBrowser(): Promise<Browser> {
 
 async function createPage(browser: Browser): Promise<{ context: BrowserContext; page: Page }> {
   const context = await browser.newContext({
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     viewport: { width: 1280, height: 720 },
     locale: 'fr-FR',
     timezoneId: 'Europe/Paris',
@@ -61,19 +59,13 @@ async function createPage(browser: Browser): Promise<{ context: BrowserContext; 
 
   const page = await context.newPage();
 
-  // Block heavy resources
+  // Block heavy resources (don't block images - needed for CAPTCHA)
   await page.route('**/*', (route) => {
     const type = route.request().resourceType();
-    if (['image', 'font', 'media'].includes(type)) {
+    if (['font', 'media'].includes(type)) {
       return route.abort();
     }
     return route.continue();
-  });
-
-  // Stealth
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator, 'webdriver', { get: () => false });
-    Object.defineProperty(navigator, 'languages', { get: () => ['fr-FR', 'fr', 'en'] });
   });
 
   return { context, page };
@@ -81,9 +73,11 @@ async function createPage(browser: Browser): Promise<{ context: BrowserContext; 
 
 /**
  * Main booking function for prefectures
+ * Now supports category-specific booking with Turnstile handling
  */
 export async function bookPrefectureAppointment(
   client: Client,
+  categoryCode: string,
   slotDate: string,
   slotTime?: string,
 ): Promise<{
@@ -101,17 +95,62 @@ export async function bookPrefectureAppointment(
   const clientDir = path.join(SCREENSHOT_DIR, 'prefecture', client.id);
   fs.mkdirSync(clientDir, { recursive: true });
 
+  // Track Turnstile cookie usage for this booking
+  let usedCachedCookie = false;
+
   try {
     await bookingService.updateBookingStatus(client.id, 'BOOKING', 'Opening prefecture website');
-    await bookingService.logBookingAction(client.id, 'BOOKING_STARTED', `Slot: ${slotDate} ${slotTime || ''}`);
+    await bookingService.logBookingAction(client.id, 'BOOKING_STARTED', `Slot: ${slotDate} ${slotTime || ''}, Category: ${categoryCode}`);
 
-    // Step 1: Navigate to booking URL
-    const bookingUrl = (client as any).prefecture?.bookingUrl;
-    if (!bookingUrl) {
-      throw new Error('No booking URL for prefecture');
+    // Step 1: Get category-specific booking URL
+    const prefectureId = client.prefectureId;
+    if (!prefectureId) {
+      throw new Error('No prefecture assigned to client');
     }
 
-    logger.info(`[Booking] Opening ${bookingUrl} for ${client.firstName} ${client.lastName}`);
+    // First try to get URL from database (PrefectureCategory table)
+    let bookingUrl: string | null = null;
+    
+    const prefectureCategory = await prisma.prefectureCategory.findUnique({
+      where: { prefectureId_code: { prefectureId, code: categoryCode } },
+    });
+    
+    if (prefectureCategory?.categoryUrl) {
+      bookingUrl = prefectureCategory.categoryUrl;
+    } else {
+      // Fallback: Generate from config
+      bookingUrl = getCategoryUrl(categoryCode);
+    }
+
+    if (!bookingUrl) {
+      // Final fallback: Use prefecture base booking URL
+      const prefecture = await prisma.prefecture.findUnique({ where: { id: prefectureId } });
+      bookingUrl = prefecture?.bookingUrl || null;
+    }
+
+    if (!bookingUrl) {
+      throw new Error(`No booking URL found for prefecture ${prefectureId} category ${categoryCode}`);
+    }
+
+    logger.info(`[Booking] Opening ${bookingUrl} for ${client.firstName} ${client.lastName} (category: ${categoryCode})`);
+
+    // Step 1.5: Try to use cached Turnstile cookie before navigation
+    const cachedCookie = await turnstileCookieService.getCookie(prefectureId, categoryCode);
+    if (cachedCookie) {
+      logger.info(`[Booking] Using cached Turnstile cookie for ${prefectureId}:${categoryCode}`);
+      await context.addCookies([{
+        name: cachedCookie.name,
+        value: cachedCookie.value,
+        domain: cachedCookie.domain,
+        path: cachedCookie.path,
+        expires: cachedCookie.expires,
+        httpOnly: cachedCookie.httpOnly,
+        secure: cachedCookie.secure,
+        sameSite: cachedCookie.sameSite,
+      }]);
+      usedCachedCookie = true;
+    }
+
     await page.goto(bookingUrl, { waitUntil: 'networkidle', timeout: PAGE_TIMEOUT });
     
     await page.screenshot({ path: path.join(clientDir, '01_landing.png') });
@@ -219,6 +258,20 @@ export async function bookPrefectureAppointment(
     const submitButton = await page.$('button[type="submit"], input[type="submit"], button:has-text("Confirmer"), button:has-text("Valider"), button:has-text("Réserver")');
     if (submitButton) {
       await submitButton.click();
+    }
+
+    // Step 6.5: Handle Cloudflare Turnstile after form submission
+    // RDV-Préfecture often shows Turnstile after clicking submit
+    await page.waitForTimeout(2000);
+    
+    const turnstileResult = await handleTurnstile(page, client.id, prefectureId, categoryCode, usedCachedCookie, context);
+    if (!turnstileResult.success) {
+      throw new Error(`Turnstile challenge failed: ${turnstileResult.error}`);
+    }
+    
+    if (turnstileResult.solvedNew) {
+      await page.screenshot({ path: path.join(clientDir, '06a_turnstile_solved.png') });
+      await bookingService.logBookingAction(client.id, 'TURNSTILE_SOLVED', `Time: ${turnstileResult.solveTimeMs}ms`);
     }
 
     // Wait for confirmation page
@@ -333,23 +386,97 @@ async function handleCaptcha(page: Page, clientId: string, _screenshotDir: strin
     }
   }
 
-  // Check for image CAPTCHA
-  const captchaImg = await page.$('img[src*="captcha"], img[id*="captcha"], img[alt*="captcha"], .captcha img');
+  // Check for RDV-Prefecture image CAPTCHA
+  // The form has two CAPTCHA fields:
+  //   - captchaId (hidden) = challenge identifier (don't touch)
+  //   - captchaUsercode / captchaFormulaireExtInput (text) = where answer goes
+  const captchaSelectors = [
+    'img[src*="captcha"]', 'img[src*="jcaptcha"]', 'img#captchaImage',
+    'img[alt*="captcha"]', '.captcha img', 'img[id*="captcha"]',
+  ];
+  
+  let captchaImg = null;
+  for (const sel of captchaSelectors) {
+    captchaImg = await page.$(sel);
+    if (captchaImg) break;
+  }
+
+  // Fallback: search all images for CAPTCHA-like src
+  if (!captchaImg) {
+    const allImages = await page.$$('img');
+    for (const img of allImages) {
+      const src = await img.getAttribute('src');
+      if (src && (src.includes('captcha') || src.includes('jcaptcha') || src.includes('simpleCaptcha'))) {
+        captchaImg = img;
+        break;
+      }
+    }
+  }
+
   if (captchaImg) {
     await bookingService.updateBookingStatus(clientId, 'CAPTCHA_WAIT', 'Solving image CAPTCHA');
     
-    // Screenshot just the captcha
     const captchaScreenshot = await captchaImg.screenshot();
     const base64 = captchaScreenshot.toString('base64');
     
     const result = await captchaService.solveImageCaptcha(base64);
     if (result.success) {
-      // Find the captcha input field and type the answer
-      const captchaInput = await page.$('input[name*="captcha"], input[id*="captcha"], input[placeholder*="captcha"]');
-      if (captchaInput) {
-        await captchaInput.fill(result.answer);
+      // Target the specific answer field (NOT the hidden captchaId field)
+      const answerInput = await page.$('#captchaFormulaireExtInput, input[name="captchaUsercode"]');
+      if (answerInput) {
+        const isVisible = await answerInput.isVisible().catch(() => false);
+        if (isVisible) {
+          await answerInput.fill(result.answer);
+        } else {
+          // Force visible and fill via JS (for frameworks that hide/show dynamically)
+          await page.evaluate(`(function(answer) {
+            var el = document.querySelector('#captchaFormulaireExtInput, input[name="captchaUsercode"]');
+            if (el) {
+              el.style.display = 'block';
+              el.style.visibility = 'visible';
+              el.value = answer;
+              el.dispatchEvent(new Event('input', { bubbles: true }));
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+          })("${result.answer.replace(/"/g, '\\"')}")`);
+        }
+
+        // Verify the value was set
+        const verified = await page.evaluate(`(function() {
+          var el = document.querySelector('#captchaFormulaireExtInput, input[name="captchaUsercode"]');
+          return el ? el.value : '';
+        })()`);
+
+        if (verified === result.answer) {
+          logger.info(`[Booking] Image CAPTCHA filled: captchaUsercode = "${result.answer}"`);
+          return { success: true, solveTimeMs: result.solveTimeMs };
+        }
+        logger.warn(`[Booking] CAPTCHA fill verification failed: got "${verified}", expected "${result.answer}"`);
+      }
+      
+      // Fallback: fill any visible text input that's empty
+      const fallbackFilled = await page.evaluate(`(function(answer) {
+        var form = document.querySelector('form');
+        if (!form) return false;
+        var textInputs = form.querySelectorAll('input[type="text"]');
+        for (var i = 0; i < textInputs.length; i++) {
+          var el = textInputs[i];
+          if (!el.value && el.name !== 'captchaId') {
+            el.value = answer;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            return true;
+          }
+        }
+        return false;
+      })("${result.answer.replace(/"/g, '\\"')}")`);
+
+      if (fallbackFilled) {
+        logger.info(`[Booking] Image CAPTCHA filled via fallback`);
         return { success: true, solveTimeMs: result.solveTimeMs };
       }
+
+      return { success: false, error: 'Could not fill CAPTCHA answer into form' };
     }
     return { success: false, error: result.error };
   }
@@ -357,6 +484,122 @@ async function handleCaptcha(page: Page, clientId: string, _screenshotDir: strin
   // No CAPTCHA found - that's fine
   logger.debug(`[Booking] No CAPTCHA detected for client ${clientId}`);
   return { success: true };
+}
+
+// ─── Turnstile Handling ──────────────────────────────────
+
+/**
+ * Handle Cloudflare Turnstile challenge after form submission.
+ * 
+ * With Firefox + Playwright, Turnstile managed challenges are bypassed automatically
+ * because Firefox uses its own protocol (not CDP), which Cloudflare cannot detect.
+ * 
+ * This function now acts as a safety check:
+ * 1. Verify no Turnstile challenge appeared (expected with Firefox)
+ * 2. If challenge somehow appears, wait briefly for auto-resolution
+ * 3. Cache cf_clearance cookie if present for future optimization
+ */
+async function handleTurnstile(
+  page: Page,
+  clientId: string,
+  prefectureId: string,
+  categoryCode: string,
+  usedCachedCookie: boolean,
+  context: BrowserContext
+): Promise<{
+  success: boolean;
+  solvedNew?: boolean;
+  solveTimeMs?: number;
+  error?: string;
+}> {
+  // Check for Turnstile indicators
+  const turnstileSelectors = [
+    '#cf-wrapper',
+    '.cf-challenge',
+    '.cf-browser-verification',
+    'input[name="cf-turnstile-response"]',
+    'iframe[src*="challenges.cloudflare.com"]',
+  ];
+
+  let turnstileDetected = false;
+  for (const selector of turnstileSelectors) {
+    const element = await page.$(selector);
+    if (element) {
+      turnstileDetected = true;
+      break;
+    }
+  }
+
+  // Also check page title/content for challenge page indicators
+  if (!turnstileDetected) {
+    const title = await page.title();
+    const content = await page.content();
+    if (title.includes('instant') || content.includes('challenges.cloudflare.com') || content.includes('challenge-platform')) {
+      turnstileDetected = true;
+    }
+  }
+
+  if (!turnstileDetected) {
+    // No Turnstile challenge - expected with Firefox
+    logger.debug(`[Booking] No Turnstile challenge for client ${clientId} (Firefox bypass working)`);
+    
+    // Still cache any cf_clearance cookie present for future use
+    const cookies = await context.cookies();
+    const cfClearance = extractCfClearanceCookie(cookies);
+    if (cfClearance) {
+      await turnstileCookieService.saveCookie(prefectureId, categoryCode, cfClearance);
+    }
+    
+    return { success: true };
+  }
+
+  // Turnstile detected unexpectedly - Firefox should bypass this
+  logger.warn(`[Booking] Turnstile challenge detected for client ${clientId} despite Firefox - waiting for auto-resolution`);
+  await bookingService.updateBookingStatus(clientId, 'CAPTCHA_WAIT', 'Waiting for Cloudflare challenge');
+
+  if (usedCachedCookie) {
+    await turnstileCookieService.invalidateCookie(prefectureId, categoryCode);
+  }
+
+  // Wait up to 30s for Firefox to auto-resolve the challenge
+  const challengeUrl = page.url();
+  for (let wait = 0; wait < 30; wait++) {
+    await page.waitForTimeout(1000);
+    try {
+      const currentUrl = page.url();
+      const currentTitle = await page.title();
+      
+      if (currentUrl !== challengeUrl) {
+        logger.info(`[Booking] Turnstile auto-resolved: navigated to ${currentUrl}`);
+        
+        // Cache the new cookie
+        const cookies = await context.cookies();
+        const cfClearance = extractCfClearanceCookie(cookies);
+        if (cfClearance) {
+          await turnstileCookieService.saveCookie(prefectureId, categoryCode, cfClearance);
+        }
+        
+        return { success: true, solvedNew: true, solveTimeMs: (wait + 1) * 1000 };
+      }
+      
+      if (!currentTitle.includes('instant') && !currentTitle.includes('moment')) {
+        logger.info(`[Booking] Turnstile auto-resolved: title changed to "${currentTitle}"`);
+        return { success: true, solvedNew: true, solveTimeMs: (wait + 1) * 1000 };
+      }
+    } catch (e) {
+      const errMsg = String(e);
+      // Context destroyed usually means navigation happened - success
+      if (errMsg.includes('context was destroyed') || errMsg.includes('navigation')) {
+        logger.info(`[Booking] Turnstile resolved (page navigated away)`);
+        return { success: true, solvedNew: true, solveTimeMs: (wait + 1) * 1000 };
+      }
+      if (errMsg.includes('Target closed') || errMsg.includes('Session closed')) {
+        return { success: false, error: 'Browser closed during challenge' };
+      }
+    }
+  }
+
+  return { success: false, error: 'Turnstile challenge did not auto-resolve within 30s' };
 }
 
 // ─── Helper Functions ────────────────────────────────────

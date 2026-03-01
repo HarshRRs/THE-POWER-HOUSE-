@@ -51,3 +51,16 @@ scraper/.env
 # Build artifacts and temporary files
 tsconfig.tsbuildinfo
 nul
+
+# Debug images and temp files
+backend/debug_*.png
+backend/temp_captcha.png
+backend/test-captcha-rdv.png
+backend/eng.traineddata
+backend/tsc_errors.txt
+backend/tsc_output.txt
+backend/screenshots/
+captcha_*.png
+
+# Qoder
+.qoder/

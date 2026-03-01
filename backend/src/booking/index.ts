@@ -18,6 +18,7 @@ export interface SlotInfo {
   vfsCenterId?: string;
   consulateId?: string;
   procedure?: string;
+  categoryCode?: string;  // Demarche code for category-specific booking
   date: string;        // YYYY-MM-DD
   time?: string;       // HH:MM
   slotsAvailable?: number;
@@ -71,7 +72,7 @@ export async function handleSlotDetected(slot: SlotInfo): Promise<void> {
 async function dispatchBooking(client: Client, slot: SlotInfo): Promise<void> {
   switch (slot.system) {
     case 'PREFECTURE':
-      await bookPrefectureAppointment(client, slot.date, slot.time);
+      await bookPrefectureAppointment(client, slot.categoryCode || 'default', slot.date, slot.time);
       break;
 
     case 'VFS': {
@@ -86,7 +87,7 @@ async function dispatchBooking(client: Client, slot: SlotInfo): Promise<void> {
     }
 
     case 'EMBASSY':
-      await bookEmbassyAppointment(client, slot.date, slot.time);
+      await bookEmbassyAppointment(client, slot.categoryCode || 'default', slot.date, slot.time);
       break;
 
     default:

@@ -11,6 +11,14 @@ export function useWebSocket() {
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
+    // Get access token from localStorage (stored as 'boss_token' by AuthContext)
+    const accessToken = typeof window !== 'undefined' ? localStorage.getItem('boss_token') : null;
+    
+    if (!accessToken) {
+      console.warn('No access token found - WebSocket will not connect');
+      return;
+    }
+
     // Connect to WebSocket - use current origin in production, localhost in dev
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
     // In browser, if API_URL points to localhost but we're on a real domain, use current origin
@@ -26,6 +34,9 @@ export function useWebSocket() {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 20000,
+      auth: {
+        token: accessToken,
+      },
     });
 
     socketRef.current = socket;
@@ -33,6 +44,11 @@ export function useWebSocket() {
     socket.on("connect", () => {
       if (process.env.NODE_ENV === 'development') console.log("Connected to WebSocket");
       setIsConnected(true);
+    });
+
+    socket.on("connect_error", (error) => {
+      console.error("WebSocket connection error:", error.message);
+      setIsConnected(false);
     });
 
     socket.on("disconnect", () => {

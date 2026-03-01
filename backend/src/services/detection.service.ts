@@ -32,7 +32,8 @@ interface AlertWithUser {
 export async function processDetection(
   prefectureId: string,
   result: ScrapeResult,
-  alertIds: string[]
+  alertIds: string[],
+  categoryCode?: string  // NEW: Optional category code for category-level detections
 ): Promise<void> {
   if (result.status !== 'slots_found' || result.slotsAvailable === 0) {
     return;
@@ -57,6 +58,7 @@ export async function processDetection(
     slotTime: result.slotTime,
     bookingUrl: result.bookingUrl,
     screenshotPath: result.screenshotPath,
+    categoryCode: categoryCode || result.categoryCode,  // Include category code
   };
 
   // Get alerts with user info
@@ -173,6 +175,7 @@ export async function processDetection(
     const clientsToAutoBook = await findMatchingClients({
       system: 'PREFECTURE',
       prefectureId: prefectureId,
+      categoryCode: categoryCode || result.categoryCode,  // Include category code for matching
       slotDate: result.slotDate ? new Date(result.slotDate) : undefined,
     });
 
@@ -183,7 +186,10 @@ export async function processDetection(
         await autobookQueue.add(`autobook-${client.id}-${Date.now()}`, {
           clientId: client.id,
           prefectureId,
+          categoryCode: categoryCode || result.categoryCode || client.categoryCode,  // Include category code
           bookingUrl: result.bookingUrl,
+          slotDate: result.slotDate,
+          slotTime: result.slotTime,
         });
       }
     }

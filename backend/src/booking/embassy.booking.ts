@@ -1,6 +1,8 @@
-import { chromium, type Browser, type Page, type BrowserContext } from 'playwright';
+import { firefox, type Browser, type Page, type BrowserContext } from 'playwright';
 import type { Client } from '@prisma/client';
 import * as bookingService from '../services/booking.service.js';
+import { INDIAN_EMBASSY_CATEGORIES } from '../config/prefecture-categories.config.js';
+import { prisma } from '../config/database.js';
 import logger from '../utils/logger.util.js';
 import path from 'path';
 import fs from 'fs';
@@ -8,16 +10,17 @@ import fs from 'fs';
 /**
  * Indian Embassy Auto-Booking Worker
  * 
+ * Uses Firefox via Playwright for consistency with prefecture booking.
+ * Firefox uses Playwright's own protocol (not CDP), avoiding detection.
+ * 
  * Flow:
  * 1. Slot detected by consulate scraper
  * 2. Find matching client
  * 3. Open embassy appointment page
  * 4. Fill client details (name, passport, DOB, etc.)
  * 5. Select date/time
- * 6. Submit → No CAPTCHA, No Payment
+ * 6. Submit
  * 7. Capture confirmation
- * 
- * This is the simplest booking system - fully automatic, no blockers.
  */
 
 const SCREENSHOT_DIR = process.env.SCREENSHOT_DIR || './screenshots/bookings';
@@ -30,20 +33,11 @@ async function getBrowser(): Promise<Browser> {
     return browserInstance;
   }
 
-  browserInstance = await chromium.launch({
+  browserInstance = await firefox.launch({
     headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--single-process',
-      '--no-first-run',
-      '--no-zygote',
-      '--disable-extensions',
-      '--disable-blink-features=AutomationControlled',
-      '--js-flags=--max-old-space-size=128',
-    ],
+    firefoxUserPrefs: {
+      'dom.webdriver.enabled': false,
+    },
   });
 
   return browserInstance;
@@ -51,7 +45,6 @@ async function getBrowser(): Promise<Browser> {
 
 async function createPage(browser: Browser): Promise<{ context: BrowserContext; page: Page }> {
   const context = await browser.newContext({
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     viewport: { width: 1280, height: 720 },
     locale: 'en-US',
     timezoneId: 'Europe/Paris',
@@ -59,18 +52,13 @@ async function createPage(browser: Browser): Promise<{ context: BrowserContext; 
 
   const page = await context.newPage();
 
-  // Block heavy resources
+  // Block heavy resources (keep images in case CAPTCHA appears)
   await page.route('**/*', (route) => {
     const type = route.request().resourceType();
-    if (['image', 'font', 'media'].includes(type)) {
+    if (['font', 'media'].includes(type)) {
       return route.abort();
     }
     return route.continue();
-  });
-
-  // Stealth
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator, 'webdriver', { get: () => false });
   });
 
   return { context, page };
@@ -78,9 +66,11 @@ async function createPage(browser: Browser): Promise<{ context: BrowserContext; 
 
 /**
  * Main booking function for Indian Embassy
+ * Now supports category-specific booking (Passport, OCI, Visa, etc.)
  */
 export async function bookEmbassyAppointment(
   client: Client,
+  categoryCode: string,
   slotDate: string,
   slotTime?: string,
 ): Promise<{
@@ -97,17 +87,28 @@ export async function bookEmbassyAppointment(
   const clientDir = path.join(SCREENSHOT_DIR, 'embassy', client.id);
   fs.mkdirSync(clientDir, { recursive: true });
 
+  // Find the category info for logging
+  const category = INDIAN_EMBASSY_CATEGORIES.find(c => c.code === categoryCode);
+  const categoryName = category?.name || categoryCode;
+
   try {
     await bookingService.updateBookingStatus(client.id, 'BOOKING', 'Opening embassy website');
-    await bookingService.logBookingAction(client.id, 'EMBASSY_BOOKING_STARTED', `Service: ${client.embassyServiceType}`);
+    await bookingService.logBookingAction(client.id, 'EMBASSY_BOOKING_STARTED', `Category: ${categoryName}, Service: ${client.embassyServiceType}`);
 
     // Step 1: Navigate to embassy appointment page
-    const bookingUrl = (client as any).consulate?.baseUrl;
+    // First try to get category-specific URL from the consulate
+    const consulate = await prisma.consulate.findUnique({ 
+      where: { id: client.consulateId || '' },
+      select: { baseUrl: true, name: true }
+    });
+    
+    let bookingUrl = consulate?.baseUrl;
+    
     if (!bookingUrl) {
       throw new Error('No booking URL for embassy/consulate');
     }
 
-    logger.info(`[Embassy Booking] Opening ${bookingUrl} for ${client.firstName} ${client.lastName}`);
+    logger.info(`[Embassy Booking] Opening ${bookingUrl} for ${client.firstName} ${client.lastName} (category: ${categoryName})`);
     await page.goto(bookingUrl, { waitUntil: 'networkidle', timeout: PAGE_TIMEOUT });
 
     await page.screenshot({ path: path.join(clientDir, '01_landing.png') });
