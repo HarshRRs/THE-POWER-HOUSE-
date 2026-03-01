@@ -151,44 +151,10 @@ function Hero({ stats, loading }: { stats: Stats | null; loading: boolean }) {
 
         <p className="text-base sm:text-lg md:text-xl text-white/70 mb-10 max-w-2xl mx-auto leading-relaxed">
           Vous cherchez désespérément un <span className="text-white font-bold">RDV préfecture</span> depuis des semaines ?
-          <br className="hidden sm:block" />Notre système surveille <span className="text-accent font-bold">101 préfectures</span> toutes les 30 secondes et vous alerte instantanément dès qu'un créneau est disponible.
+          <br className="hidden sm:block" />Notre système surveille <span className="text-accent font-bold">la préfecture de Paris</span> toutes les 30 secondes et vous alerte instantanément dès qu'un créneau est disponible.
         </p>
 
-        {/* Stats from API */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 max-w-md sm:max-w-2xl mx-auto mt-10 sm:mt-14">
-          {loading ? (
-            [1, 2, 3, 4].map((i) => (
-              <div key={i} className="glass rounded-xl p-4">
-                <div className="h-8 w-20 mx-auto skeleton rounded mb-2" />
-                <div className="h-3 w-28 mx-auto skeleton rounded" />
-              </div>
-            ))
-          ) : (
-            [
-              { n: stats?.appointmentsDetected ?? 0, s: "+", l: "Créneaux détectés" },
-              { n: stats?.prefecturesMonitored ?? 0, s: "", l: "Préfectures surveillées" },
-              { n: stats?.activeUsers ?? 0, s: "+", l: "Utilisateurs actifs" },
-              { n: stats?.detectionsLast24h ?? 0, s: "", l: "Détections 24h" },
-            ].map((s, i) => (
-              <div key={i} className="glass rounded-xl p-3 sm:p-4">
-                <div className="text-xl sm:text-2xl md:text-3xl font-black text-white">
-                  <Counter end={s.n} />{s.s}
-                </div>
-                <div className="text-[10px] sm:text-xs text-white/60 mt-1">{s.l}</div>
-              </div>
-            ))
-          )}
-        </div>
-        <div className="mt-8 max-w-2xl mx-auto bg-gradient-to-r from-primary/20 to-accent/20 rounded-xl p-5 border border-primary/30 text-center">
-          <div className="text-white/90 text-sm">
-            <span className="font-bold text-green-400">⚡</span>
-            {" "}Surveillance active 24h/24 — 7j/7 |
-            <span className="font-bold text-blue-400"> 🏆</span>
-            {" "}Détections en temps réel |
-            <span className="font-bold text-purple-400"> ❤️</span>
-            {" "}Alertes instantanées
-          </div>
-        </div>
+
       </div>
 
       <div className="absolute top-20 right-0 w-96 h-96 bg-accent/20 rounded-full blur-[120px]"></div>
@@ -393,7 +359,7 @@ function LiveSituation({ prefectures, loading }: { prefectures: Prefecture[]; lo
 function HowItWorks() {
   const steps = [
     { icon: "💳", title: "1. Choisissez votre plan", desc: "À partir de 4,99€. Paiement sécurisé en 30 secondes." },
-    { icon: "🏛️", title: "2. Sélectionnez votre préfecture", desc: "101 préfectures françaises couvertes. Choisissez la procédure souhaitée." },
+    { icon: "🏛️", title: "2. Sélectionnez votre procédure", desc: "Préfecture de Paris couverte. Choisissez la procédure souhaitée." },
     { icon: "🚨", title: "3. Recevez votre alerte", desc: "Dès qu'un créneau apparaît, notification instantanée. Réservez avant les autres." },
   ];
 
@@ -638,7 +604,7 @@ function FAQ() {
     { q: "Comment les alertes fonctionnent ?", a: "Notre système vérifie le site de votre préfecture toutes les 30 à 120 secondes selon votre plan. Dès qu'un changement est détecté (nouveau créneau disponible), vous recevez une notification Email, Telegram ou SMS avec le lien direct pour réserver." },
     { q: "Que se passe-t-il si aucun créneau n'est trouvé ?", a: "Nous offrons une garantie satisfait ou remboursé. Si aucun créneau n'est détecté pendant la durée de votre plan, vous êtes remboursé intégralement. Cependant, nos statistiques montrent que 87% des utilisateurs obtiennent un créneau dans les 7 jours." },
     { q: "Combien de temps faut-il pour obtenir un RDV ?", a: "En moyenne, nos utilisateurs obtiennent un créneau en 2 à 7 jours avec le plan 7 jours, contre 3 à 6 mois en cherchant manuellement. Les créneaux se libèrent souvent la nuit ou tôt le matin — des moments où vous ne serez pas devant votre écran." },
-    { q: "Puis-je choisir ma préfecture ?", a: "Oui. Nous couvrons les 101 préfectures françaises. Lors de l'inscription, vous choisissez votre préfecture et la procédure souhaitée (titre de séjour, naturalisation, visa, etc.)." },
+    { q: "Puis-je choisir ma préfecture ?", a: "Nous surveillons la préfecture de Paris. Lors de l'inscription, vous choisissez la procédure souhaitée (titre de séjour, naturalisation, visa, etc.)." },
     { q: "Je peux annuler ?", a: "Les plans 24h et 7 jours sont des paiements uniques, sans engagement. Le plan mensuel peut être annulé à tout moment. Aucune question posée." },
   ];
 

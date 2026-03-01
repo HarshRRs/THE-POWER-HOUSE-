@@ -35,7 +35,7 @@ export default function AlertsView() {
         return res.json();
       })
       .then(data => {
-        setAlerts(data.alerts || data || []);
+        setAlerts(data.data?.alerts || data.alerts || []);
         setLoading(false);
       })
       .catch(err => {

@@ -27,8 +27,8 @@ export default function HeroVisual() {
             {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-                <div className="text-3xl font-bold text-white">101</div>
-                <div className="text-white/80 text-sm">Prefectures</div>
+                <div className="text-3xl font-bold text-white">Paris</div>
+                <div className="text-white/80 text-sm">Préfecture</div>
                 <div className="text-green-300 text-xs mt-1">✓ Monitoring</div>
               </div>
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">

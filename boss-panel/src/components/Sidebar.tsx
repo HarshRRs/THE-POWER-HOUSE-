@@ -4,7 +4,6 @@ import { useState } from 'react';
 import {
   LayoutDashboard,
   Users,
-  MapPin,
   Globe,
   Settings,
   Bell,
@@ -22,7 +21,6 @@ interface SidebarProps {
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'clients', label: 'Clients', icon: Users },
-  { id: 'prefectures', label: 'Prefectures', icon: MapPin },
   { id: 'vfs', label: 'VFS Centers', icon: Globe },
   { id: 'stream', label: 'Live Stream', icon: Activity },
   { id: 'alerts', label: 'Alerts', icon: Bell },

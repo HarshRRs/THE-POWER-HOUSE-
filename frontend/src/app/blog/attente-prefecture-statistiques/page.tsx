@@ -295,7 +295,7 @@ export default function AttentePrefectureStatistiques() {
 
           <div className="bg-gradient-to-r from-primary to-accent rounded-xl p-6 text-white my-6">
             <h4 className="font-bold text-lg mb-2">🚀 Solution RDVPriority : Zéro attente garantie</h4>
-            <p className="mb-3">Notre système surveille 101 préfectures françaises 24h/24. Dès qu'un créneau se libère, vous recevez une alerte instantanée. Plus besoin d'attendre des heures à la préfecture.</p>
+            <p className="mb-3">Notre système surveille la préfecture de Paris 24h/24. Dès qu'un créneau se libère, vous recevez une alerte instantanée. Plus besoin d'attendre des heures à la préfecture.</p>
             <Link href="/register" className="inline-block bg-white text-primary font-bold px-6 py-3 rounded-lg hover:bg-gray-100 transition-colors">
               Éliminer les files d'attente
             </Link>

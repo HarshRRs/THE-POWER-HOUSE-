@@ -657,6 +657,60 @@ router.get('/logs', validateQuery(logsQuerySchema), async (req: Request, res: Re
   }
 });
 
+// ──────────────────────────────────────
+// GET /api/admin/alerts - All alerts (admin view)
+// ──────────────────────────────────────
+router.get('/alerts', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const alerts = await prisma.alert.findMany({
+      include: {
+        user: { select: { email: true } },
+        prefecture: { select: { name: true, department: true } },
+        vfsCenter: { select: { name: true, city: true } },
+        consulate: { select: { name: true, city: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+
+    sendSuccess(res, { alerts });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ──────────────────────────────────────
+// PATCH /api/admin/alerts/:id/toggle - Toggle alert
+// ──────────────────────────────────────
+router.patch('/alerts/:id/toggle', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const alert = await prisma.alert.findUnique({ where: { id: req.params.id as string } });
+    if (!alert) {
+      sendError(res, 'Alert not found', 404);
+      return;
+    }
+    const updated = await prisma.alert.update({
+      where: { id: req.params.id as string },
+      data: { isActive: !alert.isActive },
+    });
+    sendSuccess(res, updated);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ──────────────────────────────────────
+// DELETE /api/admin/alerts/:id - Delete alert
+// ──────────────────────────────────────
+router.delete('/alerts/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await prisma.alert.delete({ where: { id: req.params.id as string } });
+    sendSuccess(res, { message: 'Alert deleted' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // ══════════════════════════════════════
 // URL DISCOVERY MANAGEMENT
 // ══════════════════════════════════════

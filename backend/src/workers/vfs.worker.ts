@@ -3,6 +3,7 @@ import { prisma } from '../config/database.js';
 import { scrapeVfs, cleanupIdleBrowser, closeBrowser } from '../scraper/vfs/index.js';
 import { getVfsConfig } from '../scraper/vfs/vfs.config.js';
 import { updateVfsCenterAfterScrape } from '../services/vfs.service.js';
+import { handleSlotDetected } from '../booking/index.js';
 import { VFS_CONFIG } from '../config/constants.js';
 import logger from '../utils/logger.util.js';
 import type { VfsScrapeJobData } from '../types/vfs.types.js';
@@ -13,7 +14,8 @@ import type { VfsScrapeJobData } from '../types/vfs.types.js';
 async function processVfsDetection(
   vfsCenterId: string,
   result: Awaited<ReturnType<typeof scrapeVfs>>,
-  alertIds: string[]
+  alertIds: string[],
+  procedures?: string[]
 ): Promise<void> {
   // Create detection record
   for (const alertId of alertIds) {
@@ -73,6 +75,22 @@ async function processVfsDetection(
       },
       { priority: 1 }
     );
+  }
+
+  // Trigger auto-booking for matching clients
+  if (result.slotsAvailable > 0 && procedures && procedures.length > 0) {
+    try {
+      await handleSlotDetected({
+        system: 'VFS',
+        vfsCenterId,
+        procedure: procedures[0],
+        date: result.availableDates[0]?.date || new Date().toISOString().split('T')[0],
+        time: result.availableDates[0]?.slots[0],
+        slotsAvailable: result.slotsAvailable,
+      });
+    } catch (err) {
+      logger.error(`Auto-booking trigger failed for ${vfsCenterId}:`, err);
+    }
   }
 }
 
@@ -137,7 +155,8 @@ export async function startVfsWorker(workerId: string, concurrency = 1) {
           await processVfsDetection(
             vfsCenterId,
             result,
-            alerts.map((a) => a.id)
+            alerts.map((a) => a.id),
+            category.procedures
           );
           await updateVfsCenterAfterScrape(vfsCenterId, true, true);
         } else if (result.status === 'captcha_blocked') {

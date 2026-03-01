@@ -10,7 +10,7 @@ import logger from '../utils/logger.util.js';
  * - hCaptcha (sitekey + url → token)
  */
 
-const TWO_CAPTCHA_API_KEY = process.env.TWO_CAPTCHA_API_KEY || '';
+const TWO_CAPTCHA_API_KEY = process.env.TWOCAPTCHA_API_KEY || process.env.TWO_CAPTCHA_API_KEY || '';
 const TWO_CAPTCHA_BASE = 'http://2captcha.com';
 const POLL_INTERVAL_MS = 5000; // Check every 5 seconds
 const MAX_WAIT_MS = 120000; // Max 2 minutes wait

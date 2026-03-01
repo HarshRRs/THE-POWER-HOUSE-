@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, Plus, Search, Power, CreditCard, Trash2, Eye, ChevronDown, ChevronUp, X, Clock, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
+import { Users, Plus, Search, Power, CreditCard, Trash2, Eye, ChevronDown, ChevronUp, X, Clock, RefreshCw, AlertCircle, CheckCircle, Globe, MapPin, Briefcase } from 'lucide-react';
 import { API_URL, getToken, authHeaders, authJsonHeaders } from '@/lib/utils';
 
 interface Client {
@@ -548,15 +548,107 @@ function ClientRow({
 
 // ─── Add Client Form ────────────────────────────────────
 
+interface VfsConfig {
+  id: string;
+  name: string;
+  countryCode: string;
+  destinationCountry: string;
+  centers: Array<{ id: string; name: string; city: string; code: string }>;
+  visaCategories: Array<{ id: string; name: string; procedures: string[] }>;
+}
+
+const countryFlags: Record<string, string> = {
+  'Italy': '\u{1F1EE}\u{1F1F9}',
+  'Germany': '\u{1F1E9}\u{1F1EA}',
+  'France': '\u{1F1EB}\u{1F1F7}',
+  'Switzerland': '\u{1F1E8}\u{1F1ED}',
+  'Austria': '\u{1F1E6}\u{1F1F9}',
+  'Belgium': '\u{1F1E7}\u{1F1EA}',
+  'Netherlands': '\u{1F1F3}\u{1F1F1}',
+  'Portugal': '\u{1F1F5}\u{1F1F9}',
+  'India': '\u{1F1EE}\u{1F1F3}',
+};
+
 function AddClientForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: () => void }) {
   const [system, setSystem] = useState<string>('PREFECTURE');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // VFS-specific state
+  const [vfsConfigs, setVfsConfigs] = useState<VfsConfig[]>([]);
+  const [vfsLoading, setVfsLoading] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState<string>('');
+  const [selectedCenters, setSelectedCenters] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [datePreference, setDatePreference] = useState('EARLIEST');
+
+  const selectedConfig = vfsConfigs.find(c => c.id === selectedCountry);
+
+  useEffect(() => {
+    if (system === 'VFS' && vfsConfigs.length === 0) {
+      fetchVfsConfigs();
+    }
+  }, [system]);
+
+  async function fetchVfsConfigs() {
+    setVfsLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/vfs/configs`, { headers: authHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setVfsConfigs(data.configs || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch VFS configs:', err);
+    } finally {
+      setVfsLoading(false);
+    }
+  }
+
+  function handleCountrySelect(configId: string) {
+    setSelectedCountry(configId);
+    const config = vfsConfigs.find(c => c.id === configId);
+    // Auto-select all cities by default
+    setSelectedCenters(config ? config.centers.map(c => c.id) : []);
+    setSelectedCategories([]);
+  }
+
+  function handleCenterToggle(centerId: string) {
+    setSelectedCenters(prev =>
+      prev.includes(centerId) ? prev.filter(c => c !== centerId) : [...prev, centerId]
+    );
+  }
+
+  function handleSelectAllCenters() {
+    if (!selectedConfig) return;
+    if (selectedCenters.length === selectedConfig.centers.length) {
+      setSelectedCenters([]);
+    } else {
+      setSelectedCenters(selectedConfig.centers.map(c => c.id));
+    }
+  }
+
+  function handleCategoryToggle(categoryId: string) {
+    setSelectedCategories(prev =>
+      prev.includes(categoryId) ? prev.filter(c => c !== categoryId) : [...prev, categoryId]
+    );
+  }
+
+  function handleSelectAllCategories() {
+    if (!selectedConfig) return;
+    if (selectedCategories.length === selectedConfig.visaCategories.length) {
+      setSelectedCategories([]);
+    } else {
+      setSelectedCategories(selectedConfig.visaCategories.map(c => c.id));
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
+    setSuccessMsg(null);
 
     const formData = new FormData(e.currentTarget);
     const body: Record<string, any> = {};
@@ -568,6 +660,24 @@ function AddClientForm({ onCreated, onCancel }: { onCreated: () => void; onCance
     body.bookingSystem = system;
     body.autoBook = formData.get('autoBook') === 'on';
     body.priceAgreed = parseFloat(body.priceAgreed || '0');
+
+    // Add VFS-specific fields
+    if (system === 'VFS') {
+      if (!selectedCountry || selectedCenters.length === 0 || selectedCategories.length === 0) {
+        setError('Please select a country, at least one city, and at least one visa category');
+        setSubmitting(false);
+        return;
+      }
+      body.configId = selectedCountry;
+      body.centerIds = selectedCenters;
+      body.categoryIds = selectedCategories;
+      body.destinationCountry = selectedConfig?.destinationCountry || '';
+      body.preferredCity = selectedConfig?.centers.find(c => c.id === selectedCenters[0])?.city || '';
+      body.visaCategory = selectedConfig?.visaCategories.find(c => c.id === selectedCategories[0])?.name || '';
+      body.vfsCenterId = `${selectedCountry}-${selectedCenters[0]}`;
+      body.procedureType = 'AUTRE';
+      body.datePreference = datePreference;
+    }
 
     try {
       const res = await fetch(`${API_URL}/booking/clients`, {
@@ -581,7 +691,13 @@ function AddClientForm({ onCreated, onCancel }: { onCreated: () => void; onCance
         throw new Error(data.error || 'Failed to create client');
       }
 
-      onCreated();
+      const data = await res.json();
+      if (data.alertsCreated > 0) {
+        setSuccessMsg(`Client created with ${data.alertsCreated} VFS monitoring alerts!`);
+        setTimeout(() => onCreated(), 1500);
+      } else {
+        onCreated();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -599,6 +715,13 @@ function AddClientForm({ onCreated, onCancel }: { onCreated: () => void; onCance
       {error && (
         <div className="p-3 mb-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
           {error}
+        </div>
+      )}
+
+      {successMsg && (
+        <div className="p-3 mb-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm flex items-center gap-2">
+          <CheckCircle className="w-4 h-4" />
+          {successMsg}
         </div>
       )}
 
@@ -663,16 +786,156 @@ function AddClientForm({ onCreated, onCancel }: { onCreated: () => void; onCance
         )}
 
         {system === 'VFS' && (
-          <div>
-            <p className="text-xs text-text-muted uppercase tracking-wider mb-3">VFS Details</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FormInput name="vfsLoginEmail" label="VFS Login Email *" required />
-              <FormInput name="vfsLoginPassword" label="VFS Login Password *" type="password" required />
-              <FormInput name="destinationCountry" label="Country *" required placeholder="e.g., Italy" />
-              <FormInput name="preferredCity" label="City *" required placeholder="e.g., New Delhi" />
-              <FormInput name="visaCategory" label="Visa Category *" required placeholder="e.g., Tourist" />
-              <input type="hidden" name="procedureType" value="AUTRE" />
-            </div>
+          <div className="space-y-4">
+            <p className="text-xs text-text-muted uppercase tracking-wider">VFS Destination Country</p>
+
+            {/* Country Selection Grid */}
+            {vfsLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <div className="animate-spin h-5 w-5 border-2 border-cyan border-t-transparent rounded-full" />
+                <span className="ml-2 text-text-muted text-sm">Loading countries...</span>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {vfsConfigs.map((config) => (
+                  <button
+                    key={config.id}
+                    type="button"
+                    onClick={() => handleCountrySelect(config.id)}
+                    className={`p-3 rounded-lg border text-sm flex items-center gap-2 transition-all ${
+                      selectedCountry === config.id
+                        ? 'border-cyan bg-cyan/10 text-cyan shadow-glow-cyan'
+                        : 'border-border bg-surface hover:bg-surfaceLight text-text-muted'
+                    }`}
+                  >
+                    <span className="text-lg">{countryFlags[config.destinationCountry] || '\u{1F30D}'}</span>
+                    <span className="font-medium">{config.destinationCountry}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* City Multi-Select */}
+            {selectedConfig && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-text-muted uppercase tracking-wider flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    Indian Cities
+                    <span className="text-cyan ml-1">({selectedCenters.length}/{selectedConfig.centers.length} selected)</span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleSelectAllCenters}
+                    className="text-xs text-cyan hover:text-cyan/80 font-medium"
+                  >
+                    {selectedCenters.length === selectedConfig.centers.length ? 'Deselect All' : 'Select All'}
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {selectedConfig.centers.map((center) => (
+                    <button
+                      key={center.id}
+                      type="button"
+                      onClick={() => handleCenterToggle(center.id)}
+                      className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                        selectedCenters.includes(center.id)
+                          ? 'border-cyan bg-cyan/10 text-cyan'
+                          : 'border-border hover:bg-surfaceLight text-text-muted'
+                      }`}
+                    >
+                      {center.city}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Visa Category Multi-Select */}
+            {selectedConfig && selectedCenters.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-text-muted uppercase tracking-wider flex items-center gap-1">
+                    <Briefcase className="w-3 h-3" />
+                    Visa Categories
+                    <span className="text-cyan ml-1">({selectedCategories.length}/{selectedConfig.visaCategories.length} selected)</span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleSelectAllCategories}
+                    className="text-xs text-cyan hover:text-cyan/80 font-medium"
+                  >
+                    {selectedCategories.length === selectedConfig.visaCategories.length ? 'Deselect All' : 'Select All'}
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {selectedConfig.visaCategories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => handleCategoryToggle(cat.id)}
+                      className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                        selectedCategories.includes(cat.id)
+                          ? 'border-violet-400 bg-violet-500/10 text-violet-400'
+                          : 'border-border hover:bg-surfaceLight text-text-muted'
+                      }`}
+                    >
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* VFS Credentials */}
+            {selectedConfig && selectedCenters.length > 0 && selectedCategories.length > 0 && (
+              <>
+                <p className="text-xs text-text-muted uppercase tracking-wider">VFS Login Credentials</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <FormInput name="vfsLoginEmail" label="VFS Login Email *" type="email" required />
+                  <FormInput name="vfsLoginPassword" label="VFS Login Password *" type="password" required />
+                </div>
+
+                {/* Date Preference */}
+                <p className="text-xs text-text-muted uppercase tracking-wider">Date Preference</p>
+                <div className="flex flex-wrap gap-2">
+                  {(['EARLIEST', 'AFTER', 'BEFORE', 'BETWEEN'] as const).map(pref => (
+                    <button
+                      key={pref}
+                      type="button"
+                      onClick={() => setDatePreference(pref)}
+                      className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                        datePreference === pref
+                          ? 'border-cyan bg-cyan/10 text-cyan'
+                          : 'border-border hover:bg-surfaceLight text-text-muted'
+                      }`}
+                    >
+                      {pref === 'EARLIEST' ? 'Earliest Available' : pref === 'AFTER' ? 'After Date' : pref === 'BEFORE' ? 'Before Date' : 'Between Dates'}
+                    </button>
+                  ))}
+                </div>
+                {(datePreference === 'AFTER' || datePreference === 'BETWEEN') && (
+                  <FormInput name="preferredAfter" label="After Date" type="date" />
+                )}
+                {(datePreference === 'BEFORE' || datePreference === 'BETWEEN') && (
+                  <FormInput name="preferredBefore" label="Before Date" type="date" />
+                )}
+
+                {/* Monitoring Summary */}
+                <div className="p-4 rounded-lg bg-cyan/5 border border-cyan/20">
+                  <p className="text-sm text-text">
+                    Monitoring <span className="text-cyan font-bold">{selectedCenters.length}</span> cities
+                    {' \u00D7 '}<span className="text-violet-400 font-bold">{selectedCategories.length}</span> visa types
+                    {' = '}<span className="text-white font-bold">{selectedCenters.length * selectedCategories.length}</span> alerts
+                  </p>
+                  <p className="text-xs text-text-muted mt-1">
+                    System will auto-book the first available slot in any selected city
+                  </p>
+                </div>
+
+                <input type="hidden" name="procedureType" value="AUTRE" />
+              </>
+            )}
           </div>
         )}
 

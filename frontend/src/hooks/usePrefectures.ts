@@ -16,22 +16,11 @@ export interface Prefecture {
     _count?: { alerts: number };
 }
 
+// Only regions with active prefectures
 export const REGIONS = [
     "Toutes",
     "Île-de-France",
     "Auvergne-Rhône-Alpes",
-    "Provence-Alpes-Côte d'Azur",
-    "Occitanie",
-    "Nouvelle-Aquitaine",
-    "Grand Est",
-    "Hauts-de-France",
-    "Bretagne",
-    "Normandie",
-    "Pays de la Loire",
-    "Bourgogne-Franche-Comté",
-    "Centre-Val de Loire",
-    "Corse",
-    "Outre-mer",
 ];
 
 export function usePrefectures() {

@@ -119,7 +119,7 @@ export default function CommentPrendreRdvPrefecture() {
           
           <div className="bg-gradient-to-r from-primary to-accent rounded-xl p-6 text-white my-6">
             <h4 className="font-bold text-lg mb-2">🚀 Solution RDVPriority</h4>
-            <p className="mb-3">Surveillance automatique de 101 préfectures françaises toutes les 30 secondes. Alertes instantanées par email, SMS et Telegram.</p>
+            <p className="mb-3">Surveillance automatique de la préfecture de Paris toutes les 30 secondes. Alertes instantanées par email, SMS et Telegram.</p>
             <Link href="/register" className="inline-block bg-white text-primary font-bold px-6 py-3 rounded-lg hover:bg-gray-100 transition-colors">
               Essayer gratuitement
             </Link>
@@ -129,7 +129,7 @@ export default function CommentPrendreRdvPrefecture() {
           <ul className="list-disc pl-5 space-y-2">
             <li><strong>Efficacité :</strong> 99.9% de disponibilité 24h/24</li>
             <li><strong>Rapidité :</strong> Notification en moins de 30 secondes</li>
-            <li><strong>Couverture :</strong> 101 préfectures surveillées simultanément</li>
+            <li><strong>Couverture :</strong> Préfecture de Paris surveillée en continu</li>
             <li><strong>Multi-canaux :</strong> Email, SMS, Telegram, WhatsApp</li>
           </ul>
         </section>

@@ -142,7 +142,7 @@ services:
       context: ./boss-panel
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${FRONTEND_URL:-https://rdvpriority.fr}/api
+        NEXT_PUBLIC_API_URL: /api
     container_name: rdv_boss_panel
     restart: always
     expose:

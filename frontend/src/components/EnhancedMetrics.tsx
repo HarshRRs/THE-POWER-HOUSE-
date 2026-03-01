@@ -41,14 +41,6 @@ export default function EnhancedMetrics({ stats, loading }: { stats: any; loadin
       subtext: "ce mois-ci"
     },
     {
-      value: stats?.prefecturesMonitored ?? 101,
-      suffix: "",
-      label: "Préfectures actives",
-      color: "text-blue-400",
-      icon: "🏛️",
-      subtext: "sur 101 disponibles"
-    },
-    {
       value: stats?.activeUsers ?? 843,
       suffix: "+",
       label: "Utilisateurs actifs",

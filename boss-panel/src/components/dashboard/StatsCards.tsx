@@ -1,13 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { MapPin, Globe, Clock, CheckCircle, Zap } from 'lucide-react';
+import { Globe, Clock, CheckCircle } from 'lucide-react';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { apiFetch } from '@/lib/api';
 
 interface Stats {
-  totalPrefectures: number;
-  activePrefectures: number;
   totalConsulates: number;
   totalVfsCenters: number;
   slotsFound24h: number;
@@ -16,7 +14,7 @@ interface Stats {
 }
 
 export default function StatsCards() {
-  const { isConnected, data } = useWebSocket();
+  const { data } = useWebSocket();
   const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
@@ -46,8 +44,6 @@ export default function StatsCards() {
       .then((res) => res.json())
       .then((apiStats) => {
         setStats((prev) => ({
-          totalPrefectures: 0,
-          activePrefectures: 0,
           totalConsulates: 0,
           totalVfsCenters: 0,
           slotsFound24h: 0,
@@ -61,13 +57,6 @@ export default function StatsCards() {
   }, []);
 
   const cards = [
-    {
-      label: 'Prefectures',
-      value: stats?.activePrefectures ?? '--',
-      total: stats?.totalPrefectures,
-      icon: MapPin,
-      color: 'cyan',
-    },
     {
       label: 'VFS Centers',
       value: stats?.totalVfsCenters ?? '--',
@@ -86,13 +75,6 @@ export default function StatsCards() {
       icon: CheckCircle,
       color: 'purple',
     },
-    {
-      label: 'Connection',
-      value: isConnected ? 'Online' : 'Offline',
-      icon: Zap,
-      isStatus: true,
-      color: isConnected ? 'cyan' : 'red',
-    },
   ];
 
   const getIconBg = (color: string) => {
@@ -107,7 +89,7 @@ export default function StatsCards() {
   };
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
       {cards.map((card, index) => {
         const Icon = card.icon;
         
@@ -117,16 +99,10 @@ export default function StatsCards() {
               <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${getIconBg(card.color)} flex items-center justify-center`}>
                 <Icon className="w-5 h-5 text-white" />
               </div>
-              {card.isStatus && (
-                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-cyan shadow-glow-cyan animate-pulse' : 'bg-red-500'}`} />
-              )}
             </div>
             <div className="mt-3">
               <p className="text-2xl lg:text-3xl font-bold text-white">
                 {card.value}
-                {card.total && (
-                  <span className="text-sm font-normal text-text-muted ml-1">/ {card.total}</span>
-                )}
               </p>
               <p className="text-xs text-cyan mt-1 uppercase tracking-wider font-medium">{card.label}</p>
             </div>

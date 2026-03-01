@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MapPin, Clock, CheckCircle, TrendingUp, Globe, Plane } from "lucide-react";
+import { Clock, CheckCircle, Globe, Plane } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
 
 interface Stats {
-  totalPrefectures: number;
-  activePrefectures: number;
   totalConsulates: number;
   totalVfsCenters: number;
   slotsFound24h: number;
@@ -15,7 +13,7 @@ interface Stats {
 }
 
 export default function StatsGrid() {
-  const { isConnected, data } = useWebSocket();
+  const { data } = useWebSocket();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -48,8 +46,6 @@ export default function StatsGrid() {
       .then((res) => res.json())
       .then((apiStats) => {
         setStats((prev) => ({
-          totalPrefectures: 0,
-          activePrefectures: 0,
           totalConsulates: 0,
           totalVfsCenters: 0,
           slotsFound24h: 0,
@@ -64,14 +60,6 @@ export default function StatsGrid() {
   }, []);
 
   const statCards = [
-    {
-      label: "Prefectures",
-      value: stats?.activePrefectures ?? "--",
-      total: stats?.totalPrefectures,
-      icon: MapPin,
-      color: "text-primary",
-      bgColor: "bg-primary/10",
-    },
     {
       label: "Consulates",
       value: stats?.totalConsulates ?? "--",
@@ -100,17 +88,10 @@ export default function StatsGrid() {
       color: "text-warning",
       bgColor: "bg-warning/10",
     },
-    {
-      label: "Connection",
-      value: isConnected ? "ONLINE" : "OFFLINE",
-      icon: TrendingUp,
-      color: isConnected ? "text-success" : "text-danger",
-      bgColor: isConnected ? "bg-success/10" : "bg-danger/10",
-    },
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 lg:gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
       {statCards.map((card, index) => (
         <div
           key={index}
@@ -121,12 +102,6 @@ export default function StatsGrid() {
               <p className="text-muted text-xs lg:text-sm">{card.label}</p>
               <p className="text-xl lg:text-2xl font-bold mt-1">
                 {card.value}
-                {card.total && (
-                  <span className="text-muted text-xs font-normal">
-                    {" "}
-                    / {card.total}
-                  </span>
-                )}
               </p>
             </div>
             <div className={`p-2 lg:p-3 rounded-lg ${card.bgColor}`}>

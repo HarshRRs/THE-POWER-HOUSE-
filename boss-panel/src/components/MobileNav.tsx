@@ -17,7 +17,7 @@ const navItems = [
 export default function MobileNav({ activeTab, onTabChange }: MobileNavProps) {
   const handleClick = (id: string) => {
     if (id === 'more') {
-      onTabChange('prefectures');
+      onTabChange('vfs');
     } else {
       onTabChange(id);
     }
@@ -29,7 +29,7 @@ export default function MobileNav({ activeTab, onTabChange }: MobileNavProps) {
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id || (item.id === 'more' && 
-            ['prefectures', 'vfs', 'alerts', 'settings'].includes(activeTab));
+            ['vfs', 'alerts', 'settings'].includes(activeTab));
           
           return (
             <button

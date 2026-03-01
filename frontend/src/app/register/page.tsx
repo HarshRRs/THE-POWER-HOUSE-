@@ -87,7 +87,7 @@ function RegisterForm() {
                 <div className="bg-accent text-white rounded-xl p-4 mb-6 text-center">
                     <p className="text-sm font-bold flex items-center justify-center gap-2">
                         <span className="animate-urgent-blink">🔴</span>
-                        Système de détection actif · 101 préfectures surveillées
+                        Système de détection actif · Préfecture de Paris surveillée
                         <span className="animate-urgent-blink">🔴</span>
                     </p>
                 </div>

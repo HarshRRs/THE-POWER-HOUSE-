@@ -274,7 +274,7 @@ export default function PrefectureEnLigneDemarchesNumeriques() {
 
           <div className="bg-gradient-to-r from-primary to-accent rounded-xl p-6 text-white my-6">
             <h4 className="font-bold text-lg mb-2">🚀 Solution RDVPriority : Surveillance automatique</h4>
-            <p className="mb-3">Notre système surveille les RDV en ligne 24h/24 sur 101 préfectures. Dès qu'un créneau se libère, vous recevez une alerte par email, SMS ou Telegram.</p>
+            <p className="mb-3">Notre système surveille les RDV en ligne 24h/24 à la préfecture de Paris. Dès qu'un créneau se libère, vous recevez une alerte par email, SMS ou Telegram.</p>
             <Link href="/register" className="inline-block bg-white text-primary font-bold px-6 py-3 rounded-lg hover:bg-gray-100 transition-colors">
               Surveiller les RDV automatiquement
             </Link>

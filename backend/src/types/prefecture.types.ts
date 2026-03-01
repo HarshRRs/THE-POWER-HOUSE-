@@ -9,6 +9,29 @@ export interface PrefectureSelectors {
   procedureDropdown?: string;
   nextButton?: string;
   captchaDetect?: string;
+  // Additional selectors for different systems
+  cityInput?: string;
+  personsDropdown?: string;
+  startDate?: string;
+  endDate?: string;
+  distanceSlider?: string;
+  searchButton?: string;
+  termsCheckbox?: string;
+  submitButton?: string;
+  manageButton?: string;
+  takeAppointmentBtn?: string;
+  manageAppointmentLink?: string;
+  captchaInput?: string;
+  captchaId?: string;
+  captchaImage?: string;
+  departmentDropdown?: string;
+  // ANEF system
+  loginButton?: string;
+  franceConnectBtn?: string;
+  emailInput?: string;
+  passwordInput?: string;
+  newApplicationBtn?: string;
+  appointmentBtn?: string;
 }
 
 export interface PrefectureConfig {
@@ -21,7 +44,7 @@ export interface PrefectureConfig {
   checkInterval: number;
   selectors: PrefectureSelectors;
   procedures: Procedure[];
-  bookingSystem: 'ants' | 'custom' | 'prefenligne' | 'doctolib';
+  bookingSystem: 'ants' | 'custom' | 'prefenligne' | 'doctolib' | 'rdv-prefecture' | 'ezbooking' | 'anef';
 }
 
 export interface ScrapeResult {

@@ -13,7 +13,9 @@ import { ALL_PREFECTURES } from '../scraper/prefectures/index.js';
 export async function getAllPrefectures() {
   return getPrefectureListCache(async () => {
     try {
+      // Only return ACTIVE prefectures (filtered by status)
       const prefectures = await prisma.prefecture.findMany({
+        where: { status: 'ACTIVE' },
         orderBy: [
           { tier: 'asc' },
           { name: 'asc' },

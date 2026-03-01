@@ -108,7 +108,6 @@ export default function PrefectureMap({ selectedProcedure }: Props) {
     );
   }
 
-  const activeCount = prefectures.filter((p) => p.status === "hot").length;
   const totalSlots = prefectures.reduce((acc, p) => acc + p.slotsFound24h, 0);
 
   return (
@@ -116,7 +115,7 @@ export default function PrefectureMap({ selectedProcedure }: Props) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <MapPin className="h-5 w-5 text-primary" />
-          Carte des Préfectures
+          Préfecture de Paris
           {!isConnected && (
             <span className="text-xs text-danger">(Offline)</span>
           )}
@@ -157,7 +156,7 @@ export default function PrefectureMap({ selectedProcedure }: Props) {
       </div>
 
       <p className="text-center text-muted text-sm mt-4">
-        {activeCount} préfectures actives | {totalSlots} créneaux trouvés aujourd&apos;hui
+        {totalSlots} créneaux trouvés aujourd&apos;hui
         {selectedProcedure !== "ALL" && (
           <span className="text-primary ml-2">
             (Filtré: {selectedProcedure})

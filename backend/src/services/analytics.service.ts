@@ -165,14 +165,16 @@ class AnalyticsService {
   async getStats(): Promise<{
     totalPrefectures: number;
     activePrefectures: number;
+    totalVfsCenters: number;
     slotsFound24h: number;
     slotsFound7d: number;
     topPrefectures: Array<{ name: string; count: number }>;
   }> {
     try {
-      const [totalPrefectures, activePrefectures, slots24h, slots7d] = await Promise.all([
+      const [totalPrefectures, activePrefectures, totalVfsCenters, slots24h, slots7d] = await Promise.all([
         prisma.prefecture.count(),
         prisma.prefecture.count({ where: { status: 'ACTIVE' } }),
+        prisma.vfsCenter.count(),
         prisma.detection.count({
           where: { detectedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
         }),
@@ -201,6 +203,7 @@ class AnalyticsService {
       return {
         totalPrefectures,
         activePrefectures,
+        totalVfsCenters,
         slotsFound24h: slots24h,
         slotsFound7d: slots7d,
         topPrefectures: topPrefectures.map(t => ({
@@ -213,6 +216,7 @@ class AnalyticsService {
       return {
         totalPrefectures: 0,
         activePrefectures: 0,
+        totalVfsCenters: 0,
         slotsFound24h: 0,
         slotsFound7d: 0,
         topPrefectures: [],

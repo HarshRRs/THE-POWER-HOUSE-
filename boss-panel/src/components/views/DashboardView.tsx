@@ -4,7 +4,6 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import StatsCards from '@/components/dashboard/StatsCards';
 import RecentActivity from '@/components/dashboard/RecentActivity';
 import QuickActions from '@/components/dashboard/QuickActions';
-import PrefectureHeatmap from '@/components/dashboard/PrefectureHeatmap';
 import TopPrefectures from '@/components/dashboard/TopPrefectures';
 import { Zap, Activity } from 'lucide-react';
 
@@ -70,7 +69,6 @@ export default function DashboardView({ onNavigate }: { onNavigate?: (tab: strin
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
         {/* Left Column */}
         <div className="lg:col-span-8 space-y-4 lg:space-y-6">
-          <PrefectureHeatmap />
           <RecentActivity />
         </div>
 

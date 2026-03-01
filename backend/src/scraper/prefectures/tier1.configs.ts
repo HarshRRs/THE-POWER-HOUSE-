@@ -3,68 +3,13 @@ import type { PrefectureConfig } from '../../types/prefecture.types.js';
 // Île-de-France prefectures - TIER 1 (30s check interval)
 // These have the highest demand and need maximum scraping frequency
 // 
-// IMPORTANT: French prefecture booking systems:
-// 1. ANEF (administration-etrangers-en-france.interieur.gouv.fr) - National system for first-time applications
-// 2. Prefecture-specific booking (gouv.fr/booking) - For renewals and some procedures
-// 3. Custom systems (Paris uses rdv-titres.apps.paris.fr)
-//
-// Most use the standard gouv.fr booking platform which has consistent selectors
-
-// Common selectors for the standard gouv.fr booking platform
-const GOUV_BOOKING_SELECTORS = {
-  // Available slots are shown in calendar or list format
-  availableSlot: [
-    '.fc-event',                           // FullCalendar event (many prefectures use this)
-    '.slot-available',                     // Standard slot class
-    '.creneau-disponible',                 // French "available slot"
-    '.day-cell.available',                 // Calendar day available
-    'button.slot:not([disabled])',         // Clickable slot button
-    '.time-slot:not(.disabled)',           // Time slot not disabled
-    'a.btn-success',                       // Green success button (available)
-    '[data-available="true"]',             // Data attribute marking availability
-  ].join(', '),
-  
-  // No availability indicators
-  noSlotIndicator: [
-    '.alert-warning',                      // Bootstrap warning alert
-    '.alert-info',                         // Info alert (often "no slots")
-    '.no-availability',                    // No availability message
-    '.aucun-creneau',                      // French "no slot"
-    '.text-danger',                        // Red text usually means no slots
-    '.message-info',                       // Info message
-  ].join(', '),
-  
-  // Date/time extraction
-  slotDate: '.fc-event-title, .slot-date, .date-creneau, .day-label',
-  slotTime: '.fc-event-time, .slot-time, .heure-creneau, .time-label',
-  
-  // Cookie consent (French RGPD compliance)
-  cookieAccept: [
-    '#tarteaucitronAllDenied2',            // Tarteaucitron deny all (common French cookie banner)
-    '.tarteaucitronAllow',                 // Tarteaucitron allow
-    '#cookie-consent-accept',              // Standard accept button
-    '.cookie-accept',                      // Generic accept class
-    'button[data-consent="accept"]',       // Data consent button
-    '#onetrust-accept-btn-handler',        // OneTrust accept
-  ].join(', '),
-  
-  // Form elements
-  procedureDropdown: 'select#planning, select[name="planning"], select#motif, select[name="motif"]',
-  nextButton: 'button[type="submit"], .btn-primary, input[type="submit"]',
-  
-  // CAPTCHA detection
-  captchaDetect: [
-    'iframe[src*="recaptcha"]',
-    'iframe[src*="hcaptcha"]',
-    '.g-recaptcha',
-    '.h-captcha',
-    '#cf-wrapper',                         // Cloudflare
-  ].join(', '),
-};
+// UPDATED: All URLs verified and corrected based on investigation
+// - 3 prefectures WITHOUT CAPTCHA: Paris (ANTS), Bobigny (ezbooking), Lyon (ANEF)
+// - 7 prefectures WITH CAPTCHA: Use RDV-Préfecture system (2Captcha required)
 
 export const TIER1_PREFECTURES: PrefectureConfig[] = [
   // ═══════════════════════════════════════
-  // PARIS (75) - Custom system
+  // PARIS (75) - ANTS National Platform - NO CAPTCHA
   // ═══════════════════════════════════════
   {
     id: 'paris_75',
@@ -72,23 +17,27 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     department: '75',
     region: 'Île-de-France',
     tier: 1,
-    // Paris uses its own booking system
-    bookingUrl: 'https://rdv-titres.apps.paris.fr/',
+    bookingUrl: 'https://rendezvouspasseport.ants.gouv.fr/',
     checkInterval: 30,
-    bookingSystem: 'custom',
+    bookingSystem: 'ants',
     selectors: {
-      availableSlot: '.slot-available, .creneau-libre, .fc-event, button.btn-success:not([disabled])',
-      noSlotIndicator: '.alert-warning, .aucun-creneau, .no-slot, .text-muted',
-      slotDate: '.slot-date, .date-rdv',
-      slotTime: '.slot-time, .heure-rdv',
-      cookieAccept: '#tarteaucitronAllDenied2, .tarteaucitronAllow, #cookie-accept',
-      captchaDetect: 'iframe[src*="recaptcha"], .g-recaptcha',
+      cityInput: '#Recherchez-une-ville',
+      procedureDropdown: '#selectMotif',
+      personsDropdown: '#selectPersonDesktop',
+      startDate: '#start-date',
+      endDate: '#end-date',
+      distanceSlider: '#rangeInput',
+      searchButton: '#search-btn',
+      cookieAccept: 'button.tarteaucitronAllow, .cookie-accept-btn',
+      availableSlot: '.fr-table tbody tr, .appointment-slot, [data-slot]',
+      noSlotIndicator: '.no-appointment, .alert-warning, .aucun-creneau',
+      captchaDetect: '', // NO CAPTCHA
     },
-    procedures: ['TITRE_SEJOUR', 'NATURALISATION'],
+    procedures: ['CARTE_IDENTITE', 'PASSEPORT', 'TITRE_SEJOUR'],
   },
   
   // ═══════════════════════════════════════
-  // SEINE-SAINT-DENIS (93) - Bobigny
+  // SEINE-SAINT-DENIS (93) - Bobigny - ezbooking - NO CAPTCHA
   // ═══════════════════════════════════════
   {
     id: 'bobigny_93',
@@ -96,15 +45,25 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     department: '93',
     region: 'Île-de-France',
     tier: 1,
-    bookingUrl: 'https://www.seine-saint-denis.gouv.fr/booking/create/9497',
+    bookingUrl: 'https://www.seine-saint-denis.gouv.fr/index.php/booking/create/16105',
     checkInterval: 30,
-    bookingSystem: 'ants',
-    selectors: GOUV_BOOKING_SELECTORS,
-    procedures: ['TITRE_SEJOUR', 'NATURALISATION', 'VISA'],
+    bookingSystem: 'ezbooking',
+    selectors: {
+      termsCheckbox: 'input#condition',
+      submitButton: 'input[name="nextButton"]',
+      manageButton: 'input[name="manageButton"]',
+      noSlotIndicator: 'main ul li, .alert-warning',
+      availableSlot: '.slot-available, .creneau, .calendar-day.available',
+      slotDate: '.date, .slot-date',
+      slotTime: '.heure, .slot-time',
+      cookieAccept: '.cookie-accept, .tarteaucitronAllow',
+      captchaDetect: '', // NO CAPTCHA
+    },
+    procedures: ['TITRE_SEJOUR', 'NATURALISATION'],
   },
   
   // ═══════════════════════════════════════
-  // VAL-DE-MARNE (94) - Créteil
+  // VAL-DE-MARNE (94) - Créteil - RDV-Préfecture - CAPTCHA
   // ═══════════════════════════════════════
   {
     id: 'creteil_94',
@@ -112,15 +71,24 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     department: '94',
     region: 'Île-de-France',
     tier: 1,
-    bookingUrl: 'https://www.val-de-marne.gouv.fr/booking/create/14066',
+    bookingUrl: 'https://www.rdv-prefecture.interieur.gouv.fr/rdvpref/reservation/demarche/16040/',
     checkInterval: 30,
-    bookingSystem: 'ants',
-    selectors: GOUV_BOOKING_SELECTORS,
-    procedures: ['TITRE_SEJOUR', 'NATURALISATION'],
+    bookingSystem: 'rdv-prefecture',
+    selectors: {
+      takeAppointmentBtn: '.q-btn.bg-primary.text-white, a[href*="cgu"]',
+      manageAppointmentLink: 'a[href*="/login/"]',
+      captchaInput: 'input[name="captchaUsercode"]',
+      captchaId: 'input[name="captchaId"]',
+      nextButton: 'button.q-btn.bg-primary',
+      availableSlot: '.q-btn--unelevated, .slot-available',
+      noSlotIndicator: '.text-warning, .aucun-creneau',
+      captchaDetect: 'input[name="captchaUsercode"]',
+    },
+    procedures: ['TITRE_SEJOUR'],
   },
   
   // ═══════════════════════════════════════
-  // HAUTS-DE-SEINE (92) - Nanterre
+  // HAUTS-DE-SEINE (92) - Nanterre - RDV-Préfecture - CAPTCHA
   // ═══════════════════════════════════════
   {
     id: 'nanterre_92',
@@ -128,15 +96,23 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     department: '92',
     region: 'Île-de-France',
     tier: 1,
-    bookingUrl: 'https://www.hauts-de-seine.gouv.fr/booking/create/9359',
+    bookingUrl: 'https://www.rdv-prefecture.interieur.gouv.fr/rdvpref/reservation/demarche/1922/',
     checkInterval: 30,
-    bookingSystem: 'ants',
-    selectors: GOUV_BOOKING_SELECTORS,
+    bookingSystem: 'rdv-prefecture',
+    selectors: {
+      takeAppointmentBtn: '.q-btn.bg-primary.text-white',
+      captchaInput: 'input[name="captchaUsercode"]',
+      captchaId: 'input[name="captchaId"]',
+      nextButton: 'button.q-btn--standard.bg-primary',
+      availableSlot: '.slot-available, .calendar-day',
+      noSlotIndicator: '.aucun-creneau, .text-warning',
+      captchaDetect: 'input[name="captchaUsercode"]',
+    },
     procedures: ['TITRE_SEJOUR', 'NATURALISATION'],
   },
   
   // ═══════════════════════════════════════
-  // ESSONNE (91) - Évry
+  // ESSONNE (91) - Évry - RDV-Préfecture - CAPTCHA
   // ═══════════════════════════════════════
   {
     id: 'evry_91',
@@ -144,15 +120,22 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     department: '91',
     region: 'Île-de-France',
     tier: 1,
-    bookingUrl: 'https://www.essonne.gouv.fr/booking/create/10498',
+    bookingUrl: 'https://www.rdv-prefecture.interieur.gouv.fr/rdvpref/reservation/demarche/2200/',
     checkInterval: 30,
-    bookingSystem: 'ants',
-    selectors: GOUV_BOOKING_SELECTORS,
+    bookingSystem: 'rdv-prefecture',
+    selectors: {
+      captchaInput: 'input[name="captchaUsercode"]',
+      captchaId: 'input[name="captchaId"]',
+      nextButton: 'button.q-btn.bg-primary',
+      availableSlot: '.slot-available',
+      noSlotIndicator: '.aucun-creneau, .text-warning',
+      captchaDetect: 'input[name="captchaUsercode"]',
+    },
     procedures: ['TITRE_SEJOUR', 'NATURALISATION'],
   },
   
   // ═══════════════════════════════════════
-  // VAL-D'OISE (95) - Cergy-Pontoise
+  // VAL-D'OISE (95) - Cergy-Pontoise - RDV-Préfecture - CAPTCHA
   // ═══════════════════════════════════════
   {
     id: 'cergy_95',
@@ -160,15 +143,23 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     department: '95',
     region: 'Île-de-France',
     tier: 1,
-    bookingUrl: 'https://www.val-doise.gouv.fr/booking/create/13814',
+    bookingUrl: 'https://www.rdv-prefecture.interieur.gouv.fr/',
     checkInterval: 30,
-    bookingSystem: 'ants',
-    selectors: GOUV_BOOKING_SELECTORS,
-    procedures: ['TITRE_SEJOUR', 'NATURALISATION'],
+    bookingSystem: 'rdv-prefecture',
+    selectors: {
+      captchaInput: 'input[name="captchaUsercode"]',
+      captchaId: 'input[name="captchaId"]',
+      departmentDropdown: 'select[name="department"], .department-select',
+      nextButton: 'button.q-btn.bg-primary',
+      availableSlot: '.slot-available',
+      noSlotIndicator: '.aucun-creneau, .text-warning',
+      captchaDetect: 'input[name="captchaUsercode"]',
+    },
+    procedures: ['TITRE_SEJOUR'],
   },
   
   // ═══════════════════════════════════════
-  // SEINE-ET-MARNE (77) - Melun
+  // SEINE-ET-MARNE (77) - Melun - RDV-Préfecture - CAPTCHA
   // ═══════════════════════════════════════
   {
     id: 'melun_77',
@@ -176,15 +167,23 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     department: '77',
     region: 'Île-de-France',
     tier: 1,
-    bookingUrl: 'https://www.seine-et-marne.gouv.fr/booking/create/11157',
+    bookingUrl: 'https://www.rdv-prefecture.interieur.gouv.fr/',
     checkInterval: 30,
-    bookingSystem: 'ants',
-    selectors: GOUV_BOOKING_SELECTORS,
-    procedures: ['TITRE_SEJOUR', 'NATURALISATION'],
+    bookingSystem: 'rdv-prefecture',
+    selectors: {
+      captchaInput: 'input[name="captchaUsercode"]',
+      captchaId: 'input[name="captchaId"]',
+      departmentDropdown: 'select[name="department"], .department-select',
+      nextButton: 'button.q-btn.bg-primary',
+      availableSlot: '.slot-available',
+      noSlotIndicator: '.aucun-creneau, .text-warning',
+      captchaDetect: 'input[name="captchaUsercode"]',
+    },
+    procedures: ['TITRE_SEJOUR'],
   },
   
   // ═══════════════════════════════════════
-  // YVELINES (78) - Versailles
+  // YVELINES (78) - Versailles - RDV-Préfecture - CAPTCHA
   // ═══════════════════════════════════════
   {
     id: 'versailles_78',
@@ -192,10 +191,18 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     department: '78',
     region: 'Île-de-France',
     tier: 1,
-    bookingUrl: 'https://www.yvelines.gouv.fr/booking/create/12647',
+    bookingUrl: 'https://www.rdv-prefecture.interieur.gouv.fr/rdvpref/reservation/demarche/1040/',
     checkInterval: 30,
-    bookingSystem: 'ants',
-    selectors: GOUV_BOOKING_SELECTORS,
+    bookingSystem: 'rdv-prefecture',
+    selectors: {
+      captchaInput: 'input[name="captchaUsercode"]',
+      captchaId: 'input[name="captchaId"]',
+      captchaImage: 'img[src^="data:image/png;base64"]',
+      nextButton: 'button.q-btn.bg-primary',
+      availableSlot: '.slot-available',
+      noSlotIndicator: '.aucun-creneau, .text-warning',
+      captchaDetect: 'input[name="captchaUsercode"]',
+    },
     procedures: ['TITRE_SEJOUR', 'NATURALISATION'],
   },
 ];

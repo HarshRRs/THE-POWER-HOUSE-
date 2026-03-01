@@ -11,10 +11,15 @@ export function useWebSocket() {
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
-    // Connect to WebSocket - strip /api from API URL since socket.io is at root
+    // Connect to WebSocket - use current origin in production, localhost in dev
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-    const wsUrl = apiUrl.replace(/\/api\/?$/, '');
+    // In browser, if API_URL points to localhost but we're on a real domain, use current origin
+    let wsUrl = apiUrl.replace(/\/api\/?$/, '');
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      wsUrl = window.location.origin;
+    }
     const socket = io(wsUrl, {
+      path: '/socket.io',
       transports: ["polling", "websocket"],
       reconnection: true,
       reconnectionAttempts: Infinity,

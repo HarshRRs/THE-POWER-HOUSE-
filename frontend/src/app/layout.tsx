@@ -21,7 +21,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "RDVPriority.fr — Prendre RDV Préfecture | Alertes Créneaux en Temps Réel",
   description:
-    "Prenez votre RDV préfecture en 24h ! Surveillance automatique 24/7 de 101 préfectures. Alertes instantanées dès qu'un créneau se libère. Titre de séjour, naturalisation, visa.",
+    "Prenez votre RDV préfecture en 24h ! Surveillance automatique 24/7 de la préfecture de Paris. Alertes instantanées dès qu'un créneau se libère. Titre de séjour, naturalisation, visa.",
   keywords: [
     "prendre rdv préfecture",
     "rdv préfecture",

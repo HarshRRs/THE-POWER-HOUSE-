@@ -7,7 +7,6 @@ import Sidebar from '@/components/Sidebar';
 import MobileNav from '@/components/MobileNav';
 import DashboardView from '@/components/views/DashboardView';
 import ClientsView from '@/components/views/ClientsView';
-import PrefecturesView from '@/components/views/PrefecturesView';
 import VfsView from '@/components/views/VfsView';
 import StreamView from '@/components/views/StreamView';
 import AlertsView from '@/components/views/AlertsView';
@@ -22,8 +21,6 @@ function Dashboard() {
         return <DashboardView onNavigate={setActiveTab} />;
       case 'clients':
         return <ClientsView />;
-      case 'prefectures':
-        return <PrefecturesView />;
       case 'vfs':
         return <VfsView />;
       case 'stream':
@@ -55,7 +52,6 @@ function Dashboard() {
                 <p className="text-sm text-text-muted mt-0.5">
                   {activeTab === 'dashboard' && 'Monitor your appointment system'}
                   {activeTab === 'clients' && 'Manage your clients'}
-                  {activeTab === 'prefectures' && 'View prefecture availability'}
                   {activeTab === 'vfs' && 'VFS center management'}
                   {activeTab === 'stream' && 'Live activity feed'}
                   {activeTab === 'alerts' && 'Configure notifications'}
