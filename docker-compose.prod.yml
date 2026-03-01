@@ -193,6 +193,9 @@ services:
       FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY}
       FRONTEND_URL: ${FRONTEND_URL:-https://rdvpriority.fr}
       BOOTSTRAP_MODE: ${BOOTSTRAP_MODE:-true}
+      TWOCAPTCHA_API_KEY: ${TWOCAPTCHA_API_KEY}
+      WEBSHARE_API_TOKEN: ${WEBSHARE_API_TOKEN}
+      PROXY_LIST: ${PROXY_LIST}
       NODE_ENV: production
       PORT: 4000
     depends_on:
