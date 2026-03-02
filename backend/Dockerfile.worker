@@ -41,8 +41,9 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/prisma ./prisma
 
-# Install Playwright browsers and their system dependencies
-RUN npx playwright install --with-deps chromium
+# Install Playwright Firefox and system dependencies
+# Firefox is used because its protocol cannot be detected by Cloudflare
+RUN npx playwright install --with-deps firefox
 
 # Create screenshots directory
 RUN mkdir -p public/screenshots
