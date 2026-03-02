@@ -517,23 +517,19 @@ async function solveRdvPrefectureCaptcha(
   logger.info(`RDV-Prefecture CAPTCHA detected for ${config.id}, attempting to solve`);
 
   // Extract the CAPTCHA image (base64 PNG embedded in <img>)
-  const captchaImageB64 = await page.evaluate(() => {
-    // Look for captcha image - usually an img with base64 src near the captcha input
-    const imgs = Array.from(document.querySelectorAll('img'));
-    for (const img of imgs) {
-      if (img.src && img.src.startsWith('data:image/')) {
-        // Extract just the base64 part
-        const b64 = img.src.split(',')[1];
+  // Note: page.evaluate runs in the browser context; we use string-based eval
+  // to avoid TypeScript DOM type issues (tsconfig does not include "dom" lib).
+  const captchaImageB64 = await page.evaluate(`(() => {
+    var imgs = document.querySelectorAll('img');
+    for (var i = 0; i < imgs.length; i++) {
+      var src = imgs[i].src;
+      if (src && src.indexOf('data:image/') === 0) {
+        var b64 = src.split(',')[1];
         if (b64 && b64.length > 100) return b64;
       }
     }
-    // Also check for captcha image via specific selectors
-    const captchaImg = document.querySelector('img[src^="data:image/png;base64"]') as HTMLImageElement;
-    if (captchaImg) {
-      return captchaImg.src.split(',')[1] || null;
-    }
     return null;
-  });
+  })()`) as string | null;
 
   if (!captchaImageB64) {
     logger.warn(`RDV-Prefecture CAPTCHA image not found for ${config.id}`);
@@ -597,16 +593,17 @@ async function solveRdvPrefectureCaptcha(
     logger.warn(`RDV-Prefecture CAPTCHA answer was wrong for ${config.id}, retrying...`);
 
     // Retry once with a fresh CAPTCHA
-    const retryB64 = await page.evaluate(() => {
-      const imgs = Array.from(document.querySelectorAll('img'));
-      for (const img of imgs) {
-        if (img.src && img.src.startsWith('data:image/')) {
-          const b64 = img.src.split(',')[1];
+    const retryB64 = await page.evaluate(`(() => {
+      var imgs = document.querySelectorAll('img');
+      for (var i = 0; i < imgs.length; i++) {
+        var src = imgs[i].src;
+        if (src && src.indexOf('data:image/') === 0) {
+          var b64 = src.split(',')[1];
           if (b64 && b64.length > 100) return b64;
         }
       }
       return null;
-    });
+    })()`) as string | null;
 
     if (retryB64) {
       const retryResult = await solveImageCaptcha(retryB64);
