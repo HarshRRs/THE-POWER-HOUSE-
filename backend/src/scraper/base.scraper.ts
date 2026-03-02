@@ -152,7 +152,7 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
     // The page has: captchaUsercode input + base64 PNG image + captchaId hidden field.
     // We extract the image, send to 2Captcha, fill the answer, and submit.
     if (config.bookingSystem === 'rdv-prefecture') {
-      const rdvResult = await solveRdvPrefectureCaptcha(page, config, startTime, proxy, targetDomain, finalUrl, redirectChain);
+      const rdvResult = await solveRdvPrefectureCaptcha(page, config, startTime, proxy, targetDomain);
       if (rdvResult) return rdvResult;
       // If null, CAPTCHA was solved and we fall through to slot detection below
     }
@@ -502,10 +502,8 @@ async function solveRdvPrefectureCaptcha(
   page: import('playwright').Page,
   config: PrefectureConfig,
   startTime: number,
-  proxy: import('./proxy.service.js').ProxyInfo | null,
+  proxy: import('./proxy.service.js').ProxyConfig | null,
   targetDomain: string | undefined,
-  finalUrl: string,
-  redirectChain: string[],
 ): Promise<ScrapeResult | null> {
   const captchaInput = await page.$('input[name="captchaUsercode"]');
   if (!captchaInput) {
