@@ -39,6 +39,7 @@
     "playwright-extra": "^4.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "rate-limit-redis": "^4.3.1",
+    "rebrowser-patches": "^1.0.19",
     "resend": "^6.9.2",
     "sharp": "^0.34.5",
     "socket.io": "^4.8.3",

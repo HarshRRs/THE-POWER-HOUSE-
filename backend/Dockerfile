@@ -13,6 +13,9 @@ COPY prisma ./prisma/
 # Install dependencies
 RUN npm ci
 
+# Apply rebrowser-patches to Playwright for anti-detection
+RUN npx rebrowser-patches patch
+
 # Generate Prisma client
 RUN npx prisma generate
 
