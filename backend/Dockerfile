@@ -14,7 +14,7 @@ COPY prisma ./prisma/
 RUN npm ci
 
 # Apply rebrowser-patches to Playwright for anti-detection
-RUN npx rebrowser-patches patch
+RUN npx rebrowser-patches patch --packageName playwright-core
 
 # Generate Prisma client
 RUN npx prisma generate
