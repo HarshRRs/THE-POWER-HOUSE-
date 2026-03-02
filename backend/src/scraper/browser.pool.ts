@@ -240,54 +240,63 @@ class BrowserPool {
 
     // Inject stealth overrides before any page navigation
     const fingerprint = this.generateFingerprint();
-    await context.addInitScript((fp) => {
+    await context.addInitScript(`(function() {
+      var fp = ${JSON.stringify({
+        platform: fingerprint.platform,
+        deviceMemory: fingerprint.deviceMemory,
+        hardwareConcurrency: fingerprint.hardwareConcurrency,
+        webgl: fingerprint.webgl,
+      })};
+
       // Override navigator.webdriver to false
-      Object.defineProperty(navigator, 'webdriver', { get: () => false });
+      Object.defineProperty(navigator, 'webdriver', { get: function() { return false; } });
 
       // Override navigator.platform
-      Object.defineProperty(navigator, 'platform', { get: () => fp.platform });
+      Object.defineProperty(navigator, 'platform', { get: function() { return fp.platform; } });
 
       // Override navigator.deviceMemory
-      Object.defineProperty(navigator, 'deviceMemory', { get: () => fp.deviceMemory });
+      Object.defineProperty(navigator, 'deviceMemory', { get: function() { return fp.deviceMemory; } });
 
       // Override navigator.hardwareConcurrency
-      Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => fp.hardwareConcurrency });
+      Object.defineProperty(navigator, 'hardwareConcurrency', { get: function() { return fp.hardwareConcurrency; } });
 
       // Override navigator.languages
-      Object.defineProperty(navigator, 'languages', { get: () => ['fr-FR', 'fr', 'en-US', 'en'] });
+      Object.defineProperty(navigator, 'languages', { get: function() { return ['fr-FR', 'fr', 'en-US', 'en']; } });
 
       // Override WebGL fingerprint
-      const getParameter = WebGLRenderingContext.prototype.getParameter;
-      WebGLRenderingContext.prototype.getParameter = function(parameter: number) {
-        if (parameter === 37445) return fp.webgl.vendor;   // UNMASKED_VENDOR_WEBGL
-        if (parameter === 37446) return fp.webgl.renderer;  // UNMASKED_RENDERER_WEBGL
-        return getParameter.call(this, parameter);
-      };
+      try {
+        var origGetParam = WebGLRenderingContext.prototype.getParameter;
+        WebGLRenderingContext.prototype.getParameter = function(param) {
+          if (param === 37445) return fp.webgl.vendor;
+          if (param === 37446) return fp.webgl.renderer;
+          return origGetParam.call(this, param);
+        };
+      } catch(e) {}
 
-      // Prevent detection of automation plugins
+      // Fake plugins
       Object.defineProperty(navigator, 'plugins', {
-        get: () => {
-          const plugins = [
+        get: function() {
+          return [
             { name: 'PDF Viewer', filename: 'internal-pdf-viewer', description: 'Portable Document Format' },
             { name: 'Chrome PDF Viewer', filename: 'internal-pdf-viewer', description: '' },
             { name: 'Chromium PDF Viewer', filename: 'internal-pdf-viewer', description: '' },
           ];
-          Object.defineProperty(plugins, 'length', { get: () => 3 });
-          return plugins;
         },
       });
 
-      // Override permissions API to avoid detection
-      if (navigator.permissions) {
-        const originalQuery = navigator.permissions.query;
-        navigator.permissions.query = (parameters: PermissionDescriptor) => {
-          if (parameters.name === 'notifications') {
-            return Promise.resolve({ state: 'denied', onchange: null } as PermissionStatus);
-          }
-          return originalQuery.call(navigator.permissions, parameters);
-        };
-      }
-    }, fingerprint);
+      // Override permissions API
+      try {
+        if (navigator.permissions) {
+          var origQuery = navigator.permissions.query;
+          navigator.permissions.query = function(params) {
+            if (params.name === 'notifications') {
+              return Promise.resolve({ state: 'denied', onchange: null });
+            }
+            return origQuery.call(navigator.permissions, params);
+          };
+        }
+      } catch(e) {}
+    })();`);
 
     const page = await context.newPage();
 
