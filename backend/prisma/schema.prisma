@@ -666,6 +666,28 @@ model ScraperLog {
   @@index([status, createdAt])
 }
 
+// Consulate scraper logs for boss panel monitoring (no alert required)
+model ConsulateScraperLog {
+  id              String    @id @default(uuid())
+  consulateId     String
+  consulate       Consulate @relation(fields: [consulateId], references: [id])
+  categoryId      Int       // Category ID (3=Passport, 1=OCI, 2=Visa, 27=Birth)
+  categoryName    String    // Human readable name
+  workerId        String
+  
+  status          String    // slots_found, no_slots, error, timeout
+  slotsFound      Int       @default(0)
+  slotDates       String?   // JSON array of available dates/times
+  responseTimeMs  Int
+  errorMessage    String?
+  
+  createdAt       DateTime  @default(now())
+  
+  @@index([consulateId, categoryId, createdAt])
+  @@index([consulateId, createdAt])
+  @@index([status, createdAt])
+}
+
 // ═══════════════════════════════════════
 // CONSULATE CONFIG
 // ═══════════════════════════════════════
@@ -689,6 +711,7 @@ model Consulate {
   alerts            Alert[]
   detections        Detection[]
   clients           Client[]
+  scraperLogs       ConsulateScraperLog[]
   
   @@index([status])
 }

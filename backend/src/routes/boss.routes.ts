@@ -835,4 +835,93 @@ router.get('/client/:id', async (req, res) => {
   }
 });
 
+/**
+ * Indian Embassy real-time status for boss panel
+ * Returns slot availability for all 4 visa categories
+ */
+router.get('/embassy-status', async (_req, res) => {
+  try {
+    const consulateId = 'indian-embassy-paris';
+    const consulate = await prisma.consulate.findUnique({
+      where: { id: consulateId },
+    });
+
+    if (!consulate) {
+      res.status(404).json({ error: 'Consulate not found' });
+      return;
+    }
+
+    // Define the 4 visa categories for Indian Embassy Paris
+    const categories = [
+      { id: 3, name: 'Passport', code: 'PASSPORT' },
+      { id: 1, name: 'OCI', code: 'OCI' },
+      { id: 2, name: 'Visa', code: 'VISA' },
+      { id: 27, name: 'Birth Registration', code: 'BIRTH' },
+    ];
+
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const categoryStatuses = await Promise.all(
+      categories.map(async (cat) => {
+        // Get latest scraper log for this category
+        const latestLog = await prisma.consulateScraperLog.findFirst({
+          where: {
+            consulateId,
+            categoryId: cat.id,
+            createdAt: { gte: oneDayAgo },
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        // Find last time slots were found
+        const lastSlotLog = await prisma.consulateScraperLog.findFirst({
+          where: {
+            consulateId,
+            categoryId: cat.id,
+            status: 'slots_found',
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        // Determine status based on latest log
+        let status: string = 'not_checked';
+        if (latestLog) {
+          if (latestLog.status === 'error' || latestLog.status === 'timeout') {
+            status = 'error';
+          } else if (latestLog.status === 'slots_found') {
+            const ageMinutes = (now.getTime() - latestLog.createdAt.getTime()) / 60000;
+            status = ageMinutes < 10 ? 'available' : ageMinutes < 60 ? 'recent' : 'no_slots';
+          } else {
+            status = 'no_slots';
+          }
+        }
+
+        return {
+          id: cat.id,
+          name: cat.name,
+          code: cat.code,
+          status,
+          slotsCount: latestLog?.slotsFound ?? 0,
+          slotDates: latestLog?.slotDates ? JSON.parse(latestLog.slotDates) : null,
+          lastChecked: latestLog?.createdAt?.toISOString() ?? null,
+          lastSlotFound: lastSlotLog?.createdAt?.toISOString() ?? null,
+          errorMessage: latestLog?.status === 'error' ? latestLog.errorMessage : null,
+        };
+      })
+    );
+
+    res.json({
+      id: consulateId,
+      name: consulate.name,
+      baseUrl: consulate.baseUrl,
+      categories: categoryStatuses,
+      lastUpdated: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error('Embassy status error:', error);
+    res.status(500).json({ error: 'Failed to fetch embassy status' });
+  }
+});
+
 export default router;

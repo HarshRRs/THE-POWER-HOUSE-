@@ -11,6 +11,7 @@ import VfsView from '@/components/views/VfsView';
 import StreamView from '@/components/views/StreamView';
 import AlertsView from '@/components/views/AlertsView';
 import SettingsView from '@/components/views/SettingsView';
+import EmbassyView from '@/components/views/EmbassyView';
 
 function Dashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -21,6 +22,8 @@ function Dashboard() {
         return <DashboardView onNavigate={setActiveTab} />;
       case 'clients':
         return <ClientsView />;
+      case 'embassy':
+        return <EmbassyView />;
       case 'vfs':
         return <VfsView />;
       case 'stream':
@@ -52,6 +55,7 @@ function Dashboard() {
                 <p className="text-sm text-text-muted mt-0.5">
                   {activeTab === 'dashboard' && 'Monitor your appointment system'}
                   {activeTab === 'clients' && 'Manage your clients'}
+                  {activeTab === 'embassy' && 'Indian Embassy slot monitoring'}
                   {activeTab === 'vfs' && 'VFS center management'}
                   {activeTab === 'stream' && 'Live activity feed'}
                   {activeTab === 'alerts' && 'Configure notifications'}

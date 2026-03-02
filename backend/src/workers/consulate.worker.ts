@@ -5,6 +5,7 @@ import { getConsulateConfig } from '../scraper/consulates/index.js';
 import { processConsulateDetection } from '../services/detection.service.js';
 import { updateConsulateStatus } from '../services/consulate.service.js';
 import { CONSULATE_CONFIG } from '../config/constants.js';
+import { shouldScrapeConsulate } from '../config/bootstrap.config.js';
 import logger from '../utils/logger.util.js';
 import type { ConsulateScrapeJobData } from '../types/consulate.types.js';
 
@@ -56,8 +57,13 @@ export async function startConsulateWorker(workerId: string, concurrency = 2) {
         });
 
         if (alerts.length === 0) {
-          logger.debug(`No active alerts for ${consulateId}/${category.name}, skipping`);
-          return;
+          // Allow priority consulates to run without alerts for boss panel monitoring
+          const isPriority = shouldScrapeConsulate(consulateId, categoryId);
+          if (!isPriority) {
+            logger.debug(`No active alerts for ${consulateId}/${category.name}, skipping`);
+            return;
+          }
+          logger.debug(`Priority consulate ${consulateId}/${category.name} - scraping without alerts`);
         }
 
         // Run the scraper
@@ -87,6 +93,21 @@ export async function startConsulateWorker(workerId: string, concurrency = 2) {
           // no_slots - reset error count
           await updateConsulateStatus(consulateId, 'ACTIVE');
         }
+
+        // Log to ConsulateScraperLog for boss panel monitoring
+        await prisma.consulateScraperLog.create({
+          data: {
+            consulateId,
+            categoryId: category.id,
+            categoryName: category.name,
+            workerId,
+            status: result.status,
+            slotsFound: result.slotsAvailable,
+            slotDates: result.availableDates ? JSON.stringify(result.availableDates) : null,
+            responseTimeMs: result.responseTimeMs,
+            errorMessage: result.errorMessage || null,
+          },
+        });
 
         // Update last scraped time
         await prisma.consulate.update({
@@ -147,7 +168,9 @@ export async function scheduleConsulateJobs() {
       const jobId = `repeat:${consulate.id}:cat${category.id}`;
       const intervalSeconds = consulate.checkInterval || 60;
 
-      if (alertCount > 0) {
+      // Schedule if alerts exist OR if it's a priority consulate for boss panel
+      const isPriority = shouldScrapeConsulate(consulate.id, category.id);
+      if (alertCount > 0 || isPriority) {
         await consulateQueue.add(
           `scrape:${consulate.id}:cat${category.id}`,
           { consulateId: consulate.id, categoryId: category.id },
@@ -156,7 +179,7 @@ export async function scheduleConsulateJobs() {
             jobId,
           }
         );
-        logger.debug(`Scheduled ${consulate.id}/${category.name} every ${intervalSeconds}s`);
+        logger.debug(`Scheduled ${consulate.id}/${category.name} every ${intervalSeconds}s${isPriority ? ' (priority)' : ''}`);
       } else {
         try {
           await consulateQueue.removeRepeatable(

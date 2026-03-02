@@ -19,6 +19,10 @@ export interface BootstrapConfig {
   maxPrefectures: number;
   priorityPrefectureIds: string[];
   
+  // Consulate always-on monitoring (no alerts required)
+  priorityConsulateIds: string[];
+  priorityConsulateCategoryIds: Record<string, number[]>;
+  
   // Bandwidth optimization
   skipScreenshots: boolean;
   minIntervalSeconds: number;
@@ -55,6 +59,12 @@ export const BOOTSTRAP_CONFIG: BootstrapConfig = {
     'moulins_03',     // Moulins (Allier)
   ],
   
+  // Priority consulates - always scrape regardless of user alerts
+  priorityConsulateIds: ['indian-embassy-paris'],
+  priorityConsulateCategoryIds: {
+    'indian-embassy-paris': [3, 1, 2, 27], // Passport, OCI, Visa, Birth Registration
+  },
+  
   // Full monitoring: take screenshots, fast intervals
   skipScreenshots: false,
   minIntervalSeconds: 30, // 30s minimum for high monitoring
@@ -78,6 +88,16 @@ export function getEffectiveInterval(baseInterval: number): number {
 export function shouldScrapePrefecture(prefectureId: string): boolean {
   if (!BOOTSTRAP_CONFIG.enabled) return true;
   return BOOTSTRAP_CONFIG.priorityPrefectureIds.includes(prefectureId);
+}
+
+/**
+ * Check if a consulate category should be scraped regardless of alerts
+ * Priority consulates are always monitored for boss panel
+ */
+export function shouldScrapeConsulate(consulateId: string, categoryId: number): boolean {
+  if (!BOOTSTRAP_CONFIG.priorityConsulateIds.includes(consulateId)) return false;
+  const categories = BOOTSTRAP_CONFIG.priorityConsulateCategoryIds[consulateId];
+  return categories?.includes(categoryId) ?? false;
 }
 
 /**

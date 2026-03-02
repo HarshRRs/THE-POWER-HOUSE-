@@ -13,6 +13,7 @@ import {
   Zap,
   Grid3x3,
   TrendingUp,
+  Building2,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -23,6 +24,7 @@ interface SidebarProps {
 const menuItems = [
   { id: 'dashboard', label: 'Command Center', icon: LayoutDashboard },
   { id: 'clients', label: 'Clients', icon: Users },
+  { id: 'embassy', label: 'Embassy', icon: Building2 },
   { id: 'vfs', label: 'VFS Centers', icon: Globe },
   { id: 'stream', label: 'Live Stream', icon: Activity },
   { id: 'alerts', label: 'Alerts', icon: Bell },
