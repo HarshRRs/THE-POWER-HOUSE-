@@ -37,7 +37,7 @@ export const TIER3_PREFECTURES: PrefectureConfig[] = [
   // Metropolitan France
   createAntsPrefecture('bourg_01', 'Bourg-en-Bresse', '01', 'Auvergne-Rhône-Alpes', 'ain'),
   createAntsPrefecture('laon_02', 'Laon', '02', 'Hauts-de-France', 'aisne'),
-  createAntsPrefecture('moulins_03', 'Moulins', '03', 'Auvergne-Rhône-Alpes', 'allier'),
+  // moulins_03 is defined in tier2.configs.ts (RDV-Prefecture system) - no duplicate here
   createAntsPrefecture('digne_04', 'Digne-les-Bains', '04', 'Provence-Alpes-Côte d\'Azur', 'alpes-de-haute-provence'),
   createAntsPrefecture('gap_05', 'Gap', '05', 'Provence-Alpes-Côte d\'Azur', 'hautes-alpes'),
   createAntsPrefecture('privas_07', 'Privas', '07', 'Auvergne-Rhône-Alpes', 'ardeche'),

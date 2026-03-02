@@ -113,14 +113,16 @@ class CaptchaService {
 
     // Generic CAPTCHA indicators
     const captchaIndicators = [
-      'captcha',
       'recaptcha',
       'challenge',
       'verification',
-      'robot',
-      'human',
       'bot-protection',
     ];
+
+    // These indicators are too generic and cause false positives on cookie consent scripts
+    // (e.g., tarteaucitron contains "captcha" in its class names).
+    // Only check them if we find them in a form/challenge context, NOT in scripts/cookies.
+    const genericIndicators = ['captcha', 'robot', 'human'];
 
     for (const indicator of captchaIndicators) {
       if (pageContent.toLowerCase().includes(indicator)) {
@@ -134,6 +136,31 @@ class CaptchaService {
           this.stats.detected++;
           logger.info(`CaptchaService: Detected unknown CAPTCHA (indicator: ${indicator})`);
           return result;
+        }
+      }
+    }
+
+    // For generic indicators, require them to be in an actual form input or challenge div,
+    // not just anywhere in the page (cookie consent, scripts, etc.)
+    for (const indicator of genericIndicators) {
+      if (pageContent.toLowerCase().includes(indicator)) {
+        // Stricter check: must be in a visible form element, not a script or cookie banner
+        const strictMatch = pageContent.match(
+          new RegExp(
+            `<(input|form|div)[^>]*(id|class|name)="[^"]*${indicator}[^"]*"[^>]*>`,
+            'i'
+          )
+        );
+        // Exclude matches inside script tags or cookie consent elements
+        if (strictMatch) {
+          const matchText = strictMatch[0].toLowerCase();
+          if (!matchText.includes('tarteaucitron') && !matchText.includes('cookie') && !matchText.includes('consent')) {
+            result.detected = true;
+            result.type = 'unknown';
+            this.stats.detected++;
+            logger.info(`CaptchaService: Detected unknown CAPTCHA (indicator: ${indicator})`);
+            return result;
+          }
         }
       }
     }

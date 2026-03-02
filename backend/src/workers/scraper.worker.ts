@@ -168,6 +168,12 @@ export async function scheduleScraperJobs() {
   });
 
   for (const pref of prefectures) {
+    // Skip prefectures without a valid config (e.g. stale DB entries)
+    if (!getPrefectureConfig(pref.id)) {
+      logger.debug(`Skipping schedule for ${pref.id}: No config found`);
+      continue;
+    }
+
     // Bootstrap mode: Skip non-priority prefectures
     if (!shouldScrapePrefecture(pref.id)) {
       logger.debug(`Skipping schedule for ${pref.id}: Not in bootstrap priority list`);

@@ -2,6 +2,7 @@ import type { PrefectureConfig, ScrapeResult } from '../types/prefecture.types.j
 import { getBrowserPool, type PageSession } from './browser.pool.js';
 import { proxyService } from './proxy.service.js';
 import { captchaService } from './captcha.service.js';
+import { solveImageCaptcha } from '../services/captcha.service.js';
 import { generateScreenshotPath, saveScreenshot } from '../utils/screenshot.util.js';
 import { randomDelay } from '../utils/retry.util.js';
 import { handleUrlChange } from '../services/url-discovery.service.js';
@@ -122,27 +123,41 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
 
     // Check for bot detection
     const lowerContent = pageContent.toLowerCase();
-    for (const indicator of BOT_DETECTION_INDICATORS) {
-      if (lowerContent.includes(indicator)) {
-        logger.warn(`Bot detection indicator found for ${config.id}: ${indicator}`);
-        if (proxy) proxyService.reportFailure(proxy, targetDomain);
 
-        const screenshotPath = generateScreenshotPath(config.id, 'blocked');
-        const screenshot = await page.screenshot({ fullPage: true });
-        await saveScreenshot(screenshot, screenshotPath);
+    // Skip bot detection for RDV-Prefecture sites (they always have "captcha" in the page)
+    if (config.bookingSystem !== 'rdv-prefecture') {
+      for (const indicator of BOT_DETECTION_INDICATORS) {
+        if (lowerContent.includes(indicator)) {
+          logger.warn(`Bot detection indicator found for ${config.id}: ${indicator}`);
+          if (proxy) proxyService.reportFailure(proxy, targetDomain);
 
-        return {
-          status: 'blocked',
-          slotsAvailable: 0,
-          bookingUrl: pageUrl,
-          screenshotPath,
-          errorMessage: `Bot detected: ${indicator}`,
-          responseTimeMs: Date.now() - startTime,
-        };
+          const screenshotPath = generateScreenshotPath(config.id, 'blocked');
+          const screenshot = await page.screenshot({ fullPage: true });
+          await saveScreenshot(screenshot, screenshotPath);
+
+          return {
+            status: 'blocked',
+            slotsAvailable: 0,
+            bookingUrl: pageUrl,
+            screenshotPath,
+            errorMessage: `Bot detected: ${indicator}`,
+            responseTimeMs: Date.now() - startTime,
+          };
+        }
       }
     }
 
-    // Enhanced CAPTCHA detection
+    // ── RDV-Prefecture image CAPTCHA flow ──────────────────────
+    // RDV-Prefecture sites use a custom image CAPTCHA (not reCAPTCHA/hCaptcha).
+    // The page has: captchaUsercode input + base64 PNG image + captchaId hidden field.
+    // We extract the image, send to 2Captcha, fill the answer, and submit.
+    if (config.bookingSystem === 'rdv-prefecture') {
+      const rdvResult = await solveRdvPrefectureCaptcha(page, config, startTime, proxy, targetDomain, finalUrl, redirectChain);
+      if (rdvResult) return rdvResult;
+      // If null, CAPTCHA was solved and we fall through to slot detection below
+    }
+
+    // Enhanced CAPTCHA detection (for non-rdv-prefecture sites)
     const captchaResult = await captchaService.detectCaptcha(pageContent, pageUrl);
 
     // Also check DOM for CAPTCHA elements
@@ -468,6 +483,215 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
       await pool.releasePage(session.page, session.context);
     }
   }
+}
+
+/**
+ * RDV-Prefecture image CAPTCHA solving flow.
+ *
+ * Steps:
+ * 1. Find the CAPTCHA image (base64 PNG) on the page
+ * 2. Extract it and send to 2Captcha solveImageCaptcha()
+ * 3. Fill captchaUsercode input with the answer
+ * 4. Click the submit/next button
+ * 5. Wait for the availability page to load
+ *
+ * Returns a ScrapeResult if we should stop (error/captcha unsolved),
+ * or null if CAPTCHA was solved and the caller should continue to slot detection.
+ */
+async function solveRdvPrefectureCaptcha(
+  page: import('playwright').Page,
+  config: PrefectureConfig,
+  startTime: number,
+  proxy: import('./proxy.service.js').ProxyInfo | null,
+  targetDomain: string | undefined,
+  finalUrl: string,
+  redirectChain: string[],
+): Promise<ScrapeResult | null> {
+  const captchaInput = await page.$('input[name="captchaUsercode"]');
+  if (!captchaInput) {
+    // No CAPTCHA on this page - continue to slot detection
+    logger.debug(`No RDV-Prefecture CAPTCHA found for ${config.id}, continuing`);
+    return null;
+  }
+
+  logger.info(`RDV-Prefecture CAPTCHA detected for ${config.id}, attempting to solve`);
+
+  // Extract the CAPTCHA image (base64 PNG embedded in <img>)
+  const captchaImageB64 = await page.evaluate(() => {
+    // Look for captcha image - usually an img with base64 src near the captcha input
+    const imgs = Array.from(document.querySelectorAll('img'));
+    for (const img of imgs) {
+      if (img.src && img.src.startsWith('data:image/')) {
+        // Extract just the base64 part
+        const b64 = img.src.split(',')[1];
+        if (b64 && b64.length > 100) return b64;
+      }
+    }
+    // Also check for captcha image via specific selectors
+    const captchaImg = document.querySelector('img[src^="data:image/png;base64"]') as HTMLImageElement;
+    if (captchaImg) {
+      return captchaImg.src.split(',')[1] || null;
+    }
+    return null;
+  });
+
+  if (!captchaImageB64) {
+    logger.warn(`RDV-Prefecture CAPTCHA image not found for ${config.id}`);
+    const screenshotPath = generateScreenshotPath(config.id, 'captcha');
+    const screenshot = await page.screenshot({ fullPage: true });
+    await saveScreenshot(screenshot, screenshotPath);
+
+    return {
+      status: 'captcha',
+      slotsAvailable: 0,
+      bookingUrl: page.url(),
+      screenshotPath,
+      errorMessage: 'RDV-Prefecture CAPTCHA image not found on page',
+      responseTimeMs: Date.now() - startTime,
+    };
+  }
+
+  // Send to 2Captcha for solving
+  const captchaResult = await solveImageCaptcha(captchaImageB64);
+  if (!captchaResult.success || !captchaResult.answer) {
+    logger.warn(`Failed to solve RDV-Prefecture CAPTCHA for ${config.id}: ${captchaResult.error}`);
+    if (proxy) proxyService.reportFailure(proxy, targetDomain);
+
+    const screenshotPath = generateScreenshotPath(config.id, 'captcha');
+    const screenshot = await page.screenshot({ fullPage: true });
+    await saveScreenshot(screenshot, screenshotPath);
+
+    return {
+      status: 'captcha',
+      slotsAvailable: 0,
+      bookingUrl: page.url(),
+      screenshotPath,
+      errorMessage: `RDV-Prefecture CAPTCHA solve failed: ${captchaResult.error}`,
+      responseTimeMs: Date.now() - startTime,
+    };
+  }
+
+  logger.info(`RDV-Prefecture CAPTCHA solved for ${config.id}: "${captchaResult.answer}"`);
+
+  // Fill in the CAPTCHA answer
+  await captchaInput.fill(captchaResult.answer);
+  await randomDelay(300, 600);
+
+  // Click the submit/next button
+  const submitClicked = await clickRdvSubmitButton(page, config);
+  if (!submitClicked) {
+    logger.warn(`Could not find submit button for ${config.id} after CAPTCHA solve`);
+  }
+
+  // Wait for navigation after form submit
+  try {
+    await page.waitForLoadState('networkidle', { timeout: 15000 });
+  } catch {
+    // Timeout is acceptable
+  }
+  await randomDelay(1000, 2000);
+
+  // Check if we're still on the CAPTCHA page (wrong answer)
+  const stillHasCaptcha = await page.$('input[name="captchaUsercode"]');
+  if (stillHasCaptcha) {
+    logger.warn(`RDV-Prefecture CAPTCHA answer was wrong for ${config.id}, retrying...`);
+
+    // Retry once with a fresh CAPTCHA
+    const retryB64 = await page.evaluate(() => {
+      const imgs = Array.from(document.querySelectorAll('img'));
+      for (const img of imgs) {
+        if (img.src && img.src.startsWith('data:image/')) {
+          const b64 = img.src.split(',')[1];
+          if (b64 && b64.length > 100) return b64;
+        }
+      }
+      return null;
+    });
+
+    if (retryB64) {
+      const retryResult = await solveImageCaptcha(retryB64);
+      if (retryResult.success && retryResult.answer) {
+        const retryInput = await page.$('input[name="captchaUsercode"]');
+        if (retryInput) {
+          await retryInput.fill('');
+          await retryInput.fill(retryResult.answer);
+          await randomDelay(300, 600);
+          await clickRdvSubmitButton(page, config);
+          try {
+            await page.waitForLoadState('networkidle', { timeout: 15000 });
+          } catch { /* timeout ok */ }
+          await randomDelay(1000, 2000);
+        }
+      }
+    }
+
+    // Check again
+    const stillHasCaptcha2 = await page.$('input[name="captchaUsercode"]');
+    if (stillHasCaptcha2) {
+      if (proxy) proxyService.reportFailure(proxy, targetDomain);
+      const screenshotPath = generateScreenshotPath(config.id, 'captcha');
+      const screenshot = await page.screenshot({ fullPage: true });
+      await saveScreenshot(screenshot, screenshotPath);
+      return {
+        status: 'captcha',
+        slotsAvailable: 0,
+        bookingUrl: page.url(),
+        screenshotPath,
+        errorMessage: 'RDV-Prefecture CAPTCHA solved but answer was wrong (2 attempts)',
+        responseTimeMs: Date.now() - startTime,
+      };
+    }
+  }
+
+  // CAPTCHA solved successfully - report proxy success
+  logger.info(`RDV-Prefecture CAPTCHA bypassed for ${config.id}, checking slots`);
+  if (proxy) proxyService.reportSuccess(proxy, targetDomain);
+
+  // Return null to signal caller to continue with slot detection
+  return null;
+}
+
+/**
+ * Click the submit button on an RDV-Prefecture page.
+ * Tries config.selectors.nextButton first, then common fallbacks.
+ */
+async function clickRdvSubmitButton(
+  page: import('playwright').Page,
+  config: PrefectureConfig,
+): Promise<boolean> {
+  // Try config-defined next button first
+  if (config.selectors.nextButton) {
+    try {
+      const btn = page.locator(config.selectors.nextButton);
+      if (await btn.isVisible({ timeout: 2000 })) {
+        await btn.click();
+        return true;
+      }
+    } catch { /* not found */ }
+  }
+
+  // RDV-Prefecture specific submit buttons
+  const rdvSelectors = [
+    'button.q-btn.bg-primary',
+    'button[type="submit"]',
+    'input[type="submit"]',
+    'button:has-text("Valider")',
+    'button:has-text("Vérifier")',
+    'button:has-text("Continuer")',
+    'button:has-text("Suivant")',
+  ];
+
+  for (const selector of rdvSelectors) {
+    try {
+      const btn = page.locator(selector).first();
+      if (await btn.isVisible({ timeout: 1000 })) {
+        await btn.click();
+        return true;
+      }
+    } catch { /* not found */ }
+  }
+
+  return false;
 }
 
 export async function testPrefectureScraper(config: PrefectureConfig): Promise<ScrapeResult> {

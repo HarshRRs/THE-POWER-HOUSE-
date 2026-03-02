@@ -50,19 +50,9 @@ export const BOOTSTRAP_CONFIG: BootstrapConfig = {
     'cergy_95',       // Val-d'Oise
     'melun_77',       // Seine-et-Marne
     'versailles_78',  // Yvelines
-    // TIER 2 - Major Cities (12 prefectures)
+    // TIER 2 - Other active prefectures
     'lyon_69',        // Lyon
-    'marseille_13',   // Marseille
-    'toulouse_31',    // Toulouse
-    'lille_59',       // Lille
-    'nantes_44',      // Nantes
-    'bordeaux_33',    // Bordeaux
-    'montpellier_34', // Montpellier
-    'strasbourg_67',  // Strasbourg
-    'nice_06',        // Nice
-    'rouen_76',       // Rouen
-    'rennes_35',      // Rennes
-    'grenoble_38',    // Grenoble
+    'moulins_03',     // Moulins (Allier)
   ],
   
   // Full monitoring: take screenshots, fast intervals
