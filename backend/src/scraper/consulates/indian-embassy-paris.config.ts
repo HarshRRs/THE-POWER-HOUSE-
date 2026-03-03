@@ -7,7 +7,7 @@ export const INDIAN_EMBASSY_PARIS: ConsulateConfig = {
   city: 'Paris',
   type: 'embassy',
   baseUrl: 'https://appointment.eoiparis.com',
-  checkInterval: 60,
+  checkInterval: 180, // 3 minutes
   categories: [
     {
       id: 3,

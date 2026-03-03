@@ -16,7 +16,7 @@ export const TIER2_PREFECTURES: PrefectureConfig[] = [
     // ANEF = Administration Numérique des Étrangers en France
     // National platform for first-time residence permit applications
     bookingUrl: 'https://administration-etrangers-en-france.interieur.gouv.fr/',
-    checkInterval: 60,
+    checkInterval: 180, // 3 minutes
     bookingSystem: 'anef',
     selectors: {
       // ANEF uses FranceConnect or email login
@@ -35,7 +35,7 @@ export const TIER2_PREFECTURES: PrefectureConfig[] = [
     },
     procedures: ['TITRE_SEJOUR', 'NATURALISATION'],
   },
-  
+
   // ═══════════════════════════════════════
   // ALLIER (03) - Moulins - RDV-Préfecture - CAPTCHA
   // ═══════════════════════════════════════
@@ -46,7 +46,7 @@ export const TIER2_PREFECTURES: PrefectureConfig[] = [
     region: 'Auvergne-Rhône-Alpes',
     tier: 2,
     bookingUrl: 'https://www.rdv-prefecture.interieur.gouv.fr/rdvpref/reservation/demarche/4418/',
-    checkInterval: 60,
+    checkInterval: 180, // 3 minutes
     bookingSystem: 'rdv-prefecture',
     selectors: {
       captchaInput: 'input[name="captchaUsercode"]',

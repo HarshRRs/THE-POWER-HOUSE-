@@ -18,7 +18,7 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     region: 'Île-de-France',
     tier: 1,
     bookingUrl: 'https://rendezvouspasseport.ants.gouv.fr/',
-    checkInterval: 30,
+    checkInterval: 180, // 3 minutes
     bookingSystem: 'ants',
     selectors: {
       cityInput: '#Recherchez-une-ville',
@@ -35,7 +35,7 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     },
     procedures: ['CARTE_IDENTITE', 'PASSEPORT', 'TITRE_SEJOUR'],
   },
-  
+
   // ═══════════════════════════════════════
   // SEINE-SAINT-DENIS (93) - Bobigny - ezbooking - NO CAPTCHA
   // ═══════════════════════════════════════
@@ -46,7 +46,7 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     region: 'Île-de-France',
     tier: 1,
     bookingUrl: 'https://www.seine-saint-denis.gouv.fr/index.php/booking/create/16105',
-    checkInterval: 30,
+    checkInterval: 180, // 3 minutes
     bookingSystem: 'ezbooking',
     selectors: {
       termsCheckbox: 'input#condition',
@@ -61,7 +61,7 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     },
     procedures: ['TITRE_SEJOUR', 'NATURALISATION'],
   },
-  
+
   // ═══════════════════════════════════════
   // VAL-DE-MARNE (94) - Créteil - RDV-Préfecture - CAPTCHA
   // ═══════════════════════════════════════
@@ -72,7 +72,7 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     region: 'Île-de-France',
     tier: 1,
     bookingUrl: 'https://www.rdv-prefecture.interieur.gouv.fr/rdvpref/reservation/demarche/16040/',
-    checkInterval: 30,
+    checkInterval: 180, // 3 minutes
     bookingSystem: 'rdv-prefecture',
     selectors: {
       takeAppointmentBtn: '.q-btn.bg-primary.text-white, a[href*="cgu"]',
@@ -86,7 +86,7 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     },
     procedures: ['TITRE_SEJOUR'],
   },
-  
+
   // ═══════════════════════════════════════
   // HAUTS-DE-SEINE (92) - Nanterre - RDV-Préfecture - CAPTCHA
   // ═══════════════════════════════════════
@@ -97,7 +97,7 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     region: 'Île-de-France',
     tier: 1,
     bookingUrl: 'https://www.rdv-prefecture.interieur.gouv.fr/rdvpref/reservation/demarche/1922/',
-    checkInterval: 30,
+    checkInterval: 180, // 3 minutes
     bookingSystem: 'rdv-prefecture',
     selectors: {
       takeAppointmentBtn: '.q-btn.bg-primary.text-white',
@@ -110,7 +110,7 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     },
     procedures: ['TITRE_SEJOUR', 'NATURALISATION'],
   },
-  
+
   // ═══════════════════════════════════════
   // ESSONNE (91) - Évry - RDV-Préfecture - CAPTCHA
   // ═══════════════════════════════════════
@@ -121,7 +121,7 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     region: 'Île-de-France',
     tier: 1,
     bookingUrl: 'https://www.rdv-prefecture.interieur.gouv.fr/rdvpref/reservation/demarche/2200/',
-    checkInterval: 30,
+    checkInterval: 180, // 3 minutes
     bookingSystem: 'rdv-prefecture',
     selectors: {
       captchaInput: 'input[name="captchaUsercode"]',
@@ -133,7 +133,7 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     },
     procedures: ['TITRE_SEJOUR', 'NATURALISATION'],
   },
-  
+
   // ═══════════════════════════════════════
   // VAL-D'OISE (95) - Cergy-Pontoise - RDV-Préfecture - CAPTCHA
   // Guichet 1: demarche/1380 | Guichet 2: demarche/9481
@@ -145,7 +145,7 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     region: 'Île-de-France',
     tier: 1,
     bookingUrl: 'https://www.rdv-prefecture.interieur.gouv.fr/rdvpref/reservation/demarche/1380/',
-    checkInterval: 30,
+    checkInterval: 180, // 3 minutes
     bookingSystem: 'rdv-prefecture',
     selectors: {
       takeAppointmentBtn: '.q-btn.bg-primary.text-white, a[href*="cgu"]',
@@ -158,7 +158,7 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     },
     procedures: ['TITRE_SEJOUR'],
   },
-  
+
   // ═══════════════════════════════════════
   // SEINE-ET-MARNE (77) - Melun - ANEF Platform - NO CAPTCHA
   // Seine-et-Marne uses ANEF for most titre de séjour procedures
@@ -170,7 +170,7 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     region: 'Île-de-France',
     tier: 1,
     bookingUrl: 'https://administration-etrangers-en-france.interieur.gouv.fr/',
-    checkInterval: 30,
+    checkInterval: 180, // 3 minutes
     bookingSystem: 'anef',
     selectors: {
       // ANEF uses FranceConnect or email login
@@ -189,7 +189,7 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     },
     procedures: ['TITRE_SEJOUR'],
   },
-  
+
   // ═══════════════════════════════════════
   // YVELINES (78) - Versailles - RDV-Préfecture - CAPTCHA
   // ═══════════════════════════════════════
@@ -200,7 +200,7 @@ export const TIER1_PREFECTURES: PrefectureConfig[] = [
     region: 'Île-de-France',
     tier: 1,
     bookingUrl: 'https://www.rdv-prefecture.interieur.gouv.fr/rdvpref/reservation/demarche/1040/',
-    checkInterval: 30,
+    checkInterval: 180, // 3 minutes
     bookingSystem: 'rdv-prefecture',
     selectors: {
       captchaInput: 'input[name="captchaUsercode"]',
