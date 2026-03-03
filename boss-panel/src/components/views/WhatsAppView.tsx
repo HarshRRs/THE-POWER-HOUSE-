@@ -16,7 +16,8 @@ export default function WhatsAppView() {
       const res = await apiFetch('/api/admin/alerts');
       if (res.ok) {
         const json = await res.json();
-        setAlerts(json.data || json || []);
+        const d = json.data || json || {};
+        setAlerts(Array.isArray(d) ? d : d.alerts || []);
       }
     } catch { /* ignore */ }
     setLoading(false);

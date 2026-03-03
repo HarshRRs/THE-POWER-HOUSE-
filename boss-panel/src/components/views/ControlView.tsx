@@ -86,7 +86,8 @@ export default function ControlView() {
       const res = await apiFetch('/api/admin/logs?limit=50');
       if (res.ok) {
         const json = await res.json();
-        const list = json.data || json || [];
+        const raw = json.data || json || {};
+        const list = Array.isArray(raw) ? raw : raw.logs || [];
         if (Array.isArray(list)) {
           setLogs(list.map((l: any, i: number) => ({
             id: l.id || `log-${i}`,
