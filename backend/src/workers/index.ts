@@ -68,14 +68,20 @@ async function bootstrap() {
     if (browserPoolReady) {
       scraperWorker = await startWorkerSafe('scraper', () => startScraperWorker(WORKER_ID, 3));
       consulateWorker = await startWorkerSafe('consulate', () => startConsulateWorker(WORKER_ID, 2));
-      vfsWorker = await startWorkerSafe('vfs', () => startVfsWorker(WORKER_ID, 1));
+      if (process.env.VFS_ENABLED === 'true') {
+        vfsWorker = await startWorkerSafe('vfs', () => startVfsWorker(WORKER_ID, 1));
+      } else {
+        logger.info('VFS worker disabled (VFS_ENABLED != true)');
+      }
       autobookWorker = await startWorkerSafe('autobook', () => startAutobookWorker(WORKER_ID, 2));
     }
 
     // Schedule jobs
     await scheduleSafe('scraper', scheduleScraperJobs);
     await scheduleSafe('consulate', scheduleConsulateJobs);
-    await scheduleSafe('vfs', scheduleVfsJobs);
+    if (process.env.VFS_ENABLED === 'true') {
+      await scheduleSafe('vfs', scheduleVfsJobs);
+    }
     await scheduleSafe('maintenance', scheduleMaintenanceJobs);
     await scheduleSafe('refund', scheduleRefundJobs);
 
