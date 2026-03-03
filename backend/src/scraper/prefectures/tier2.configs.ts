@@ -1,11 +1,11 @@
 import type { PrefectureConfig } from '../../types/prefecture.types.js';
 
-// Major cities prefectures - TIER 2 (60s check interval)
-// UPDATED: Only Lyon and Moulins based on investigation
+// Major cities prefectures - TIER 2 (3-minute check interval)
 
 export const TIER2_PREFECTURES: PrefectureConfig[] = [
   // ═══════════════════════════════════════
   // RHÔNE (69) - Lyon - ANEF Platform - NO CAPTCHA
+  // ANEF categories: Première demande + Renouvellement + Naturalisation
   // ═══════════════════════════════════════
   {
     id: 'lyon_69',
@@ -13,27 +13,26 @@ export const TIER2_PREFECTURES: PrefectureConfig[] = [
     department: '69',
     region: 'Auvergne-Rhône-Alpes',
     tier: 2,
-    // ANEF = Administration Numérique des Étrangers en France
-    // National platform for first-time residence permit applications
     bookingUrl: 'https://administration-etrangers-en-france.interieur.gouv.fr/',
-    checkInterval: 180, // 3 minutes
+    checkInterval: 180,
     bookingSystem: 'anef',
     selectors: {
-      // ANEF uses FranceConnect or email login
       loginButton: '.fr-btn, button.fr-btn',
       franceConnectBtn: '#franceconnect-button, .france-connect-btn',
       emailInput: 'input[type="email"]',
       passwordInput: 'input[type="password"]',
-      // Navigation
       newApplicationBtn: 'a[href*="nouvelle"], .new-application',
       appointmentBtn: 'a[href*="rendez-vous"], .appointment-link',
-      // Calendar
       availableSlot: '.slot-available, .creneau, .calendar-day.available, .fr-table tbody tr',
       noSlotIndicator: '.no-appointment, .alert-warning, .aucun-creneau',
       cookieAccept: '.tarteaucitronAllow, .cookie-accept',
       captchaDetect: '', // NO CAPTCHA
     },
-    procedures: ['TITRE_SEJOUR', 'NATURALISATION'],
+    procedures: [
+      'TITRE_SEJOUR',               // Première demande
+      'TITRE_SEJOUR_RENOUVELLEMENT',// Renouvellement
+      'NATURALISATION',             // Naturalisation (Lyon only)
+    ],
   },
 
   // ═══════════════════════════════════════
@@ -46,7 +45,7 @@ export const TIER2_PREFECTURES: PrefectureConfig[] = [
     region: 'Auvergne-Rhône-Alpes',
     tier: 2,
     bookingUrl: 'https://www.rdv-prefecture.interieur.gouv.fr/rdvpref/reservation/demarche/4418/',
-    checkInterval: 180, // 3 minutes
+    checkInterval: 180,
     bookingSystem: 'rdv-prefecture',
     selectors: {
       captchaInput: 'input[name="captchaUsercode"]',
@@ -56,7 +55,14 @@ export const TIER2_PREFECTURES: PrefectureConfig[] = [
       noSlotIndicator: '.aucun-creneau, .text-warning',
       captchaDetect: 'input[name="captchaUsercode"]',
     },
-    procedures: ['TITRE_SEJOUR'],
+    procedures: [
+      'TITRE_SEJOUR',
+      'TITRE_SEJOUR_SALARIE',
+      'TITRE_SEJOUR_ETUDIANT',
+      'TITRE_SEJOUR_VPF',
+      'TITRE_SEJOUR_RENOUVELLEMENT',
+      'TITRE_SEJOUR_DUPLICATA',
+    ],
   },
 ];
 

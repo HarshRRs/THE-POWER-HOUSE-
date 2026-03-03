@@ -2,60 +2,79 @@ import type { Procedure } from '@prisma/client';
 
 /**
  * Prefecture Category Configuration
- * 
+ *
  * Hardcoded demarche codes for RDV-Prefecture booking system.
- * Each category maps to a specific URL: 
+ * Each category maps to a specific URL:
  *   https://www.rdv-prefecture.interieur.gouv.fr/rdvpref/reservation/demarche/{CODE}/
- * 
- * These codes are specific to each prefecture and must be researched
- * by visiting each prefecture's RDV-Prefecture page.
+ *
+ * HOW SCRAPING WORKS:
+ * - Each demarche code = one separate scraper job
+ * - Results reported independently per category
+ * - Boss panel shows slot count per category per prefecture
  */
 
 export interface CategoryConfig {
   code: string;           // Demarche code (e.g., "16040")
-  name: string;           // Display name (e.g., "Renouvellement salarié")
+  name: string;           // Display name shown in boss panel
   procedure: Procedure;   // Maps to Prisma Procedure enum
-  description?: string;   // Optional description
+  description?: string;
 }
 
-// Base URL pattern for RDV-Prefecture
 export const RDV_PREFECTURE_BASE_URL = 'https://www.rdv-prefecture.interieur.gouv.fr/rdvpref/reservation/demarche';
 
-/**
- * Generate full category URL from demarche code
- */
 export function getCategoryUrl(code: string): string {
   return `${RDV_PREFECTURE_BASE_URL}/${code}/`;
 }
 
 /**
- * RDV-Prefecture Categories by Prefecture ID
- * 
- * Prefecture IDs match the format: {city}_{department}
- * 
- * NOTE: These codes are hardcoded after manual research of each prefecture website.
- * New categories can be discovered by visiting the prefecture's main page and 
- * extracting demarche codes from available procedures.
+ * RDV-Préfecture demarche codes per prefecture.
+ * Each entry = one scraper job = separate slot data in boss panel.
+ *
+ * NOTE: Codes with "?" are estimated — verify by visiting the prefecture page.
+ * Confirmed codes have no "?" comment.
  */
 export const RDV_PREFECTURE_CATEGORIES: Record<string, CategoryConfig[]> = {
+
   // ═══════════════════════════════════════
   // VAL-DE-MARNE (94) - Créteil
   // ═══════════════════════════════════════
   'creteil_94': [
     {
       code: '16040',
-      name: 'Remise de titre de séjour',
+      name: 'Remise de titre prêt',
       procedure: 'TITRE_SEJOUR',
-      description: 'Retrait de titre de séjour prêt',
+      description: 'Retrait de titre de séjour prêt (confirmed)',
     },
-    // Additional categories to be discovered and added
-    // Common RDV-Prefecture categories typically include:
-    // - Renouvellement salarié
-    // - Renouvellement étudiant
-    // - Changement de statut
-    // - Première demande
-    // - Duplicata
-    // - Vie privée et familiale
+    {
+      code: '16041',    // ? - verify on site
+      name: 'Renouvellement salarié',
+      procedure: 'TITRE_SEJOUR_SALARIE',
+      description: 'Renouvellement titre séjour — salarié / travailleur',
+    },
+    {
+      code: '16042',    // ? - verify on site
+      name: 'Renouvellement étudiant',
+      procedure: 'TITRE_SEJOUR_ETUDIANT',
+      description: 'Renouvellement titre séjour — étudiant',
+    },
+    {
+      code: '16043',    // ? - verify on site
+      name: 'Vie privée et familiale',
+      procedure: 'TITRE_SEJOUR_VPF',
+      description: 'Titre séjour — vie privée, mariage, famille',
+    },
+    {
+      code: '16044',    // ? - verify on site
+      name: 'Changement de statut',
+      procedure: 'CHANGEMENT_STATUT_ETUDIANT_SALARIE',
+      description: 'Changement statut étudiant → salarié',
+    },
+    {
+      code: '16045',    // ? - verify on site
+      name: 'Duplicata (perte/vol)',
+      procedure: 'TITRE_SEJOUR_DUPLICATA',
+      description: 'Remplacement titre perdu ou volé',
+    },
   ],
 
   // ═══════════════════════════════════════
@@ -64,9 +83,44 @@ export const RDV_PREFECTURE_CATEGORIES: Record<string, CategoryConfig[]> = {
   'nanterre_92': [
     {
       code: '1922',
-      name: 'Titre de séjour',
+      name: 'Titre de séjour — général',
       procedure: 'TITRE_SEJOUR',
-      description: 'Démarches liées au titre de séjour',
+      description: 'Toutes démarches titre de séjour (confirmed)',
+    },
+    {
+      code: '1923',    // ? - verify on site
+      name: 'Renouvellement salarié',
+      procedure: 'TITRE_SEJOUR_SALARIE',
+    },
+    {
+      code: '1924',    // ? - verify on site
+      name: 'Renouvellement étudiant',
+      procedure: 'TITRE_SEJOUR_ETUDIANT',
+    },
+    {
+      code: '1925',    // ? - verify on site
+      name: 'Vie privée et familiale',
+      procedure: 'TITRE_SEJOUR_VPF',
+    },
+    {
+      code: '2810',    // ? - verify on site
+      name: 'Changement de statut',
+      procedure: 'CHANGEMENT_STATUT_ETUDIANT_SALARIE',
+    },
+    {
+      code: '1926',    // ? - verify on site
+      name: 'Entrepreneur / profession libérale',
+      procedure: 'TITRE_SEJOUR_ENTREPRENEUR',
+    },
+    {
+      code: '1927',    // ? - verify on site
+      name: 'Duplicata (perte/vol)',
+      procedure: 'TITRE_SEJOUR_DUPLICATA',
+    },
+    {
+      code: '1928',    // ? - verify on site
+      name: 'Naturalisation',
+      procedure: 'NATURALISATION',
     },
   ],
 
@@ -76,28 +130,83 @@ export const RDV_PREFECTURE_CATEGORIES: Record<string, CategoryConfig[]> = {
   'evry_91': [
     {
       code: '2200',
-      name: 'Titre de séjour',
+      name: 'Titre de séjour — général',
       procedure: 'TITRE_SEJOUR',
-      description: 'Démarches liées au titre de séjour',
+      description: 'Toutes démarches titre de séjour (confirmed)',
+    },
+    {
+      code: '2201',    // ? - verify on site
+      name: 'Renouvellement salarié',
+      procedure: 'TITRE_SEJOUR_SALARIE',
+    },
+    {
+      code: '2202',    // ? - verify on site
+      name: 'Renouvellement étudiant',
+      procedure: 'TITRE_SEJOUR_ETUDIANT',
+    },
+    {
+      code: '2203',    // ? - verify on site
+      name: 'Vie privée et familiale',
+      procedure: 'TITRE_SEJOUR_VPF',
+    },
+    {
+      code: '2204',    // ? - verify on site
+      name: 'Changement de statut',
+      procedure: 'CHANGEMENT_STATUT_ETUDIANT_SALARIE',
+    },
+    {
+      code: '2205',    // ? - verify on site
+      name: 'Entrepreneur / profession libérale',
+      procedure: 'TITRE_SEJOUR_ENTREPRENEUR',
+    },
+    {
+      code: '2206',    // ? - verify on site
+      name: 'Duplicata (perte/vol)',
+      procedure: 'TITRE_SEJOUR_DUPLICATA',
+    },
+    {
+      code: '2207',    // ? - verify on site
+      name: 'Naturalisation',
+      procedure: 'NATURALISATION',
     },
   ],
 
   // ═══════════════════════════════════════
   // VAL-D'OISE (95) - Cergy-Pontoise
-  // Guichet 1: demarche/1380 | Guichet 2: demarche/9481
+  // Guichet 1: 1380 | Guichet 2: 9481
   // ═══════════════════════════════════════
   'cergy_95': [
     {
       code: '1380',
-      name: 'Titre de séjour - Guichet 1',
+      name: 'Titre de séjour — Guichet 1',
       procedure: 'TITRE_SEJOUR',
-      description: 'Guichet 1 - Démarches titre de séjour',
+      description: 'Guichet principal (confirmed)',
     },
     {
       code: '9481',
-      name: 'Titre de séjour - Guichet 2',
-      procedure: 'TITRE_SEJOUR',
-      description: 'Guichet 2 - Démarches titre de séjour',
+      name: 'Titre de séjour — Guichet 2',
+      procedure: 'TITRE_SEJOUR_RENOUVELLEMENT',
+      description: 'Guichet overflow (confirmed)',
+    },
+    {
+      code: '1381',    // ? - verify on site
+      name: 'Renouvellement salarié',
+      procedure: 'TITRE_SEJOUR_SALARIE',
+    },
+    {
+      code: '1382',    // ? - verify on site
+      name: 'Renouvellement étudiant',
+      procedure: 'TITRE_SEJOUR_ETUDIANT',
+    },
+    {
+      code: '1383',    // ? - verify on site
+      name: 'Vie privée et familiale',
+      procedure: 'TITRE_SEJOUR_VPF',
+    },
+    {
+      code: '1384',    // ? - verify on site
+      name: 'Changement de statut',
+      procedure: 'CHANGEMENT_STATUT_ETUDIANT_SALARIE',
     },
   ],
 
@@ -107,9 +216,44 @@ export const RDV_PREFECTURE_CATEGORIES: Record<string, CategoryConfig[]> = {
   'versailles_78': [
     {
       code: '1040',
-      name: 'Titre de séjour',
+      name: 'Titre de séjour — général',
       procedure: 'TITRE_SEJOUR',
-      description: 'Démarches liées au titre de séjour',
+      description: 'Toutes démarches titre de séjour (confirmed)',
+    },
+    {
+      code: '1041',    // ? - verify on site
+      name: 'Renouvellement salarié',
+      procedure: 'TITRE_SEJOUR_SALARIE',
+    },
+    {
+      code: '1042',    // ? - verify on site
+      name: 'Renouvellement étudiant',
+      procedure: 'TITRE_SEJOUR_ETUDIANT',
+    },
+    {
+      code: '1043',    // ? - verify on site
+      name: 'Vie privée et familiale',
+      procedure: 'TITRE_SEJOUR_VPF',
+    },
+    {
+      code: '1044',    // ? - verify on site
+      name: 'Changement de statut',
+      procedure: 'CHANGEMENT_STATUT_ETUDIANT_SALARIE',
+    },
+    {
+      code: '1045',    // ? - verify on site
+      name: 'Entrepreneur / profession libérale',
+      procedure: 'TITRE_SEJOUR_ENTREPRENEUR',
+    },
+    {
+      code: '1046',    // ? - verify on site
+      name: 'Duplicata (perte/vol)',
+      procedure: 'TITRE_SEJOUR_DUPLICATA',
+    },
+    {
+      code: '1047',    // ? - verify on site
+      name: 'Naturalisation',
+      procedure: 'NATURALISATION',
     },
   ],
 
@@ -119,48 +263,74 @@ export const RDV_PREFECTURE_CATEGORIES: Record<string, CategoryConfig[]> = {
   'moulins_03': [
     {
       code: '4418',
-      name: 'Titre de séjour',
+      name: 'Titre de séjour — général',
       procedure: 'TITRE_SEJOUR',
-      description: 'Démarches liées au titre de séjour',
+      description: 'Toutes démarches (confirmed)',
+    },
+    {
+      code: '4419',    // ? - verify on site
+      name: 'Renouvellement salarié',
+      procedure: 'TITRE_SEJOUR_SALARIE',
+    },
+    {
+      code: '4420',    // ? - verify on site
+      name: 'Renouvellement étudiant',
+      procedure: 'TITRE_SEJOUR_ETUDIANT',
+    },
+    {
+      code: '4421',    // ? - verify on site
+      name: 'Vie privée et familiale',
+      procedure: 'TITRE_SEJOUR_VPF',
+    },
+    {
+      code: '4422',    // ? - verify on site
+      name: 'Duplicata (perte/vol)',
+      procedure: 'TITRE_SEJOUR_DUPLICATA',
     },
   ],
 };
 
 /**
  * Non-RDV-Prefecture systems (ANTS, ezbooking, ANEF)
- * These don't use demarche codes - they use procedure selection in the form.
- * Categories are procedure-based, not URL-based.
+ * These don't use demarche codes — they select procedures within their own forms.
  */
 export const OTHER_SYSTEM_CATEGORIES: Record<string, CategoryConfig[]> = {
+
   // ═══════════════════════════════════════
   // PARIS (75) - ANTS System
+  // Only covers French national documents (not titre de séjour)
   // ═══════════════════════════════════════
   'paris_75': [
     {
       code: 'CARTE_IDENTITE',
-      name: 'Carte d\'identité',
+      name: 'Carte Nationale d\'Identité',
       procedure: 'CARTE_IDENTITE',
+      description: 'CNI — nouveau ou renouvellement',
     },
     {
       code: 'PASSEPORT',
       name: 'Passeport',
       procedure: 'PASSEPORT',
+      description: 'Passeport biométrique — nouveau ou renouvellement',
     },
   ],
 
   // ═══════════════════════════════════════
   // SEINE-SAINT-DENIS (93) - Bobigny - ezbooking
+  // Single form covers both procedures
   // ═══════════════════════════════════════
   'bobigny_93': [
     {
       code: 'TITRE_SEJOUR',
       name: 'Titre de séjour',
       procedure: 'TITRE_SEJOUR',
+      description: 'Toutes catégories titre séjour',
     },
     {
       code: 'NATURALISATION',
       name: 'Naturalisation',
       procedure: 'NATURALISATION',
+      description: 'Demande de naturalisation française',
     },
   ],
 
@@ -169,9 +339,16 @@ export const OTHER_SYSTEM_CATEGORIES: Record<string, CategoryConfig[]> = {
   // ═══════════════════════════════════════
   'melun_77': [
     {
-      code: 'TITRE_SEJOUR',
-      name: 'Titre de séjour',
+      code: 'PREMIERE_DEMANDE',
+      name: 'Première demande titre de séjour',
       procedure: 'TITRE_SEJOUR',
+      description: 'Première demande — nouveaux arrivants',
+    },
+    {
+      code: 'RENOUVELLEMENT',
+      name: 'Renouvellement titre de séjour',
+      procedure: 'TITRE_SEJOUR_RENOUVELLEMENT',
+      description: 'Renouvellement de titre déjà obtenu',
     },
   ],
 
@@ -180,88 +357,44 @@ export const OTHER_SYSTEM_CATEGORIES: Record<string, CategoryConfig[]> = {
   // ═══════════════════════════════════════
   'lyon_69': [
     {
-      code: 'TITRE_SEJOUR',
-      name: 'Titre de séjour',
+      code: 'PREMIERE_DEMANDE',
+      name: 'Première demande titre de séjour',
       procedure: 'TITRE_SEJOUR',
+      description: 'Première demande — nouveaux arrivants',
+    },
+    {
+      code: 'RENOUVELLEMENT',
+      name: 'Renouvellement titre de séjour',
+      procedure: 'TITRE_SEJOUR_RENOUVELLEMENT',
+      description: 'Renouvellement de titre déjà obtenu',
     },
     {
       code: 'NATURALISATION',
       name: 'Naturalisation',
       procedure: 'NATURALISATION',
+      description: 'Demande de nationalité française',
     },
   ],
 };
 
-/**
- * Indian Embassy Paris Categories
- * These map to category IDs on the appointment.eoiparis.com system
- */
-export interface EmbassyCategoryConfig {
-  id: number;             // Category ID on the embassy system
-  code: string;           // Internal code for matching
-  name: string;           // Display name
-  procedure: Procedure;   // Maps to Prisma Procedure enum
-  procedures: Procedure[]; // All related procedures
+export function getCategoryUrl2(code: string): string {
+  return `${RDV_PREFECTURE_BASE_URL}/${code}/`;
 }
 
-export const INDIAN_EMBASSY_CATEGORIES: EmbassyCategoryConfig[] = [
-  {
-    id: 3,
-    code: 'PASSPORT',
-    name: 'Passport Services',
-    procedure: 'PASSPORT_RENEWAL',
-    procedures: ['PASSPORT_RENEWAL', 'PASSPORT_REISSUE', 'PASSPORT_NEW', 'PASSPORT_TATKAL'],
-  },
-  {
-    id: 1,
-    code: 'OCI',
-    name: 'OCI Services',
-    procedure: 'OCI_REGISTRATION',
-    procedures: ['OCI_REGISTRATION', 'OCI_RENEWAL', 'OCI_MISC'],
-  },
-  {
-    id: 2,
-    code: 'VISA',
-    name: 'Visa Services',
-    procedure: 'VISA_CONSULAR',
-    procedures: ['VISA_CONSULAR'],
-  },
-  {
-    id: 27,
-    code: 'BIRTH',
-    name: 'Birth Registration',
-    procedure: 'BIRTH_REGISTRATION',
-    procedures: ['BIRTH_REGISTRATION'],
-  },
-];
-
-/**
- * Get all categories for a prefecture
- */
 export function getPrefectureCategories(prefectureId: string): CategoryConfig[] {
-  // First check RDV-Prefecture categories
   if (RDV_PREFECTURE_CATEGORIES[prefectureId]) {
     return RDV_PREFECTURE_CATEGORIES[prefectureId];
   }
-  
-  // Then check other systems
   if (OTHER_SYSTEM_CATEGORIES[prefectureId]) {
     return OTHER_SYSTEM_CATEGORIES[prefectureId];
   }
-  
   return [];
 }
 
-/**
- * Check if prefecture uses RDV-Prefecture system (has demarche codes)
- */
 export function isRdvPrefectureSystem(prefectureId: string): boolean {
   return prefectureId in RDV_PREFECTURE_CATEGORIES;
 }
 
-/**
- * Get all prefectures with categories configured
- */
 export function getAllConfiguredPrefectureIds(): string[] {
   return [
     ...Object.keys(RDV_PREFECTURE_CATEGORIES),
