@@ -39,7 +39,7 @@ export default function EmbassyView() {
       const res = await apiFetch('/api/boss/embassy-status');
       if (res.ok) {
         const json = await res.json();
-        setCategories(json.data || json || []);
+        setCategories(json.categories || json.data || json || []);
       }
     } catch { /* ignore */ }
     setLoading(false);
@@ -105,11 +105,11 @@ export default function EmbassyView() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-slate-500">Last Check</span>
-                      <span className="text-sm text-slate-700">{cat?.lastScrapedAt ? formatRelativeTime(cat.lastScrapedAt) : '--'}</span>
+                      <span className="text-sm text-slate-700">{(cat as any)?.lastChecked || cat?.lastScrapedAt ? formatRelativeTime((cat as any)?.lastChecked || cat?.lastScrapedAt) : '--'}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-slate-500">Last Slot</span>
-                      <span className="text-sm text-slate-700">{cat?.lastSlotFoundAt ? formatRelativeTime(cat.lastSlotFoundAt) : 'Never'}</span>
+                      <span className="text-sm text-slate-700">{(cat as any)?.lastSlotFound || cat?.lastSlotFoundAt ? formatRelativeTime((cat as any)?.lastSlotFound || cat?.lastSlotFoundAt) : 'Never'}</span>
                     </div>
                     {cat?.responseTimeMs && (
                       <div className="flex items-center justify-between">

@@ -28,13 +28,13 @@ export default function WhatsAppView() {
       if (res.ok) {
         const json = await res.json();
         const data = json.data || json || {};
-        const whatsapp = data.byChannel?.WHATSAPP || data.whatsapp || {};
+        const whatsapp = data.deliveryStats?.byChannel?.WHATSAPP || data.byChannel?.WHATSAPP || data.whatsapp || {};
         setStats({
           sent: whatsapp.sent || data.totalSent || 0,
           delivered: whatsapp.delivered || 0,
           failed: whatsapp.failed || data.totalFailed || 0,
         });
-        setNotifications(data.recent || []);
+        setNotifications(data.recentFailures || data.recent || []);
       }
     } catch { /* ignore */ }
   };
