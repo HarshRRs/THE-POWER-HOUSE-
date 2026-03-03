@@ -381,7 +381,51 @@ export function getCategoryUrl2(code: string): string {
   return `${RDV_PREFECTURE_BASE_URL}/${code}/`;
 }
 
+export interface EmbassyCategoryConfig {
+  id: number;
+  code: string;
+  name: string;
+  procedure: Procedure;
+  procedures: Procedure[];
+}
+
+/**
+ * Indian Embassy Paris categories — used by embassy.booking.ts
+ * for matching category codes to display names and procedures.
+ */
+export const INDIAN_EMBASSY_CATEGORIES: EmbassyCategoryConfig[] = [
+  {
+    id: 3,
+    code: 'PASSPORT',
+    name: 'Passport Services',
+    procedure: 'PASSPORT_RENEWAL',
+    procedures: ['PASSPORT_RENEWAL', 'PASSPORT_REISSUE', 'PASSPORT_NEW', 'PASSPORT_TATKAL'],
+  },
+  {
+    id: 1,
+    code: 'OCI',
+    name: 'OCI Services',
+    procedure: 'OCI_REGISTRATION',
+    procedures: ['OCI_REGISTRATION', 'OCI_RENEWAL', 'OCI_MISC'],
+  },
+  {
+    id: 2,
+    code: 'VISA',
+    name: 'Visa Services',
+    procedure: 'VISA_CONSULAR',
+    procedures: ['VISA_CONSULAR'],
+  },
+  {
+    id: 27,
+    code: 'BIRTH',
+    name: 'Birth Registration',
+    procedure: 'BIRTH_REGISTRATION',
+    procedures: ['BIRTH_REGISTRATION'],
+  },
+];
+
 export function getPrefectureCategories(prefectureId: string): CategoryConfig[] {
+
   if (RDV_PREFECTURE_CATEGORIES[prefectureId]) {
     return RDV_PREFECTURE_CATEGORIES[prefectureId];
   }
