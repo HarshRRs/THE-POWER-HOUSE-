@@ -5,6 +5,7 @@ import { captchaService } from './captcha.service.js';
 import { solveImageCaptcha } from '../services/captcha.service.js';
 import { generateScreenshotPath, saveScreenshot } from '../utils/screenshot.util.js';
 import { randomDelay } from '../utils/retry.util.js';
+import { humanScroll, humanReadPage, humanClick } from '../utils/human.util.js';
 import { handleUrlChange } from '../services/url-discovery.service.js';
 import logger from '../utils/logger.util.js';
 
@@ -50,6 +51,8 @@ const BOT_DETECTION_INDICATORS = [
   'please verify',
 ];
 
+const MAX_PROXY_RETRIES = 3;
+
 export async function scrapePrefecture(config: PrefectureConfig): Promise<ScrapeResult> {
   const startTime = Date.now();
   const pool = await getBrowserPool();
@@ -63,89 +66,129 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
     targetDomain = undefined;
   }
 
-  try {
-    session = await pool.getPage(targetDomain);
-    const { page, proxy } = session;
+  const usedProxies = new Set<string>();
 
-    // Navigate to booking page
-    logger.debug(`Scraping ${config.name} (${config.id}): ${config.bookingUrl}`);
+  for (let attempt = 0; attempt < MAX_PROXY_RETRIES; attempt++) {
+    try {
+      session = await pool.getPage(targetDomain, usedProxies.size > 0 ? usedProxies : undefined);
+      const { page, proxy } = session;
 
-    // Track redirects during navigation
-    const redirectChain: string[] = [config.bookingUrl];
-    
-    const response = await page.goto(config.bookingUrl, {
-      waitUntil: 'networkidle',
-      timeout: 30000,
-    });
+      if (attempt > 0) {
+        logger.info(`Retry attempt ${attempt + 1}/${MAX_PROXY_RETRIES} for ${config.id} with different proxy`);
+      }
 
-    // Capture final URL after all redirects
-    const finalUrl = page.url();
-    const urlChanged = finalUrl !== config.bookingUrl && 
-                       !finalUrl.includes('error') && 
-                       !finalUrl.includes('404');
-    
-    if (finalUrl !== config.bookingUrl) {
-      redirectChain.push(finalUrl);
-    }
+      // Navigate to booking page
+      logger.debug(`Scraping ${config.name} (${config.id}): ${config.bookingUrl}`);
 
-    // Handle URL change detection (async, don't await to not block scraping)
-    if (urlChanged) {
-      handleUrlChange({
-        prefectureId: config.id,
-        originalUrl: config.bookingUrl,
-        finalUrl,
-        redirectChain,
-        page,
-        config,
-      }).catch(err => logger.error('URL change handling error:', err));
-    }
+      // Track redirects during navigation
+      const redirectChain: string[] = [config.bookingUrl];
+      
+      const response = await page.goto(config.bookingUrl, {
+        waitUntil: 'networkidle',
+        timeout: 30000,
+      });
 
-    // Check for HTTP errors
-    if (response && response.status() >= 400) {
-      logger.warn(`HTTP ${response.status()} for ${config.id}`);
-      if (proxy) proxyService.reportFailure(proxy, targetDomain);
+      // Capture final URL after all redirects
+      const finalUrl = page.url();
+      const urlChanged = finalUrl !== config.bookingUrl && 
+                         !finalUrl.includes('error') && 
+                         !finalUrl.includes('404');
+      
+      if (finalUrl !== config.bookingUrl) {
+        redirectChain.push(finalUrl);
+      }
 
-      return {
-        status: response.status() === 403 ? 'blocked' : 'error',
-        slotsAvailable: 0,
-        bookingUrl: config.bookingUrl,
-        errorMessage: `HTTP ${response.status()}`,
-        responseTimeMs: Date.now() - startTime,
-      };
-    }
+      // Handle URL change detection (async, uses its own page from pool)
+      if (urlChanged) {
+        handleUrlChange({
+          prefectureId: config.id,
+          originalUrl: config.bookingUrl,
+          finalUrl,
+          redirectChain,
+          browserPoolGetter: getBrowserPool,
+          config,
+        }).catch(err => logger.error('URL change handling error:', err));
+      }
 
-    // Human-like delay
-    await randomDelay(1000, 2000);
+      // Check for HTTP errors - retry with different proxy on 403
+      if (response && response.status() >= 400) {
+        logger.warn(`HTTP ${response.status()} for ${config.id}`);
+        if (proxy) {
+          proxyService.reportFailure(proxy, targetDomain);
+          usedProxies.add(proxy.server);
+        }
 
-    // Get page content for CAPTCHA detection
-    const pageContent = await page.content();
-    const pageUrl = page.url();
+        // Retry with different proxy on 403/blocked
+        if (response.status() === 403 && attempt < MAX_PROXY_RETRIES - 1) {
+          logger.info(`HTTP 403 for ${config.id}, retrying with different proxy (attempt ${attempt + 1}/${MAX_PROXY_RETRIES})`);
+          await pool.releasePage(session.page, session.context);
+          session = null;
+          await randomDelay(2000, 5000);
+          continue;
+        }
 
-    // Check for bot detection
-    const lowerContent = pageContent.toLowerCase();
+        return {
+          status: response.status() === 403 ? 'blocked' : 'error',
+          slotsAvailable: 0,
+          bookingUrl: config.bookingUrl,
+          errorMessage: `HTTP ${response.status()}`,
+          responseTimeMs: Date.now() - startTime,
+        };
+      }
 
-    // Skip bot detection for RDV-Prefecture sites (they always have "captcha" in the page)
-    if (config.bookingSystem !== 'rdv-prefecture') {
-      for (const indicator of BOT_DETECTION_INDICATORS) {
-        if (lowerContent.includes(indicator)) {
-          logger.warn(`Bot detection indicator found for ${config.id}: ${indicator}`);
-          if (proxy) proxyService.reportFailure(proxy, targetDomain);
+      // Human-like delay
+      await randomDelay(1000, 2000);
 
-          const screenshotPath = generateScreenshotPath(config.id, 'blocked');
-          const screenshot = await page.screenshot({ fullPage: true });
-          await saveScreenshot(screenshot, screenshotPath);
+      // Get page content for CAPTCHA detection
+      const pageContent = await page.content();
+      const pageUrl = page.url();
 
-          return {
-            status: 'blocked',
-            slotsAvailable: 0,
-            bookingUrl: pageUrl,
-            screenshotPath,
-            errorMessage: `Bot detected: ${indicator}`,
-            responseTimeMs: Date.now() - startTime,
-          };
+      // Check for bot detection
+      const lowerContent = pageContent.toLowerCase();
+
+      // Skip bot detection for RDV-Prefecture sites (they always have "captcha" in the page)
+      let botDetected = false;
+      if (config.bookingSystem !== 'rdv-prefecture') {
+        for (const indicator of BOT_DETECTION_INDICATORS) {
+          if (lowerContent.includes(indicator)) {
+            logger.warn(`Bot detection indicator found for ${config.id}: ${indicator}`);
+            if (proxy) {
+              proxyService.reportFailure(proxy, targetDomain);
+              usedProxies.add(proxy.server);
+            }
+
+            // Retry with different proxy on bot detection
+            if (attempt < MAX_PROXY_RETRIES - 1) {
+              logger.info(`Bot detected for ${config.id}, retrying with different proxy (attempt ${attempt + 1}/${MAX_PROXY_RETRIES})`);
+              await pool.releasePage(session.page, session.context);
+              session = null;
+              await randomDelay(2000, 5000);
+              botDetected = true;
+              break;
+            }
+
+            const screenshotPath = generateScreenshotPath(config.id, 'blocked');
+            const screenshot = await page.screenshot({ fullPage: true });
+            await saveScreenshot(screenshot, screenshotPath);
+
+            return {
+              status: 'blocked',
+              slotsAvailable: 0,
+              bookingUrl: pageUrl,
+              screenshotPath,
+              errorMessage: `Bot detected: ${indicator}`,
+              responseTimeMs: Date.now() - startTime,
+            };
+          }
         }
       }
-    }
+
+      // If bot was detected and we're retrying, continue to next attempt
+      if (botDetected) continue;
+
+      // ── Human-like page reading (Botasaurus-inspired) ──────────
+      // Simulate a human reading the page before interacting
+      await humanReadPage(page);
 
     // ── RDV-Prefecture image CAPTCHA flow ──────────────────────
     // RDV-Prefecture sites use a custom image CAPTCHA (not reCAPTCHA/hCaptcha).
@@ -271,12 +314,12 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
       }
     }
 
-    // Handle cookie consent if present
+    // Handle cookie consent if present (with human-like click)
     if (config.selectors.cookieAccept) {
       try {
         const cookieBtn = page.locator(config.selectors.cookieAccept);
         if (await cookieBtn.isVisible({ timeout: 3000 })) {
-          await cookieBtn.click();
+          await humanClick(page, config.selectors.cookieAccept);
           await randomDelay(500, 1000);
         }
       } catch {
@@ -287,6 +330,7 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
     // Select procedure if dropdown exists
     if (config.selectors.procedureDropdown) {
       try {
+        await humanScroll(page);
         await page.selectOption(config.selectors.procedureDropdown, config.procedures[0].toString());
         await randomDelay(1500, 2500);
       } catch {
@@ -294,13 +338,13 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
       }
     }
 
-    // Click next button if exists
+    // Click next button if exists (human-like)
     let nextBtnClicked = false;
     if (config.selectors.nextButton) {
       try {
         const nextBtn = page.locator(config.selectors.nextButton);
         if (await nextBtn.isVisible({ timeout: 2000 })) {
-          await nextBtn.click();
+          await humanClick(page, config.selectors.nextButton);
           await page.waitForLoadState('networkidle');
           await randomDelay(1000, 2000);
           nextBtnClicked = true;
@@ -310,23 +354,23 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
       }
     }
 
-    // Fallback heuristic for Next button
+    // Fallback heuristic for Next button (human-like clicks)
     if (!nextBtnClicked) {
       try {
-        // Look for buttons or inputs containing common "Next" terminology in French
-        const fallbackLocators = [
-          page.locator('button:has-text("Suivant")').first(),
-          page.locator('button:has-text("Valider")').first(),
-          page.locator('button:has-text("Continuer")').first(),
-          page.locator('input[type="submit"][value*="Suivant" i]').first(),
-          page.locator('input[type="submit"][value*="Valider" i]').first(),
-          page.locator('input[type="submit"][value*="Continuer" i]').first(),
-          page.locator('a:has-text("Étape suivante")').first()
+        const fallbackSelectors = [
+          'button:has-text("Suivant")',
+          'button:has-text("Valider")',
+          'button:has-text("Continuer")',
+          'input[type="submit"][value*="Suivant" i]',
+          'input[type="submit"][value*="Valider" i]',
+          'input[type="submit"][value*="Continuer" i]',
+          'a:has-text("Étape suivante")',
         ];
 
-        for (const locator of fallbackLocators) {
+        for (const selector of fallbackSelectors) {
+          const locator = page.locator(selector).first();
           if (await locator.isVisible({ timeout: 500 })) {
-            await locator.click();
+            await humanClick(page, selector);
             await page.waitForLoadState('networkidle');
             await randomDelay(1000, 2000);
             logger.debug(`Found next button using fallback heuristic for ${config.id}`);
@@ -483,6 +527,16 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
       await pool.releasePage(session.page, session.context);
     }
   }
+  } // end retry loop
+
+  // All retries exhausted (should not reach here, but safety fallback)
+  return {
+    status: 'blocked',
+    slotsAvailable: 0,
+    bookingUrl: config.bookingUrl,
+    errorMessage: `All ${MAX_PROXY_RETRIES} proxy attempts failed`,
+    responseTimeMs: Date.now() - startTime,
+  };
 }
 
 /**
@@ -659,7 +713,7 @@ async function clickRdvSubmitButton(
     try {
       const btn = page.locator(config.selectors.nextButton);
       if (await btn.isVisible({ timeout: 2000 })) {
-        await btn.click();
+        await humanClick(page, config.selectors.nextButton);
         return true;
       }
     } catch { /* not found */ }
@@ -680,7 +734,7 @@ async function clickRdvSubmitButton(
     try {
       const btn = page.locator(selector).first();
       if (await btn.isVisible({ timeout: 1000 })) {
-        await btn.click();
+        await humanClick(page, selector);
         return true;
       }
     } catch { /* not found */ }
@@ -801,6 +855,9 @@ export async function scrapePrefectureCategory(
       }
     }
 
+    // ── Human-like page reading (Botasaurus-inspired) ──────────
+    await humanReadPage(page);
+
     // Enhanced CAPTCHA detection
     const captchaResult = await captchaService.detectCaptcha(pageContent, pageUrl);
 
@@ -916,12 +973,12 @@ export async function scrapePrefectureCategory(
       }
     }
 
-    // Handle cookie consent if present
+    // Handle cookie consent if present (human-like click)
     if (config.selectors.cookieAccept) {
       try {
         const cookieBtn = page.locator(config.selectors.cookieAccept);
         if (await cookieBtn.isVisible({ timeout: 3000 })) {
-          await cookieBtn.click();
+          await humanClick(page, config.selectors.cookieAccept);
           await randomDelay(500, 1000);
         }
       } catch {
@@ -929,13 +986,24 @@ export async function scrapePrefectureCategory(
       }
     }
 
-    // Click next button if exists
+    // Select procedure if dropdown exists
+    if (config.selectors.procedureDropdown) {
+      try {
+        await humanScroll(page);
+        await page.selectOption(config.selectors.procedureDropdown, config.procedures[0].toString());
+        await randomDelay(1500, 2500);
+      } catch {
+        logger.debug(`No procedure dropdown found for ${config.id}:${category.code}`);
+      }
+    }
+
+    // Click next button if exists (human-like)
     let nextBtnClicked = false;
     if (config.selectors.nextButton) {
       try {
         const nextBtn = page.locator(config.selectors.nextButton);
         if (await nextBtn.isVisible({ timeout: 2000 })) {
-          await nextBtn.click();
+          await humanClick(page, config.selectors.nextButton);
           await page.waitForLoadState('networkidle');
           await randomDelay(1000, 2000);
           nextBtnClicked = true;
@@ -945,22 +1013,23 @@ export async function scrapePrefectureCategory(
       }
     }
 
-    // Fallback heuristic for Next button
+    // Fallback heuristic for Next button (human-like clicks)
     if (!nextBtnClicked) {
       try {
-        const fallbackLocators = [
-          page.locator('button:has-text("Suivant")').first(),
-          page.locator('button:has-text("Valider")').first(),
-          page.locator('button:has-text("Continuer")').first(),
-          page.locator('input[type="submit"][value*="Suivant" i]').first(),
-          page.locator('input[type="submit"][value*="Valider" i]').first(),
-          page.locator('input[type="submit"][value*="Continuer" i]').first(),
-          page.locator('a:has-text("Étape suivante")').first()
+        const fallbackSelectors = [
+          'button:has-text("Suivant")',
+          'button:has-text("Valider")',
+          'button:has-text("Continuer")',
+          'input[type="submit"][value*="Suivant" i]',
+          'input[type="submit"][value*="Valider" i]',
+          'input[type="submit"][value*="Continuer" i]',
+          'a:has-text("Étape suivante")',
         ];
 
-        for (const locator of fallbackLocators) {
+        for (const selector of fallbackSelectors) {
+          const locator = page.locator(selector).first();
           if (await locator.isVisible({ timeout: 500 })) {
-            await locator.click();
+            await humanClick(page, selector);
             await page.waitForLoadState('networkidle');
             await randomDelay(1000, 2000);
             logger.debug(`Found next button using fallback heuristic for ${config.id}:${category.code}`);

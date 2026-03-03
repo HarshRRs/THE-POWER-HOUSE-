@@ -4,10 +4,9 @@ import { SCRAPER_CONFIG } from '../config/constants.js';
 import { BOOTSTRAP_CONFIG } from '../config/bootstrap.config.js';
 import { proxyService, type ProxyConfig } from './proxy.service.js';
 
-// Firefox user agents only - matching the actual browser engine we use.
-// Using Chrome/Safari UAs with Firefox creates detectable mismatches.
+// ─── Firefox-only User Agents (matching actual engine) ────────────────────
 const USER_AGENTS = [
-  // Firefox on Windows (current + recent versions)
+  // Firefox on Windows
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0',
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:130.0) Gecko/20100101 Firefox/130.0',
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:129.0) Gecko/20100101 Firefox/129.0',
@@ -22,7 +21,7 @@ const USER_AGENTS = [
   'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:129.0) Gecko/20100101 Firefox/129.0',
 ];
 
-// Realistic screen resolutions
+// ─── Screen resolutions ───────────────────────────────────────────────────
 const SCREEN_RESOLUTIONS = [
   { width: 1920, height: 1080 },
   { width: 1366, height: 768 },
@@ -32,7 +31,7 @@ const SCREEN_RESOLUTIONS = [
   { width: 2560, height: 1440 },
 ];
 
-// French cities for geolocation randomization
+// ─── French cities for geolocation ───────────────────────────────────────
 const FRENCH_LOCATIONS = [
   { latitude: 48.8566, longitude: 2.3522, city: 'Paris' },
   { latitude: 43.2965, longitude: 5.3698, city: 'Marseille' },
@@ -45,13 +44,24 @@ const FRENCH_LOCATIONS = [
   { latitude: 50.6292, longitude: 3.0573, city: 'Lille' },
 ];
 
-// WebGL vendor/renderer combinations
-const WEBGL_CONFIGS = [
-  { vendor: 'Google Inc. (NVIDIA)', renderer: 'ANGLE (NVIDIA GeForce GTX 1080 Direct3D11 vs_5_0 ps_5_0)' },
-  { vendor: 'Google Inc. (Intel)', renderer: 'ANGLE (Intel(R) UHD Graphics 630 Direct3D11 vs_5_0 ps_5_0)' },
-  { vendor: 'Google Inc. (AMD)', renderer: 'ANGLE (AMD Radeon RX 580 Series Direct3D11 vs_5_0 ps_5_0)' },
+// ─── Firefox-accurate WebGL configs (no Chrome ANGLE strings) ─────────────
+// Platform-specific configs: [windows, mac, linux]
+const WEBGL_CONFIGS_WINDOWS = [
+  { vendor: 'Mozilla', renderer: 'Mozilla' },
+  { vendor: 'NVIDIA Corporation', renderer: 'GeForce GTX 1080/PCIe/SSE2' },
+  { vendor: 'Intel', renderer: 'Intel(R) UHD Graphics 630' },
+  { vendor: 'ATI Technologies Inc.', renderer: 'AMD Radeon RX 580' },
+];
+const WEBGL_CONFIGS_MAC = [
+  { vendor: 'Mozilla', renderer: 'Mozilla' },
   { vendor: 'Intel Inc.', renderer: 'Intel Iris Pro OpenGL Engine' },
-  { vendor: 'Apple Inc.', renderer: 'Apple M1' },
+  { vendor: 'Apple', renderer: 'Apple M1' },
+];
+const WEBGL_CONFIGS_LINUX = [
+  { vendor: 'Mozilla', renderer: 'Mozilla' },
+  { vendor: 'NVIDIA Corporation', renderer: 'GeForce GTX 1080/PCIe/SSE2' },
+  { vendor: 'Intel', renderer: 'Mesa Intel(R) UHD Graphics 630 (CFL GT2)' },
+  { vendor: 'X.Org', renderer: 'AMD Radeon RX 580 (polaris10, LLVM 15.0.7, DRM 3.49, 6.1.0-18-amd64)' },
 ];
 
 interface PageSession {
@@ -90,7 +100,7 @@ class BrowserPool {
         'useragentoverride': '',
         'general.platform.override': '',
 
-        // Disable telemetry and crash reporting that leaks automation signals
+        // Disable telemetry and crash reporting
         'toolkit.telemetry.enabled': false,
         'datareporting.policy.dataSubmissionEnabled': false,
         'browser.crashReports.unsubmittedCheck.autoSubmit2': false,
@@ -99,34 +109,34 @@ class BrowserPool {
         'marionette.enabled': false,
         'remote.enabled': false,
 
-        // Privacy: resist fingerprinting without breaking sites
+        // Privacy settings
         'privacy.trackingprotection.enabled': false,
         'network.cookie.cookieBehavior': 0,
-        'privacy.resistFingerprinting': false, // Don't enable - it breaks viewport randomization
+        'privacy.resistFingerprinting': false,
 
-        // WebRTC: prevent IP leak through WebRTC
+        // WebRTC: prevent IP leak
         'media.peerconnection.enabled': false,
         'media.navigator.enabled': false,
 
-        // Performance: prevent timeout issues
+        // Performance
         'network.http.connection-timeout': 45,
         'network.http.response.timeout': 60,
         'dom.max_script_run_time': 30,
 
-        // Cache: use fresh sessions
+        // Cache: fresh sessions
         'browser.cache.disk.enable': false,
         'browser.cache.memory.enable': true,
         'browser.cache.memory.capacity': 65536,
 
-        // Disable safe browsing lookups (slows down page loads)
+        // Disable safe browsing (slow)
         'browser.safebrowsing.malware.enabled': false,
         'browser.safebrowsing.phishing.enabled': false,
 
-        // Disable prefetching (reduces noise and proxy load)
+        // Disable prefetching
         'network.prefetch-next': false,
         'network.dns.disablePrefetch': true,
 
-        // Accept French language headers
+        // French locale
         'intl.accept_languages': 'fr-FR,fr,en-US,en',
       },
     });
@@ -158,22 +168,32 @@ class BrowserPool {
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
-  private generateFingerprint() {
+  /**
+   * Generate a CONSISTENT fingerprint where all vectors align:
+   * - UA platform matches navigator.platform
+   * - WebGL vendor/renderer matches the OS in the UA
+   * - Hardware specs are realistic for the platform
+   */
+  private generateConsistentFingerprint() {
     const userAgent = this.getRandomElement(USER_AGENTS);
     const resolution = this.getRandomElement(SCREEN_RESOLUTIONS);
     const location = this.getRandomElement(FRENCH_LOCATIONS);
-    const webgl = this.getRandomElement(WEBGL_CONFIGS);
 
-    // Derive platform from user agent consistently
+    // Derive platform from UA and select matching WebGL config
     const isMac = userAgent.includes('Macintosh');
     const isLinux = userAgent.includes('Linux');
     const platform = isMac ? 'MacIntel' : isLinux ? 'Linux x86_64' : 'Win32';
 
-    // Realistic device memory (4, 8, 16, 32 GB)
-    const deviceMemory = this.getRandomElement([4, 8, 16, 32]);
+    const webglPool = isMac ? WEBGL_CONFIGS_MAC : isLinux ? WEBGL_CONFIGS_LINUX : WEBGL_CONFIGS_WINDOWS;
+    const webgl = this.getRandomElement(webglPool);
 
-    // Realistic hardware concurrency (4, 6, 8, 12, 16 cores)
-    const hardwareConcurrency = this.getRandomElement([4, 6, 8, 12, 16]);
+    // Platform-appropriate hardware specs
+    const deviceMemory = isMac
+      ? this.getRandomElement([8, 16, 32])      // Macs have more RAM typically
+      : this.getRandomElement([4, 8, 16, 32]);
+    const hardwareConcurrency = isMac
+      ? this.getRandomElement([8, 10, 12, 16])   // Apple Silicon cores
+      : this.getRandomElement([4, 6, 8, 12, 16]);
 
     return {
       userAgent,
@@ -186,9 +206,6 @@ class BrowserPool {
     };
   }
 
-  /**
-   * Add a random human-like delay (between min and max ms)
-   */
   private randomDelay(min: number, max: number): Promise<void> {
     const delay = min + Math.random() * (max - min);
     return new Promise(resolve => setTimeout(resolve, delay));
@@ -196,7 +213,7 @@ class BrowserPool {
 
   async getContext(proxy: ProxyConfig | null): Promise<BrowserContext> {
     const browser = this.browsers[Math.floor(Math.random() * this.browsers.length)];
-    const fingerprint = this.generateFingerprint();
+    const fingerprint = this.generateConsistentFingerprint();
 
     const contextOptions: Parameters<Browser['newContext']>[0] = {
       userAgent: fingerprint.userAgent,
@@ -205,21 +222,24 @@ class BrowserPool {
       timezoneId: 'Europe/Paris',
       geolocation: fingerprint.location,
       permissions: ['geolocation'],
-      colorScheme: this.getRandomElement(['light', 'light', 'light', 'dark'] as const), // 75% light, 25% dark
+      colorScheme: this.getRandomElement(['light', 'light', 'light', 'dark'] as const),
       deviceScaleFactor: fingerprint.viewport.width > 1920 ? 2 : 1,
       hasTouch: false,
       isMobile: false,
       javaScriptEnabled: true,
-      // Accept-Language header matching Firefox prefs
+      // Full header set matching real Firefox (Camoufox-style)
       extraHTTPHeaders: {
         'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
         'DNT': '1',
         'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
       },
     };
 
-    // Add proxy if available
     if (proxy) {
       contextOptions.proxy = {
         server: proxy.server,
@@ -230,16 +250,17 @@ class BrowserPool {
     }
 
     const context = await browser.newContext(contextOptions);
-
     return context;
   }
 
-  async getPage(targetDomain?: string): Promise<PageSession> {
-    const proxy = proxyService.getProxy(targetDomain);
+  async getPage(targetDomain?: string, excludedProxies?: Set<string>): Promise<PageSession> {
+    const proxy = excludedProxies && excludedProxies.size > 0
+      ? proxyService.getProxyExcluding(excludedProxies, targetDomain)
+      : proxyService.getProxy(targetDomain);
     const context = await this.getContext(proxy);
 
-    // Inject stealth overrides before any page navigation
-    const fingerprint = this.generateFingerprint();
+    // Generate consistent fingerprint for this context's stealth script
+    const fingerprint = this.generateConsistentFingerprint();
     await context.addInitScript(`(function() {
       var fp = ${JSON.stringify({
         platform: fingerprint.platform,
@@ -248,22 +269,14 @@ class BrowserPool {
         webgl: fingerprint.webgl,
       })};
 
-      // Override navigator.webdriver to false
+      // ── Navigator overrides ──────────────────────────────────────
       Object.defineProperty(navigator, 'webdriver', { get: function() { return false; } });
-
-      // Override navigator.platform
       Object.defineProperty(navigator, 'platform', { get: function() { return fp.platform; } });
-
-      // Override navigator.deviceMemory
       Object.defineProperty(navigator, 'deviceMemory', { get: function() { return fp.deviceMemory; } });
-
-      // Override navigator.hardwareConcurrency
       Object.defineProperty(navigator, 'hardwareConcurrency', { get: function() { return fp.hardwareConcurrency; } });
-
-      // Override navigator.languages
       Object.defineProperty(navigator, 'languages', { get: function() { return ['fr-FR', 'fr', 'en-US', 'en']; } });
 
-      // Override WebGL fingerprint
+      // ── WebGL fingerprint (Firefox-accurate vendors) ─────────────
       try {
         var origGetParam = WebGLRenderingContext.prototype.getParameter;
         WebGLRenderingContext.prototype.getParameter = function(param) {
@@ -271,20 +284,38 @@ class BrowserPool {
           if (param === 37446) return fp.webgl.renderer;
           return origGetParam.call(this, param);
         };
+        if (typeof WebGL2RenderingContext !== 'undefined') {
+          var origGetParam2 = WebGL2RenderingContext.prototype.getParameter;
+          WebGL2RenderingContext.prototype.getParameter = function(param) {
+            if (param === 37445) return fp.webgl.vendor;
+            if (param === 37446) return fp.webgl.renderer;
+            return origGetParam2.call(this, param);
+          };
+        }
       } catch(e) {}
 
-      // Fake plugins
+      // ── Plugins: Firefox returns empty PluginArray in modern versions ──
       Object.defineProperty(navigator, 'plugins', {
         get: function() {
-          return [
-            { name: 'PDF Viewer', filename: 'internal-pdf-viewer', description: 'Portable Document Format' },
-            { name: 'Chrome PDF Viewer', filename: 'internal-pdf-viewer', description: '' },
-            { name: 'Chromium PDF Viewer', filename: 'internal-pdf-viewer', description: '' },
-          ];
+          var arr = [];
+          arr.length = 0;
+          arr.item = function() { return null; };
+          arr.namedItem = function() { return null; };
+          arr.refresh = function() {};
+          return arr;
+        },
+      });
+      Object.defineProperty(navigator, 'mimeTypes', {
+        get: function() {
+          var arr = [];
+          arr.length = 0;
+          arr.item = function() { return null; };
+          arr.namedItem = function() { return null; };
+          return arr;
         },
       });
 
-      // Override permissions API
+      // ── Permissions API override ─────────────────────────────────
       try {
         if (navigator.permissions) {
           var origQuery = navigator.permissions.query;
@@ -295,6 +326,57 @@ class BrowserPool {
             return origQuery.call(navigator.permissions, params);
           };
         }
+      } catch(e) {}
+
+      // ── Canvas fingerprint noise (Camoufox-inspired) ─────────────
+      // Adds imperceptible noise to canvas output to defeat canvas fingerprinting
+      try {
+        var origToDataURL = HTMLCanvasElement.prototype.toDataURL;
+        HTMLCanvasElement.prototype.toDataURL = function() {
+          try {
+            var ctx = this.getContext('2d');
+            if (ctx && this.width > 0 && this.height > 0) {
+              var w = Math.min(this.width, 16);
+              var h = Math.min(this.height, 16);
+              var imageData = ctx.getImageData(0, 0, w, h);
+              for (var i = 0; i < imageData.data.length; i += 4) {
+                imageData.data[i] = imageData.data[i] ^ 1;
+              }
+              ctx.putImageData(imageData, 0, 0);
+            }
+          } catch(e2) {}
+          return origToDataURL.apply(this, arguments);
+        };
+      } catch(e) {}
+
+      // ── AudioContext fingerprint spoofing ─────────────────────────
+      try {
+        if (typeof AudioContext !== 'undefined') {
+          Object.defineProperty(AudioContext.prototype, 'sampleRate', {
+            get: function() { return 44100; }
+          });
+        }
+        if (typeof BaseAudioContext !== 'undefined') {
+          Object.defineProperty(BaseAudioContext.prototype, 'sampleRate', {
+            get: function() { return 44100; }
+          });
+        }
+      } catch(e) {}
+
+      // ── performance.now() jitter (timing attack mitigation) ──────
+      try {
+        var origNow = performance.now.bind(performance);
+        performance.now = function() {
+          return origNow() + (Math.random() * 0.1);
+        };
+      } catch(e) {}
+
+      // ── Date.now() subtle jitter ─────────────────────────────────
+      try {
+        var origDateNow = Date.now;
+        Date.now = function() {
+          return origDateNow.call(Date) + Math.floor(Math.random() * 2);
+        };
       } catch(e) {}
     })();`);
 
@@ -314,7 +396,7 @@ class BrowserPool {
       }
     });
 
-    // Add small random delay before returning page (simulates human startup)
+    // Small random startup delay
     await this.randomDelay(100, 500);
 
     return { page, context, proxy };

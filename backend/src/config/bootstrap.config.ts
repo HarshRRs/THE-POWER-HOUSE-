@@ -67,7 +67,7 @@ export const BOOTSTRAP_CONFIG: BootstrapConfig = {
   
   // Full monitoring: take screenshots, fast intervals
   skipScreenshots: false,
-  minIntervalSeconds: 30, // 30s minimum for high monitoring
+  minIntervalSeconds: 240, // 4 minutes minimum interval
   
   // Manual CAPTCHA - send Telegram alert instead of auto-solving
   manualCaptchaMode: !process.env.TWOCAPTCHA_API_KEY,

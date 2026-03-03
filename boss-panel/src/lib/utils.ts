@@ -14,15 +14,34 @@ export function getToken(): string {
   return '';
 }
 
+function getCsrfToken(): string {
+  if (typeof document === 'undefined') return '';
+  const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : '';
+}
+
 export function authHeaders(extra?: Record<string, string>): Record<string, string> {
-  return {
+  const headers: Record<string, string> = {
     'Authorization': `Bearer ${getToken()}`,
     ...extra,
   };
+  const csrf = getCsrfToken();
+  if (csrf) {
+    headers['x-csrf-token'] = csrf;
+  }
+  return headers;
 }
 
 export function authJsonHeaders(): Record<string, string> {
   return authHeaders({ 'Content-Type': 'application/json' });
+}
+
+/** Wrapper around fetch that includes credentials (for CSRF cookie) */
+export function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  return fetch(url, {
+    ...options,
+    credentials: 'include',
+  });
 }
 
 export function formatTime(date: string | Date): string {

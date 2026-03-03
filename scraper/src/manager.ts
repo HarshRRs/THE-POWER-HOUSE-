@@ -1,3 +1,5 @@
+import https from 'https';
+import http from 'http';
 import { PREFECTURES } from './config/prefectures';
 import { PrefectureConfig, ScrapeResult } from './types';
 import { ScraperWorker } from './worker';
@@ -8,6 +10,61 @@ import { ScraperWorker } from './worker';
  * Distributes scraping jobs across workers.
  * Manages scheduling based on prefecture tier and check intervals.
  */
+
+const BACKEND_URL = process.env.BACKEND_INTERNAL_URL || 'http://api:3001';
+const SCRAPER_API_KEY = process.env.SCRAPER_API_KEY || '';
+
+/**
+ * Notify the backend API that slots were detected so it can trigger
+ * user alerts (email, Telegram, SMS) via the notification pipeline.
+ */
+function notifyBackend(prefecture: PrefectureConfig, slotsFound: number, bookingUrl: string): void {
+    const body = JSON.stringify({
+        prefectureId: prefecture.id,
+        prefectureName: prefecture.name,
+        department: prefecture.department,
+        slotsFound,
+        bookingUrl,
+        detectedAt: new Date().toISOString(),
+        source: 'standalone-scraper',
+    });
+
+    const isHttps = BACKEND_URL.startsWith('https');
+    const lib = isHttps ? https : http;
+    const urlObj = new URL('/internal/slot-detected', BACKEND_URL);
+
+    const options = {
+        hostname: urlObj.hostname,
+        port: urlObj.port || (isHttps ? 443 : 80),
+        path: urlObj.pathname,
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+            'X-Scraper-Key': SCRAPER_API_KEY,
+        },
+    };
+
+    const req = lib.request(options, (res) => {
+        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+            console.log(`   ✅ Backend notified — ${slotsFound} slots for ${prefecture.name}`);
+        } else {
+            console.error(`   ⚠️ Backend notification returned HTTP ${res.statusCode} for ${prefecture.name}`);
+        }
+    });
+
+    req.on('error', (err) => {
+        console.error(`   ⚠️ Failed to notify backend for ${prefecture.name}: ${err.message}`);
+    });
+
+    req.setTimeout(5000, () => {
+        console.error(`   ⚠️ Backend notification timed out for ${prefecture.name}`);
+        req.destroy();
+    });
+
+    req.write(body);
+    req.end();
+}
 
 export class ScraperManager {
     private jobs: Map<string, NodeJS.Timeout>;
@@ -24,6 +81,9 @@ export class ScraperManager {
         this.results = [];
         console.log('📋 Scraper Manager initialized');
         console.log(`   → ${PREFECTURES.filter((p) => p.active).length} active prefectures`);
+        if (!SCRAPER_API_KEY) {
+            console.warn('⚠️  SCRAPER_API_KEY not set — backend notifications will be unauthenticated');
+        }
     }
 
     /**
@@ -85,11 +145,12 @@ export class ScraperManager {
 
         try {
             await worker.init();
-            const result = await worker.checkAvailability();
+            const result: ScrapeResult = await worker.checkAvailability();
 
             if (result.slotsFound > 0) {
                 console.log(`   🎉 SLOTS FOUND! ${result.slotsFound} available slots`);
-                console.log(`   → Triggering notifications...`);
+                // Notify the backend to trigger user alerts in real-time
+                notifyBackend(prefecture, result.slotsFound, prefecture.bookingUrl);
                 this.recordResult(prefecture, result.slotsFound, timestamp);
             } else if (result.error) {
                 console.log(`   ⚠️ Error: ${result.error}`);
@@ -148,9 +209,11 @@ if (require.main === module) {
     const manager = new ScraperManager();
     manager.start();
 
-    // Graceful shutdown
-    process.on('SIGINT', () => {
+    // Graceful shutdown (both SIGINT from Ctrl+C and SIGTERM from Docker stop)
+    const shutdown = () => {
         manager.stop();
         process.exit(0);
-    });
+    };
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
 }

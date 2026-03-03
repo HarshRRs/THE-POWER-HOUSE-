@@ -45,8 +45,8 @@ COPY --from=builder /app/prisma ./prisma
 # Create screenshots directory
 RUN mkdir -p public/screenshots
 
-# Install Playwright browsers and their system dependencies
-RUN npx playwright install --with-deps chromium
+# Install Playwright Firefox and system dependencies
+RUN npx playwright install --with-deps firefox
 
 # Set environment
 ENV NODE_ENV=production

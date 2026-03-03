@@ -21,7 +21,7 @@ import sharp from 'sharp';
 // Strategy: Solve once → persist session cookies → ride session
 // ═══════════════════════════════════════════════════════════════════════════
 
-export type SimpleCaptchaType = 
+export type SimpleCaptchaType =
   | 'numeric'           // Only numbers (0-9)
   | 'alphanumeric'      // Letters and numbers
   | 'alphanumeric_upper' // Uppercase letters and numbers
@@ -51,7 +51,7 @@ class HybridCaptchaSolver {
   private worker: Worker | null = null;
   private isInitialized = false;
   private apiKey: string | null = null;
-  
+
   private stats: CaptchaStats = {
     totalAttempts: 0,
     tesseractSuccess: 0,
@@ -128,14 +128,14 @@ class HybridCaptchaSolver {
             .modulate({ brightness: 1.1, saturation: 0 })
             .threshold(128);
           break;
-        
+
         case 'math':
           // Less aggressive for math expressions
           pipeline = pipeline
             .normalize()
             .sharpen();
           break;
-        
+
         default:
           // Basic preprocessing
           pipeline = pipeline.normalize();
@@ -161,25 +161,25 @@ class HybridCaptchaSolver {
           tessedit_char_whitelist: '0123456789',
           tessedit_pageseg_mode: PSM.SINGLE_LINE,
         };
-      
+
       case 'alphanumeric':
         return {
           tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
           tessedit_pageseg_mode: PSM.SINGLE_LINE,
         };
-      
+
       case 'alphanumeric_upper':
         return {
           tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
           tessedit_pageseg_mode: PSM.SINGLE_LINE,
         };
-      
+
       case 'math':
         return {
           tessedit_char_whitelist: '0123456789+-=x*/ ',
           tessedit_pageseg_mode: PSM.SINGLE_LINE,
         };
-      
+
       default:
         return {
           tessedit_pageseg_mode: PSM.SINGLE_LINE,
@@ -193,7 +193,7 @@ class HybridCaptchaSolver {
   private solveMathCaptcha(text: string): string | null {
     // Extract math expression
     const cleanText = text.replace(/\s/g, '').replace(/x/gi, '*');
-    
+
     // Try to parse and solve
     const patterns = [
       /(\d+)\+(\d+)=?\??/,  // 5+3=? or 5+3
@@ -207,9 +207,9 @@ class HybridCaptchaSolver {
       if (match) {
         const a = parseInt(match[1], 10);
         const b = parseInt(match[2], 10);
-        const op = cleanText.includes('+') ? '+' : 
-                   cleanText.includes('-') ? '-' : '*';
-        
+        const op = cleanText.includes('+') ? '+' :
+          cleanText.includes('-') ? '-' : '*';
+
         switch (op) {
           case '+': return String(a + b);
           case '-': return String(a - b);
@@ -244,7 +244,7 @@ class HybridCaptchaSolver {
           .replace(/G/gi, '6')
           .replace(/[^0-9]/g, ''); // Strip remaining non-digits
         break;
-      
+
       case 'alphanumeric_upper':
         // For uppercase alphanumeric: only fix unambiguous confusions
         cleaned = cleaned
@@ -269,7 +269,7 @@ class HybridCaptchaSolver {
     type: SimpleCaptchaType = 'alphanumeric'
   ): Promise<CaptchaSolveResult | null> {
     const startTime = Date.now();
-    
+
     try {
       await this.initWorker();
       if (!this.worker) {
@@ -287,11 +287,12 @@ class HybridCaptchaSolver {
 
       // Configure Tesseract
       const config = this.getTesseractConfig(type);
-      await this.worker.setParameters(config as Tesseract.WorkerParams);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await this.worker.setParameters(config as any);
 
       // Recognize text
       const { data } = await this.worker.recognize(processedImage);
-      
+
       let text = this.cleanOcrOutput(data.text, type);
       let confidence = data.confidence / 100;
 
@@ -309,11 +310,11 @@ class HybridCaptchaSolver {
       // Track stats
       this.stats.totalAttempts++;
       this.confidenceHistory.push(confidence);
-      
+
       if (confidence >= 0.6 && text.length >= 4) {
         this.stats.tesseractSuccess++;
         logger.info(`HybridCaptchaSolver: Tesseract solved "${text}" (${Math.round(confidence * 100)}% confidence, ${timeMs}ms)`);
-        
+
         return {
           text,
           confidence,
@@ -472,7 +473,7 @@ class HybridCaptchaSolver {
     // For EASY CAPTCHAs: try FREE Tesseract first
     if (!skipFree) {
       const freeResult = await this.solveFree(imageBuffer, type);
-      
+
       if (freeResult && freeResult.confidence >= minConfidence) {
         return freeResult;
       }

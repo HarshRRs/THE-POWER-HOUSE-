@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -40,35 +40,7 @@ interface Plan {
   type: string;
 }
 
-/* ═══════════════════════════════════════════════
-   Animated Counter
-   ═══════════════════════════════════════════════ */
-function Counter({ end, suffix = "" }: { end: number; suffix?: string }) {
-  const [count, setCount] = useState(0);
-  const ref = useRef<HTMLSpanElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          let start = 0;
-          const step = Math.ceil(end / 60);
-          const timer = setInterval(() => {
-            start += step;
-            if (start >= end) { start = end; clearInterval(timer); }
-            setCount(start);
-          }, 25);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.3 }
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [end]);
-
-  return <span ref={ref} className="tabular-nums">{count.toLocaleString("fr-FR")}{suffix}</span>;
-}
+/* (Counter component lives in EnhancedMetrics.tsx) */
 
 /* ═══════════════════════════════════════════════
    Time ago helper
@@ -123,7 +95,7 @@ function Header() {
 /* ═══════════════════════════════════════════════
    Hero — stats from API
    ═══════════════════════════════════════════════ */
-function Hero({ stats, loading }: { stats: Stats | null; loading: boolean }) {
+function Hero({ stats }: { stats: Stats | null }) {
   const detected = stats?.detectionsLast24h ?? 0;
 
   return (
@@ -839,7 +811,7 @@ export default function LandingPage() {
   return (
     <main>
       <Header />
-      <Hero stats={stats} loading={loading} />
+      <Hero stats={stats} />
       <PrefecturePicker prefectures={prefectures} />
       <LiveSituation prefectures={prefectures} loading={loading} />
       <HowItWorks />

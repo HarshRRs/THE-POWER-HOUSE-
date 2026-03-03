@@ -20,7 +20,7 @@ export const PLAN_LIMITS: Record<Plan, PlanConfig> = {
   },
   URGENCE_24H: {
     maxAlerts: 1,
-    checkInterval: 120,
+    checkInterval: 240,
     duration: 24 * 60 * 60 * 1000, // 24 hours
     channels: ['EMAIL'],
     price: 499,
@@ -28,7 +28,7 @@ export const PLAN_LIMITS: Record<Plan, PlanConfig> = {
   },
   URGENCE_7J: {
     maxAlerts: 3,
-    checkInterval: 60,
+    checkInterval: 240,
     duration: 7 * 24 * 60 * 60 * 1000, // 7 days
     channels: ['EMAIL', 'WHATSAPP', 'TELEGRAM'],
     price: 1499,
@@ -36,7 +36,7 @@ export const PLAN_LIMITS: Record<Plan, PlanConfig> = {
   },
   URGENCE_TOTAL: {
     maxAlerts: Infinity,
-    checkInterval: 30,
+    checkInterval: 240,
     duration: 30 * 24 * 60 * 60 * 1000, // 30 days
     channels: ['EMAIL', 'WHATSAPP', 'TELEGRAM', 'SMS', 'WEBSOCKET', 'FCM'],
     price: 2999,
@@ -45,9 +45,9 @@ export const PLAN_LIMITS: Record<Plan, PlanConfig> = {
 };
 
 export const TIER_INTERVALS = {
-  1: 10,   // Île-de-France critical - every 10 seconds
-  2: 20,   // Major cities - every 20 seconds
-  3: 45,   // Others - every 45 seconds
+  1: 240,   // Île-de-France critical - every 4 minutes
+  2: 240,   // Major cities - every 4 minutes
+  3: 240,   // Others - every 4 minutes
 } as const;
 
 export const TIER_NAMES = {

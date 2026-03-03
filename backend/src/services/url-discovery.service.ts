@@ -1,6 +1,7 @@
-import type { Page } from 'playwright';
+import type { Page, BrowserContext } from 'playwright';
 import { prisma } from '../config/database.js';
 import type { PrefectureConfig } from '../types/prefecture.types.js';
+import type { BrowserPool } from '../scraper/browser.pool.js';
 import { broadcastToBossPanel } from './websocket.service.js';
 import logger from '../utils/logger.util.js';
 
@@ -61,7 +62,7 @@ export interface UrlChangeData {
   originalUrl: string;
   finalUrl: string;
   redirectChain: string[];
-  page: Page;
+  browserPoolGetter: () => Promise<BrowserPool>;
   config: PrefectureConfig;
 }
 
@@ -108,11 +109,12 @@ export function isValidDomain(url: string): boolean {
 
 /**
  * Validate if a URL is a valid booking page
+ * Acquires its own page from the browser pool to avoid race conditions
  */
 export async function validateBookingUrl(
-  page: Page,
   url: string,
-  selectors?: PrefectureConfig['selectors']
+  selectors?: PrefectureConfig['selectors'],
+  browserPoolGetter?: () => Promise<BrowserPool>
 ): Promise<UrlValidationResult> {
   const result: UrlValidationResult = {
     isValid: false,
@@ -126,8 +128,22 @@ export async function validateBookingUrl(
       isMaintenance: false,
     },
   };
-  
+
+  if (!browserPoolGetter) {
+    logger.warn('validateBookingUrl: No browser pool getter provided, returning default result');
+    return result;
+  }
+
+  let pool: BrowserPool | null = null;
+  let page: Page | null = null;
+  let context: BrowserContext | null = null;
+
   try {
+    pool = await browserPoolGetter();
+    const session = await pool.getPage();
+    page = session.page;
+    context = session.context;
+
     // Navigate to URL
     const response = await page.goto(url, {
       waitUntil: 'domcontentloaded',
@@ -201,6 +217,15 @@ export async function validateBookingUrl(
     
   } catch (error) {
     logger.error('URL validation error:', error);
+  } finally {
+    // Release our own page/context independently of the main scraper
+    if (pool && page && context) {
+      try {
+        await pool.releasePage(page, context);
+      } catch {
+        // Cleanup error, ignore
+      }
+    }
   }
   
   return result;
@@ -211,7 +236,7 @@ export async function validateBookingUrl(
  */
 export async function tryFallbackUrls(
   config: PrefectureConfig,
-  page: Page
+  browserPoolGetter: () => Promise<BrowserPool>
 ): Promise<{ url: string; confidence: number } | null> {
   const fallbackUrls = generateFallbackUrls(config);
   
@@ -219,7 +244,7 @@ export async function tryFallbackUrls(
   
   for (const url of fallbackUrls) {
     try {
-      const validation = await validateBookingUrl(page, url, config.selectors);
+      const validation = await validateBookingUrl(url, config.selectors, browserPoolGetter);
       
       if (validation.isValid && validation.confidence >= 0.7) {
         logger.info(`Found valid fallback URL for ${config.id}: ${url} (confidence: ${validation.confidence})`);
@@ -237,7 +262,7 @@ export async function tryFallbackUrls(
  * Handle URL change detection
  */
 export async function handleUrlChange(data: UrlChangeData): Promise<void> {
-  const { prefectureId, originalUrl, finalUrl, redirectChain, page, config } = data;
+  const { prefectureId, originalUrl, finalUrl, redirectChain, browserPoolGetter, config } = data;
   
   // Skip if URLs are the same (after normalization)
   const normalizedOriginal = originalUrl.replace(/\/$/, '').toLowerCase();
@@ -249,8 +274,8 @@ export async function handleUrlChange(data: UrlChangeData): Promise<void> {
   
   logger.info(`URL change detected for ${prefectureId}: ${originalUrl} -> ${finalUrl}`);
   
-  // Validate the new URL
-  const validation = await validateBookingUrl(page, finalUrl, config.selectors);
+  // Validate the new URL (acquires its own page from pool)
+  const validation = await validateBookingUrl(finalUrl, config.selectors, browserPoolGetter);
   
   // Skip if it's a maintenance page
   if (validation.indicators.isMaintenance) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { authJsonHeaders } from "@/lib/utils";
 
 export function useNotifications() {
   const [permission, setPermission] = useState<NotificationPermission>("default");
@@ -38,7 +39,8 @@ export function useNotifications() {
       // Send subscription to server
       await fetch("/api/notifications/subscribe", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authJsonHeaders(),
+        credentials: "include",
         body: JSON.stringify(sub),
       });
 

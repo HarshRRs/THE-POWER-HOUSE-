@@ -13,6 +13,8 @@ import logger from '../utils/logger.util.js';
 
 const TWO_CAPTCHA_API_KEY = process.env.TWOCAPTCHA_API_KEY || process.env.TWO_CAPTCHA_API_KEY || '';
 const TWO_CAPTCHA_BASE = 'http://2captcha.com';
+const CAPSOLVER_API_KEY = process.env.CAPSOLVER_API_KEY || '';
+const CAPSOLVER_BASE = 'https://api.capsolver.com';
 const POLL_INTERVAL_MS = 5000; // Check every 5 seconds
 const MAX_WAIT_MS = 120000; // Max 2 minutes wait
 
@@ -203,10 +205,39 @@ export async function solveTurnstile(
 ): Promise<CaptchaResult> {
   const startTime = Date.now();
   
-  if (!TWO_CAPTCHA_API_KEY) {
-    return { success: false, answer: '', error: 'API key not configured' };
+  // Try 2Captcha first (primary provider)
+  if (TWO_CAPTCHA_API_KEY) {
+    const result = await solveTurnstileWith2Captcha(siteKey, pageUrl, challengeMetadata, startTime);
+    if (result.success) return result;
+    logger.warn(`2Captcha Turnstile failed: ${result.error}`);
   }
 
+  // Fallback to CapSolver if configured
+  if (CAPSOLVER_API_KEY) {
+    logger.info('Falling back to CapSolver for Turnstile...');
+    const result = await solveTurnstileWithCapSolver(siteKey, pageUrl, challengeMetadata, startTime);
+    if (result.success) return result;
+    logger.warn(`CapSolver Turnstile failed: ${result.error}`);
+  }
+
+  if (!TWO_CAPTCHA_API_KEY && !CAPSOLVER_API_KEY) {
+    return { success: false, answer: '', error: 'No CAPTCHA provider configured' };
+  }
+
+  return { success: false, answer: '', error: 'All CAPTCHA providers failed' };
+}
+
+async function solveTurnstileWith2Captcha(
+  siteKey: string,
+  pageUrl: string,
+  challengeMetadata?: {
+    action?: string;
+    cData?: string;
+    chlPageData?: string;
+    userAgent?: string;
+  },
+  startTime = Date.now(),
+): Promise<CaptchaResult> {
   const MAX_RETRIES = 3;
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -254,7 +285,7 @@ export async function solveTurnstile(
 
           if (resultData.status === 'ready' && resultData.solution?.token) {
             const solveTimeMs = Date.now() - startTime;
-            logger.info(`Turnstile solved in ${solveTimeMs}ms (attempt ${attempt})`);
+            logger.info(`Turnstile solved via 2Captcha in ${solveTimeMs}ms (attempt ${attempt})`);
             return { success: true, answer: resultData.solution.token, solveTimeMs, cost: 0.003 };
           }
 
@@ -298,7 +329,7 @@ export async function solveTurnstile(
       const solveTimeMs = Date.now() - startTime;
 
       if (answer) {
-        logger.info(`Turnstile solved in ${solveTimeMs}ms`);
+        logger.info(`Turnstile solved via 2Captcha in ${solveTimeMs}ms`);
         return { success: true, answer, captchaId, solveTimeMs, cost: 0.003 };
       }
 
@@ -312,7 +343,78 @@ export async function solveTurnstile(
     }
   }
 
-  return { success: false, answer: '', error: 'All retries exhausted' };
+  return { success: false, answer: '', error: '2Captcha retries exhausted' };
+}
+
+async function solveTurnstileWithCapSolver(
+  siteKey: string,
+  pageUrl: string,
+  challengeMetadata?: {
+    action?: string;
+    cData?: string;
+    chlPageData?: string;
+    userAgent?: string;
+  },
+  startTime = Date.now(),
+): Promise<CaptchaResult> {
+  try {
+    const task: Record<string, unknown> = {
+      type: 'AntiTurnstileTaskProxyLess',
+      websiteURL: pageUrl,
+      websiteKey: siteKey,
+    };
+    if (challengeMetadata?.action) task.metadata = { action: challengeMetadata.action };
+    if (challengeMetadata?.cData) {
+      task.metadata = { ...(task.metadata as Record<string, unknown> || {}), cdata: challengeMetadata.cData };
+    }
+
+    const submitRes = await fetch(`${CAPSOLVER_BASE}/createTask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientKey: CAPSOLVER_API_KEY, task }),
+    });
+    const submitData = await submitRes.json() as { errorId: number; errorCode?: string; errorDescription?: string; taskId?: string };
+
+    if (submitData.errorId !== 0) {
+      logger.error(`CapSolver createTask failed: ${submitData.errorCode} - ${submitData.errorDescription}`);
+      return { success: false, answer: '', error: submitData.errorCode };
+    }
+
+    const taskId = submitData.taskId;
+    logger.debug(`CapSolver Turnstile task submitted, ID: ${taskId}`);
+
+    // Poll for result
+    await sleep(5000);
+    const deadline = Date.now() + MAX_WAIT_MS;
+    while (Date.now() < deadline) {
+      const resultRes = await fetch(`${CAPSOLVER_BASE}/getTaskResult`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientKey: CAPSOLVER_API_KEY, taskId }),
+      });
+      const resultData = await resultRes.json() as {
+        errorId: number; status: string; solution?: { token: string }; errorCode?: string;
+      };
+
+      if (resultData.status === 'ready' && resultData.solution?.token) {
+        const solveTimeMs = Date.now() - startTime;
+        logger.info(`Turnstile solved via CapSolver in ${solveTimeMs}ms`);
+        return { success: true, answer: resultData.solution.token, solveTimeMs, cost: 0.001 };
+      }
+
+      if (resultData.errorId !== 0 && resultData.errorCode !== 'TASK_NOT_FOUND') {
+        return { success: false, answer: '', error: resultData.errorCode };
+      }
+
+      await sleep(POLL_INTERVAL_MS);
+    }
+
+    return { success: false, answer: '', error: 'CapSolver timeout' };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    logger.error(`CapSolver error: ${msg}`);
+    return { success: false, answer: '', error: msg };
+  }
 }
 
 /**
