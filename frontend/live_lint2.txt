@@ -1,0 +1,7 @@
+﻿
+C:\Users\SHAH HARSH\.gemini\antigravity\scratch\rdvpriority\frontend\src\app\page.tsx
+   3:31  warning  'useRef' is defined but never used    @typescript-eslint/no-unused-vars
+  98:33  warning  '_loading' is defined but never used  @typescript-eslint/no-unused-vars
+
+Γ£û 2 problems (0 errors, 2 warnings)
+
