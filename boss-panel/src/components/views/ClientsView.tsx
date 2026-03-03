@@ -60,7 +60,7 @@ export default function ClientsView() {
       const res = await apiFetch('/api/booking/clients');
       if (res.ok) {
         const json = await res.json();
-        setClients(json.data || json || []);
+        setClients(json.clients || json.data || []);
       }
     } catch { /* ignore */ }
     setLoading(false);
