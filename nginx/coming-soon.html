@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RDV Priority — Bientôt disponible</title>
+  <meta name="description" content="RDV Priority — Le service intelligent de surveillance de rendez-vous préfecture, ambassade et VFS. Bientôt disponible." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent: #6366f1;
+      --accent2: #8b5cf6;
+      --accent3: #06b6d4;
+      --bg: #04050f;
+      --bg2: #0b0d1f;
+      --text: #f1f5f9;
+      --muted: #64748b;
+      --border: rgba(99,102,241,0.15);
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* Animated background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(99,102,241,0.18) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 90%, rgba(139,92,246,0.15) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 40% at 50% 50%, rgba(6,182,212,0.06) 0%, transparent 70%);
+      z-index: 0;
+      animation: bgPulse 8s ease-in-out infinite alternate;
+    }
+
+    @keyframes bgPulse {
+      from { opacity: 0.7; }
+      to { opacity: 1; }
+    }
+
+    /* Grid overlay */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
+      background-size: 60px 60px;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    /* Logo / brand */
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 3rem;
+      animation: fadeDown 0.8s ease both;
+    }
+
+    .logo-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      box-shadow: 0 0 30px rgba(99,102,241,0.5);
+    }
+
+    .logo-text {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .logo-text span {
+      background: linear-gradient(135deg, var(--accent), var(--accent3));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Badge */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      background: rgba(99,102,241,0.12);
+      border: 1px solid rgba(99,102,241,0.3);
+      border-radius: 100px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #a5b4fc;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+      animation: fadeDown 0.8s ease 0.1s both;
+    }
+
+    .badge-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #6366f1;
+      box-shadow: 0 0 8px #6366f1;
+      animation: blink 1.5s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* Headline */
+    h1 {
+      font-size: clamp(2.5rem, 7vw, 5.5rem);
+      font-weight: 900;
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+      margin-bottom: 1.5rem;
+      animation: fadeDown 0.8s ease 0.2s both;
+    }
+
+    h1 .gradient {
+      background: linear-gradient(135deg, #818cf8 0%, #c084fc 40%, #22d3ee 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Subtitle */
+    .subtitle {
+      font-size: clamp(1rem, 2.5vw, 1.25rem);
+      color: #94a3b8;
+      max-width: 560px;
+      line-height: 1.7;
+      margin-bottom: 3rem;
+      animation: fadeDown 0.8s ease 0.3s both;
+    }
+
+    /* Features pills */
+    .features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 3.5rem;
+      animation: fadeDown 0.8s ease 0.4s both;
+    }
+
+    .feature-pill {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 16px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 100px;
+      font-size: 0.85rem;
+      color: #cbd5e1;
+      backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+    }
+
+    .feature-pill:hover {
+      background: rgba(99,102,241,0.1);
+      border-color: rgba(99,102,241,0.3);
+      color: #e2e8f0;
+      transform: translateY(-2px);
+    }
+
+    .feature-pill .icon { font-size: 1rem; }
+
+    /* Email form */
+    .notify-form {
+      display: flex;
+      gap: 12px;
+      max-width: 440px;
+      width: 100%;
+      animation: fadeDown 0.8s ease 0.5s both;
+    }
+
+    .notify-form input {
+      flex: 1;
+      padding: 14px 20px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(99,102,241,0.25);
+      border-radius: 12px;
+      color: var(--text);
+      font-size: 0.95rem;
+      font-family: inherit;
+      outline: none;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+    }
+
+    .notify-form input::placeholder { color: var(--muted); }
+
+    .notify-form input:focus {
+      border-color: var(--accent);
+      background: rgba(99,102,241,0.08);
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+    }
+
+    .notify-form button {
+      padding: 14px 24px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none;
+      border-radius: 12px;
+      color: white;
+      font-size: 0.95rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      white-space: nowrap;
+      box-shadow: 0 4px 20px rgba(99,102,241,0.4);
+    }
+
+    .notify-form button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(99,102,241,0.5);
+    }
+
+    .notify-form button:active { transform: translateY(0); }
+
+    /* Success message */
+    .success-msg {
+      display: none;
+      color: #4ade80;
+      font-size: 0.9rem;
+      margin-top: 1rem;
+      animation: fadeDown 0.4s ease both;
+    }
+
+    /* Countdown */
+    .countdown {
+      display: flex;
+      gap: 1.5rem;
+      margin-top: 3.5rem;
+      animation: fadeUp 0.8s ease 0.6s both;
+    }
+
+    .countdown-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .countdown-number {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      background: linear-gradient(135deg, #e2e8f0, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+      min-width: 80px;
+      text-align: center;
+    }
+
+    .countdown-label {
+      font-size: 0.7rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 500;
+    }
+
+    .countdown-sep {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--muted);
+      align-self: flex-start;
+      margin-top: 6px;
+    }
+
+    /* Bottom divider */
+    .divider {
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 3rem 0 1.5rem;
+    }
+
+    .footer {
+      color: var(--muted);
+      font-size: 0.8rem;
+      animation: fadeUp 0.8s ease 0.7s both;
+    }
+
+    .footer a {
+      color: #818cf8;
+      text-decoration: none;
+    }
+
+    .footer a:hover { text-decoration: underline; }
+
+    /* Floating orbs */
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.12;
+      pointer-events: none;
+      z-index: 0;
+      animation: float 12s ease-in-out infinite alternate;
+    }
+
+    .orb1 {
+      width: 400px; height: 400px;
+      background: #6366f1;
+      top: -100px; left: -100px;
+    }
+
+    .orb2 {
+      width: 500px; height: 500px;
+      background: #8b5cf6;
+      bottom: -150px; right: -100px;
+      animation-delay: -6s;
+    }
+
+    .orb3 {
+      width: 300px; height: 300px;
+      background: #06b6d4;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0.06;
+      animation-delay: -3s;
+    }
+
+    @keyframes float {
+      from { transform: translate(0, 0) scale(1); }
+      to { transform: translate(30px, 40px) scale(1.1); }
+    }
+
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 480px) {
+      .notify-form { flex-direction: column; }
+      .countdown { gap: 0.8rem; }
+      .countdown-sep { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="orb orb3"></div>
+
+  <div class="container">
+    <div class="logo">
+      <div class="logo-icon">⚡</div>
+      <div class="logo-text">RDV<span>Priority</span></div>
+    </div>
+
+    <div class="badge">
+      <div class="badge-dot"></div>
+      Bientôt disponible
+    </div>
+
+    <h1>
+      Plus jamais rater<br />
+      <span class="gradient">votre rendez-vous</span>
+    </h1>
+
+    <p class="subtitle">
+      Surveillance automatique 24h/24 des créneaux préfecture, ambassade et VFS Global.
+      Soyez alerté en <strong>temps réel</strong> dès qu'un créneau se libère.
+    </p>
+
+    <div class="features">
+      <div class="feature-pill"><span class="icon">🏛️</span> 9 Préfectures</div>
+      <div class="feature-pill"><span class="icon">🇮🇳</span> Ambassade France</div>
+      <div class="feature-pill"><span class="icon">✈️</span> VFS Global</div>
+      <div class="feature-pill"><span class="icon">⚡</span> Alertes instantanées</div>
+      <div class="feature-pill"><span class="icon">🔒</span> 100% Sécurisé</div>
+    </div>
+
+    <div class="notify-form">
+      <input type="email" id="emailInput" placeholder="votre@email.com" />
+      <button onclick="handleNotify()">Me notifier</button>
+    </div>
+    <div class="success-msg" id="successMsg">
+      ✅ Parfait ! Vous serez notifié au lancement.
+    </div>
+
+    <div class="countdown" id="countdown">
+      <div class="countdown-item">
+        <div class="countdown-number" id="days">--</div>
+        <div class="countdown-label">Jours</div>
+      </div>
+      <div class="countdown-sep">:</div>
+      <div class="countdown-item">
+        <div class="countdown-number" id="hours">--</div>
+        <div class="countdown-label">Heures</div>
+      </div>
+      <div class="countdown-sep">:</div>
+      <div class="countdown-item">
+        <div class="countdown-number" id="minutes">--</div>
+        <div class="countdown-label">Minutes</div>
+      </div>
+      <div class="countdown-sep">:</div>
+      <div class="countdown-item">
+        <div class="countdown-number" id="seconds">--</div>
+        <div class="countdown-label">Secondes</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="footer">
+      © 2026 RDVPriority · <a href="mailto:contact@rdvpriority.fr">contact@rdvpriority.fr</a>
+    </div>
+  </div>
+
+  <script>
+    // Countdown to launch date (30 days from now)
+    const launch = new Date();
+    launch.setDate(launch.getDate() + 30);
+
+    function pad(n) { return String(n).padStart(2, '0'); }
+
+    function tick() {
+      const now = new Date();
+      const diff = launch - now;
+      if (diff <= 0) {
+        document.getElementById('countdown').style.display = 'none';
+        return;
+      }
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      document.getElementById('days').textContent = pad(d);
+      document.getElementById('hours').textContent = pad(h);
+      document.getElementById('minutes').textContent = pad(m);
+      document.getElementById('seconds').textContent = pad(s);
+    }
+
+    tick();
+    setInterval(tick, 1000);
+
+    function handleNotify() {
+      const email = document.getElementById('emailInput').value.trim();
+      if (!email || !email.includes('@')) {
+        document.getElementById('emailInput').focus();
+        document.getElementById('emailInput').style.borderColor = '#f87171';
+        setTimeout(() => document.getElementById('emailInput').style.borderColor = '', 1500);
+        return;
+      }
+      document.querySelector('.notify-form').style.display = 'none';
+      document.getElementById('successMsg').style.display = 'block';
+    }
+  </script>
+</body>
+</html>
