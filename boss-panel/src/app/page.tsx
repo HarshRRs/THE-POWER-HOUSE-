@@ -6,71 +6,79 @@ import LoginPage from '@/components/LoginPage';
 import Sidebar from '@/components/Sidebar';
 import MobileNav from '@/components/MobileNav';
 import DashboardView from '@/components/views/DashboardView';
-import ClientsView from '@/components/views/ClientsView';
-import VfsView from '@/components/views/VfsView';
-import StreamView from '@/components/views/StreamView';
-import AlertsView from '@/components/views/AlertsView';
-import SettingsView from '@/components/views/SettingsView';
+import PrefecturesView from '@/components/views/PrefecturesView';
 import EmbassyView from '@/components/views/EmbassyView';
+import ClientsView from '@/components/views/ClientsView';
+import WhatsAppView from '@/components/views/WhatsAppView';
+import AnalyticsView from '@/components/views/AnalyticsView';
+import ControlView from '@/components/views/ControlView';
+
+type TabId = 'dashboard' | 'prefectures' | 'embassy' | 'clients' | 'whatsapp' | 'analytics' | 'control';
+
+interface TabMeta {
+  title: string;
+  description: string;
+}
+
+const TAB_META: Record<TabId, TabMeta> = {
+  dashboard:   { title: 'Command Center',    description: 'Real-time immigration slot monitoring' },
+  prefectures: { title: 'Prefectures',       description: 'Monitor all French prefectures' },
+  embassy:     { title: 'Indian Embassy',    description: 'Embassy slot monitoring' },
+  clients:     { title: 'Clients',           description: 'Manage your clients' },
+  whatsapp:    { title: 'WhatsApp Alerts',   description: 'Alert delivery & tracking' },
+  analytics:   { title: 'Analytics',         description: 'Performance insights' },
+  control:     { title: 'System Control',    description: 'Manage scrapers & workers' },
+};
 
 function Dashboard() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState<TabId>('dashboard');
+
+  const meta = TAB_META[activeTab] ?? TAB_META['dashboard'];
 
   const renderView = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <DashboardView onNavigate={setActiveTab} />;
-      case 'clients':
-        return <ClientsView />;
+        return <DashboardView onNavigate={(tab) => setActiveTab(tab as TabId)} />;
+      case 'prefectures':
+        return <PrefecturesView />;
       case 'embassy':
         return <EmbassyView />;
-      case 'vfs':
-        return <VfsView />;
-      case 'stream':
-        return <StreamView />;
-      case 'alerts':
-        return <AlertsView />;
-      case 'settings':
-        return <SettingsView />;
+      case 'clients':
+        return <ClientsView />;
+      case 'whatsapp':
+        return <WhatsAppView />;
+      case 'analytics':
+        return <AnalyticsView />;
+      case 'control':
+        return <ControlView />;
       default:
-        return <DashboardView />;
+        return <DashboardView onNavigate={(tab) => setActiveTab(tab as TabId)} />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Sidebar */}
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+    <div className="min-h-screen bg-[#F8FAFC]">
+      {/* Desktop Sidebar */}
+      <Sidebar activeTab={activeTab} onTabChange={(tab) => setActiveTab(tab as TabId)} />
 
       {/* Main Content Area */}
       <main className="lg:ml-64 min-h-screen pb-20 lg:pb-8">
-        {/* Fixed Header for Desktop */}
-        <div className="hidden lg:block sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
+
+        {/* Desktop Header */}
+        <div className="hidden lg:block sticky top-0 z-30 bg-white border-b border-sky-200 shadow-sm">
           <div className="px-8 py-4">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-xl font-semibold text-text tracking-tight">
-                  {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+                <h1 className="text-xl font-semibold text-slate-800 tracking-tight">
+                  {meta.title}
                 </h1>
-                <p className="text-sm text-text-muted mt-0.5">
-                  {activeTab === 'dashboard' && 'Monitor your appointment system'}
-                  {activeTab === 'clients' && 'Manage your clients'}
-                  {activeTab === 'embassy' && 'Indian Embassy slot monitoring'}
-                  {activeTab === 'vfs' && 'VFS center management'}
-                  {activeTab === 'stream' && 'Live activity feed'}
-                  {activeTab === 'alerts' && 'Configure notifications'}
-                  {activeTab === 'settings' && 'System configuration'}
+                <p className="text-sm text-slate-500 mt-0.5">
+                  {meta.description}
                 </p>
               </div>
-              <div className="flex items-center gap-6">
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-gold">Har Har Mahadev</p>
-                  <p className="text-xs text-amber-400">JAY Shakti Maa</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-gold animate-pulse" />
-                  <span className="text-sm text-text-muted">System Online</span>
-                </div>
+              <div className="flex items-center gap-3 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-full">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-sm font-medium text-emerald-700">System Live</span>
               </div>
             </div>
           </div>
@@ -84,8 +92,8 @@ function Dashboard() {
         </div>
       </main>
 
-      {/* Mobile Navigation */}
-      <MobileNav activeTab={activeTab} onTabChange={setActiveTab} />
+      {/* Mobile Bottom Navigation */}
+      <MobileNav activeTab={activeTab} onTabChange={(tab) => setActiveTab(tab as TabId)} />
     </div>
   );
 }

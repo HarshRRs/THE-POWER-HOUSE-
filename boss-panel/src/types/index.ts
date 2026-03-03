@@ -157,3 +157,56 @@ export interface SlotDetection {
   detectedAt?: string;
   timestamp: string;
 }
+
+export interface WhatsAppMessage {
+  id: string;
+  clientId?: string;
+  clientName: string;
+  phone: string;
+  message: string;
+  sentAt: string;
+  status: 'sent' | 'delivered' | 'failed';
+  prefectureName?: string;
+  categoryCode?: string;
+}
+
+export interface WhatsAppStats {
+  sentToday: number;
+  delivered: number;
+  failed: number;
+  deliveryRate: number;
+}
+
+export interface SystemControl {
+  scraperRunning: boolean;
+  activePrefectures: number;
+  activeCategories: number;
+  queueDepth: number;
+  cpuPercent?: number;
+  memoryPercent?: number;
+}
+
+export interface LogEntry {
+  id: string;
+  level: string;
+  message: string;
+  timestamp: string;
+  source?: string;
+}
+
+export interface PrefectureCategory {
+  code: string;
+  name: string;
+  procedure: string;
+  categoryUrl?: string;
+  lastScrapedAt: string | null;
+  lastSlotFoundAt: string | null;
+  categoryStatus: string;
+}
+
+export interface PrefectureDetail extends Prefecture {
+  categories?: PrefectureCategory[];
+  checkInterval?: number;
+  consecutiveErrors?: number;
+  prefectureStatus?: string;
+}

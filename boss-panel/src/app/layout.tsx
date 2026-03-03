@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Boss Admin | Har Har Mahadev",
-  description: "Premium admin dashboard for appointment monitoring",
+  title: "THE POWER HOUSE | Immigration Monitor",
+  description: "Centralized Immigration Appointment Monitoring & Alert System",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Boss Admin",
+    title: "Power House",
   },
   icons: {
     icon: "/icon-192x192.png",
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0A0A0A",
+  themeColor: "#0284C7",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -36,9 +36,9 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Boss Admin" />
+        <meta name="apple-mobile-web-app-title" content="Power House" />
         <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="theme-color" content="#0A0A0A" />
+        <meta name="theme-color" content="#0284C7" />
       </head>
       <body className="antialiased">
         {children}

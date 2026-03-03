@@ -9,63 +9,48 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // High-Tech Navy Blue + Electric Cyan Theme
-        background: "#0F172A",
-        sidebar: "#020617",
-        surface: "#1E293B",
-        surfaceLight: "#334155",
-        border: "#334155",
+        // White + Sky Blue Premium Theme
+        background: "#F8FAFC",
+        sidebar: "#FFFFFF",
+        surface: "#FFFFFF",
+        surfaceLight: "#F0F9FF",
+        border: "#E0F2FE",
         primary: {
-          DEFAULT: "#0EA5E9",
+          DEFAULT: "#0284C7",
           light: "#38BDF8",
-          dark: "#0284C7",
+          dark: "#0369A1",
         },
         secondary: {
           DEFAULT: "#64748B",
           light: "#94A3B8",
           dark: "#475569",
         },
-        // Electric Cyan Accent - High Tech
-        cyan: {
-          DEFAULT: "#06B6D4",
-          light: "#22D3EE",
-          dark: "#0891B2",
-          50: "#ECFEFF",
-          100: "#CFFAFE",
-          200: "#A5F3FC",
-          300: "#67E8F9",
-          400: "#22D3EE",
-          500: "#06B6D4",
-          600: "#0891B2",
-          700: "#0E7490",
-          800: "#155E75",
-          900: "#164E63",
-        },
-        // Electric Blue
-        electric: {
-          DEFAULT: "#3B82F6",
-          light: "#60A5FA",
-          dark: "#2563EB",
-        },
-        // Neon accents
-        neon: {
-          cyan: "#00FFFF",
-          blue: "#0080FF",
-          purple: "#BF00FF",
+        // Sky Blue palette
+        sky: {
+          50: "#F0F9FF",
+          100: "#E0F2FE",
+          200: "#BAE6FD",
+          300: "#7DD3FC",
+          400: "#38BDF8",
+          500: "#0EA5E9",
+          600: "#0284C7",
+          700: "#0369A1",
+          800: "#075985",
+          900: "#0C4A6E",
         },
         success: "#10B981",
         warning: "#F59E0B",
         danger: "#EF4444",
         muted: "#64748B",
         text: {
-          DEFAULT: "#F1F5F9",
-          muted: "#94A3B8",
-          light: "#CBD5E1",
-          inverse: "#0F172A",
+          DEFAULT: "#0F172A",
+          muted: "#64748B",
+          light: "#94A3B8",
+          inverse: "#FFFFFF",
         },
         accent: {
-          DEFAULT: "#06B6D4",
-          hover: "#0891B2",
+          DEFAULT: "#0284C7",
+          hover: "#0369A1",
         },
       },
       fontFamily: {
@@ -74,23 +59,21 @@ const config: Config = {
         display: ["Inter", "system-ui", "sans-serif"],
       },
       boxShadow: {
-        "card": "0 0 0 1px rgba(6, 182, 212, 0.1), 0 4px 20px rgba(0, 0, 0, 0.4)",
-        "card-hover": "0 0 0 1px rgba(6, 182, 212, 0.2), 0 8px 30px rgba(6, 182, 212, 0.15)",
-        "elevated": "0 0 0 1px rgba(6, 182, 212, 0.15), 0 12px 40px rgba(0, 0, 0, 0.5)",
-        "sidebar": "4px 0 30px rgba(0, 0, 0, 0.5)",
-        "glow-cyan": "0 0 20px rgba(6, 182, 212, 0.4), 0 0 40px rgba(6, 182, 212, 0.2)",
-        "glow-blue": "0 0 20px rgba(59, 130, 246, 0.4), 0 0 40px rgba(59, 130, 246, 0.2)",
-        "header": "0 4px 30px rgba(0, 0, 0, 0.4)",
-        "neon": "0 0 5px #06B6D4, 0 0 10px #06B6D4, 0 0 20px #06B6D4",
+        "card": "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(2,132,199,0.06)",
+        "card-hover": "0 4px 20px rgba(2,132,199,0.12), 0 1px 4px rgba(0,0,0,0.06)",
+        "elevated": "0 8px 32px rgba(2,132,199,0.10), 0 2px 8px rgba(0,0,0,0.06)",
+        "sidebar": "2px 0 16px rgba(2,132,199,0.08)",
+        "header": "0 2px 16px rgba(2,132,199,0.08)",
+        "inner": "inset 0 1px 3px rgba(2,132,199,0.06)",
       },
       animation: {
         "fade-in": "fade-in 0.3s ease-out",
         "slide-up": "slide-up 0.3s ease-out",
         "slide-in": "slide-in 0.3s ease-out",
-        "pulse-glow": "pulse-glow 2s ease-in-out infinite",
         "shimmer": "shimmer 2s linear infinite",
         "pulse-slow": "pulse-slow 3s ease-in-out infinite",
         "float": "float 3s ease-in-out infinite",
+        "gentle-pulse": "gentle-pulse 2.5s ease-in-out infinite",
       },
       keyframes: {
         "fade-in": {
@@ -105,21 +88,21 @@ const config: Config = {
           "0%": { transform: "translateX(-10px)", opacity: "0" },
           "100%": { transform: "translateX(0)", opacity: "1" },
         },
-        "pulse-glow": {
-          "0%, 100%": { boxShadow: "0 0 20px rgba(6, 182, 212, 0.4)" },
-          "50%": { boxShadow: "0 0 30px rgba(6, 182, 212, 0.6)" },
-        },
         "pulse-slow": {
           "0%, 100%": { opacity: "1" },
           "50%": { opacity: "0.7" },
         },
         "shimmer": {
-          "0%": { backgroundPosition: "-200% 0" },
-          "100%": { backgroundPosition: "200% 0" },
+          "0%": { backgroundPosition: "200% 0" },
+          "100%": { backgroundPosition: "-200% 0" },
         },
         "float": {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-5px)" },
+        },
+        "gentle-pulse": {
+          "0%, 100%": { opacity: "1", transform: "scale(1)" },
+          "50%": { opacity: "0.85", transform: "scale(1.02)" },
         },
       },
       borderRadius: {
@@ -129,9 +112,10 @@ const config: Config = {
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'gradient-tech': 'linear-gradient(135deg, #06B6D4 0%, #3B82F6 50%, #8B5CF6 100%)',
-        'gradient-cyan': 'linear-gradient(135deg, #06B6D4 0%, #0891B2 100%)',
-        'gradient-dark': 'linear-gradient(180deg, #0F172A 0%, #020617 100%)',
+        'gradient-sky': 'linear-gradient(135deg, #0284C7 0%, #38BDF8 100%)',
+        'gradient-sky-soft': 'linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%)',
+        'gradient-white': 'linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%)',
+        'gradient-hero': 'linear-gradient(135deg, #0369A1 0%, #0284C7 50%, #38BDF8 100%)',
       },
     },
   },

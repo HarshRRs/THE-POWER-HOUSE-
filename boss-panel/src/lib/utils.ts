@@ -62,14 +62,10 @@ export function formatDate(date: string | Date): string {
 
 export function getStatusColor(status: 'hot' | 'warm' | 'cold'): string {
   switch (status) {
-    case 'hot':
-      return 'bg-success';
-    case 'warm':
-      return 'bg-warning';
-    case 'cold':
-      return 'bg-muted';
-    default:
-      return 'bg-muted';
+    case 'hot': return 'text-emerald-700 bg-emerald-50 border-emerald-200';
+    case 'warm': return 'text-amber-700 bg-amber-50 border-amber-200';
+    case 'cold': return 'text-slate-600 bg-slate-50 border-slate-200';
+    default: return 'text-slate-600 bg-slate-50 border-slate-200';
   }
 }
 
@@ -157,4 +153,34 @@ export function getDetectionLocationName(detection: any): string {
   }
   // Prefecture detection
   return detection.prefectureName || 'Unknown';
+}
+
+export function formatRelativeTime(date: string | Date): string {
+  const now = new Date();
+  const d = new Date(date);
+  const diffMs = now.getTime() - d.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+  if (diffSec < 60) return `${diffSec}s ago`;
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHour < 24) return `${diffHour}h ago`;
+  return `${diffDay}d ago`;
+}
+
+export function getWhatsAppStatusColor(status: string): string {
+  switch (status) {
+    case 'delivered': return 'text-emerald-600 bg-emerald-50';
+    case 'sent': return 'text-sky-600 bg-sky-50';
+    case 'failed': return 'text-red-600 bg-red-50';
+    default: return 'text-slate-500 bg-slate-50';
+  }
+}
+
+export function getPrefectureSystemType(prefectureId: string): string {
+  if (prefectureId === 'paris_75') return 'ANTS';
+  if (prefectureId === 'bobigny_93') return 'ezbooking';
+  if (['melun_77', 'lyon_69'].includes(prefectureId)) return 'ANEF';
+  return 'RDV-Prefecture';
 }

@@ -1,182 +1,186 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MapPin, Search, ExternalLink, Filter, Zap } from 'lucide-react';
+import { MapPin, Search, ExternalLink, ChevronDown, ChevronUp, Play, AlertCircle } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import { formatRelativeTime, getProcedureLabel, getPrefectureSystemType } from '@/lib/utils';
 
 interface Prefecture {
   id: string;
   name: string;
   department: string;
-  region: string;
   tier: number;
-  status: 'hot' | 'warm' | 'cold';
-  lastSlotFoundAt: string | null;
   bookingUrl: string;
+  status: string;
+  lastScrapedAt: string | null;
+  slotsFound24h?: number;
+  consecutiveErrors?: number;
+  categories?: any[];
 }
+
+const statusColors: Record<string, string> = {
+  ACTIVE: 'text-emerald-700 bg-emerald-50',
+  PAUSED: 'text-slate-600 bg-slate-50',
+  ERROR: 'text-red-700 bg-red-50',
+  CAPTCHA: 'text-amber-700 bg-amber-50',
+};
 
 export default function PrefecturesView() {
   const [prefectures, setPrefectures] = useState<Prefecture[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [tierFilter, setTierFilter] = useState('all');
+  const [tierFilter, setTierFilter] = useState('ALL');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [details, setDetails] = useState<Record<string, any>>({});
+  const [testing, setTesting] = useState<string | null>(null);
 
   useEffect(() => {
-    apiFetch('/api/boss/prefectures')
-      .then(res => res.json())
-      .then(data => {
-        setPrefectures(data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    const fetch = async () => {
+      try {
+        const res = await apiFetch('/api/boss/prefectures');
+        if (res.ok) {
+          const json = await res.json();
+          setPrefectures(json.data || json || []);
+        }
+      } catch { /* ignore */ }
+      setLoading(false);
+    };
+    fetch();
   }, []);
 
-  const filteredPrefectures = prefectures.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
-                          p.department.toLowerCase().includes(search.toLowerCase());
-    const matchesTier = tierFilter === 'all' || p.tier === parseInt(tierFilter);
-    return matchesSearch && matchesTier;
-  });
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'hot': return 'bg-gradient-to-br from-cyan to-cyan-dark shadow-glow-cyan';
-      case 'warm': return 'bg-cyan/30';
-      default: return 'bg-surfaceLight';
+  const toggleExpand = async (id: string) => {
+    if (expandedId === id) { setExpandedId(null); return; }
+    setExpandedId(id);
+    if (!details[id]) {
+      try {
+        const res = await apiFetch(`/api/boss/prefecture/${id}/details`);
+        if (res.ok) {
+          const json = await res.json();
+          setDetails(d => ({ ...d, [id]: json.data || json }));
+        }
+      } catch { /* ignore */ }
     }
   };
 
-  const getTierBadge = (tier: number) => {
-    const colors: Record<number, string> = {
-      1: 'bg-red-500/10 text-red-400 border-red-500/30',
-      2: 'bg-orange-500/10 text-orange-400 border-orange-500/30',
-      3: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
-    };
-    return colors[tier] || 'bg-surfaceLight text-text-muted';
+  const triggerTest = async (id: string) => {
+    setTesting(id);
+    try {
+      await apiFetch(`/api/boss/prefecture/${id}/check`, { method: 'POST' });
+    } catch { /* ignore */ }
+    setTimeout(() => setTesting(null), 3000);
   };
+
+  const filtered = prefectures.filter(p => {
+    const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.department.includes(search);
+    const matchTier = tierFilter === 'ALL' || String(p.tier) === tierFilter;
+    return matchSearch && matchTier;
+  });
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">PREFECTURES</h1>
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-cyan/10 border border-cyan/30">
-              <MapPin className="w-4 h-4 text-cyan" />
-              <span className="text-xs text-cyan font-medium">{prefectures.length} TOTAL</span>
-            </div>
-          </div>
-          <p className="text-text-muted mt-1">Manage prefecture availability and monitoring</p>
-        </div>
-      </div>
-
       {/* Filters */}
-      <div className="card p-4 tech-corner">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-            <input
-              type="text"
-              placeholder="Search prefectures..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input pl-10"
-            />
-          </div>
-          <select
-            value={tierFilter}
-            onChange={(e) => setTierFilter(e.target.value)}
-            className="select"
-          >
-            <option value="all">All Tiers</option>
-            <option value="1">Tier 1 (Priority)</option>
-            <option value="2">Tier 2</option>
-            <option value="3">Tier 3</option>
-          </select>
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input placeholder="Search prefectures..." value={search} onChange={e => setSearch(e.target.value)} className="input pl-9" />
         </div>
+        <select value={tierFilter} onChange={e => setTierFilter(e.target.value)} className="select">
+          <option value="ALL">All Tiers</option>
+          <option value="1">Tier 1 (IDF)</option>
+          <option value="2">Tier 2 (Major)</option>
+          <option value="3">Tier 3 (Other)</option>
+        </select>
       </div>
 
-      {/* Prefectures Grid */}
-      <div className="card overflow-hidden tech-corner">
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Status</th>
-                <th>Name</th>
-                <th>Department</th>
-                <th>Region</th>
-                <th>Tier</th>
-                <th>Last Slot</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="text-center py-12">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="spinner" />
-                      <span className="text-text-muted">Loading prefectures...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : filteredPrefectures.length === 0 ? (
-                <tr>
-                  <td colSpan={7}>
-                    <div className="empty-state py-16">
-                      <MapPin className="w-12 h-12 text-cyan/30 mb-4" />
-                      <p className="empty-state-title">No prefectures found</p>
-                      <p className="empty-state-description">Try adjusting your filters</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredPrefectures.map((pref) => (
-                  <tr key={pref.id} className="hover:bg-cyan/5 transition-colors group">
-                    <td>
-                      <div className={`w-3 h-3 rounded-full ${getStatusColor(pref.status)}`} />
-                    </td>
-                    <td>
-                      <span className="font-semibold text-white group-hover:text-cyan transition-colors">{pref.name}</span>
-                    </td>
-                    <td>
-                      <span className="text-text">{pref.department}</span>
-                    </td>
-                    <td>
-                      <span className="text-text-muted">{pref.region}</span>
-                    </td>
-                    <td>
-                      <span className={`badge ${getTierBadge(pref.tier)}`}>
-                        Tier {pref.tier}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="text-text-muted text-sm">
-                        {pref.lastSlotFoundAt 
-                          ? new Date(pref.lastSlotFoundAt).toLocaleDateString()
-                          : 'Never'
-                        }
-                      </span>
-                    </td>
-                    <td>
-                      <a
-                        href={pref.bookingUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 rounded-lg hover:bg-cyan/10 transition-colors inline-flex"
-                      >
-                        <ExternalLink className="w-4 h-4 text-text-muted hover:text-cyan transition-colors" />
-                      </a>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {/* Prefecture Cards */}
+      {loading ? (
+        <div className="space-y-4">{[1, 2, 3].map(i => <div key={i} className="h-24 bg-white rounded-xl border border-sky-100 animate-pulse" />)}</div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white rounded-xl border border-sky-100 shadow-sm p-12 text-center">
+          <MapPin size={40} className="mx-auto text-slate-300 mb-3" />
+          <p className="text-slate-500">No prefectures found</p>
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          {filtered.map(pref => {
+            const isExpanded = expandedId === pref.id;
+            const detail = details[pref.id];
+            const sysType = getPrefectureSystemType(pref.id);
+            const statusCls = statusColors[pref.status] || statusColors.ACTIVE;
+
+            return (
+              <div key={pref.id} className="bg-white rounded-xl border border-sky-100 shadow-sm overflow-hidden">
+                {/* Header */}
+                <div className="p-4 cursor-pointer hover:bg-sky-50/30 transition-colors" onClick={() => toggleExpand(pref.id)}>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center text-sm font-bold">
+                        {pref.department}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-slate-900">{pref.name}</h3>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs text-slate-400">{sysType}</span>
+                          <span className="text-xs text-slate-300">|</span>
+                          <span className="text-xs text-slate-400">Tier {pref.tier}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded ${statusCls}`}>{pref.status}</span>
+                      {isExpanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 mt-3 text-xs text-slate-500">
+                    <span>Last scan: {pref.lastScrapedAt ? formatRelativeTime(pref.lastScrapedAt) : 'Never'}</span>
+                    <span>Slots 24h: <strong className="text-sky-600">{pref.slotsFound24h ?? 0}</strong></span>
+                    {(pref.consecutiveErrors || 0) > 0 && (
+                      <span className="text-red-500 flex items-center gap-1"><AlertCircle size={12} />{pref.consecutiveErrors} errors</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Expanded */}
+                {isExpanded && (
+                  <div className="border-t border-sky-50 px-4 pb-4 pt-3 bg-sky-50/20">
+                    {detail?.categories?.length > 0 ? (
+                      <div className="space-y-2 mb-3">
+                        {detail.categories.map((cat: any) => (
+                          <div key={cat.code || cat.id} className="flex items-center justify-between p-2 bg-white rounded-lg border border-sky-50">
+                            <div>
+                              <p className="text-sm font-medium text-slate-800">{cat.name || getProcedureLabel(cat.procedure || cat.code)}</p>
+                              <p className="text-xs text-slate-400">
+                                Last: {cat.lastScrapedAt ? formatRelativeTime(cat.lastScrapedAt) : 'Never'}
+                                {cat.lastSlotFoundAt && ` | Slot: ${formatRelativeTime(cat.lastSlotFoundAt)}`}
+                              </p>
+                            </div>
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded ${statusColors[cat.categoryStatus] || 'text-slate-500 bg-slate-50'}`}>
+                              {cat.categoryStatus || 'ACTIVE'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-400 mb-3">Loading categories...</p>
+                    )}
+                    <div className="flex gap-2">
+                      <button onClick={(e) => { e.stopPropagation(); triggerTest(pref.id); }} disabled={testing === pref.id}
+                        className="btn btn-primary text-xs py-1.5 px-3">
+                        <Play size={14} /> {testing === pref.id ? 'Testing...' : 'Manual Test'}
+                      </button>
+                      {pref.bookingUrl && (
+                        <a href={pref.bookingUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary text-xs py-1.5 px-3">
+                          <ExternalLink size={14} /> Open URL
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

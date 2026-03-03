@@ -1,41 +1,36 @@
 'use client';
 
-import { Plus, Bell, RefreshCw, Download, Zap } from 'lucide-react';
+import { Plus, MessageCircle, MapPin, Settings2 } from 'lucide-react';
 
 interface QuickActionsProps {
-  onNavigate?: (tab: string) => void;
+  onNavigate: (tab: string) => void;
 }
+
+const actions = [
+  { id: 'clients', label: 'Add Client', icon: Plus, color: 'text-sky-600 bg-sky-50 hover:bg-sky-100' },
+  { id: 'whatsapp', label: 'WhatsApp Alerts', icon: MessageCircle, color: 'text-green-600 bg-green-50 hover:bg-green-100' },
+  { id: 'prefectures', label: 'Prefectures', icon: MapPin, color: 'text-violet-600 bg-violet-50 hover:bg-violet-100' },
+  { id: 'control', label: 'System Control', icon: Settings2, color: 'text-amber-600 bg-amber-50 hover:bg-amber-100' },
+];
 
 export default function QuickActions({ onNavigate }: QuickActionsProps) {
   return (
-    <div className="card p-4 lg:p-5 tech-corner">
-      <div className="flex items-center gap-2 mb-4">
-        <Zap className="w-5 h-5 text-cyan" />
-        <h3 className="font-semibold text-white text-sm tracking-wide">QUICK ACTIONS</h3>
-      </div>
-      <div className="space-y-2">
-        <button
-          onClick={() => onNavigate?.('clients')}
-          className="w-full btn btn-primary justify-start text-sm group"
-        >
-          <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
-          Add New Client
-        </button>
-        <button
-          onClick={() => onNavigate?.('alerts')}
-          className="w-full btn btn-secondary justify-start text-sm group"
-        >
-          <Bell className="w-4 h-4 group-hover:text-cyan transition-colors" />
-          Create Alert
-        </button>
-        <button className="w-full btn btn-secondary justify-start text-sm group">
-          <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
-          Sync Prefectures
-        </button>
-        <button className="w-full btn btn-secondary justify-start text-sm group">
-          <Download className="w-4 h-4 group-hover:translate-y-1 transition-transform" />
-          Export Report
-        </button>
+    <div className="bg-white rounded-xl border border-sky-100 shadow-sm p-5">
+      <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide mb-4">Quick Actions</h3>
+      <div className="grid grid-cols-2 gap-2">
+        {actions.map((action) => {
+          const Icon = action.icon;
+          return (
+            <button
+              key={action.id}
+              onClick={() => onNavigate(action.id)}
+              className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${action.color}`}
+            >
+              <Icon size={16} />
+              {action.label}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

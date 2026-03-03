@@ -3,191 +3,133 @@
 import { useState, useEffect } from 'react';
 import { Building2, Clock, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import { formatRelativeTime } from '@/lib/utils';
 
-interface CategoryStatus {
+interface EmbassyCategory {
   id: number;
   name: string;
-  code: string;
-  status: 'available' | 'recent' | 'no_slots' | 'not_checked' | 'error';
-  slotsCount: number;
-  slotDates: Array<{ date: string; times: string[] }> | null;
-  lastChecked: string | null;
-  lastSlotFound: string | null;
-  errorMessage: string | null;
+  status: string;
+  lastScrapedAt: string | null;
+  lastSlotFoundAt: string | null;
+  slotsAvailable?: number;
+  responseTimeMs?: number;
 }
 
-interface EmbassyStatus {
-  id: string;
-  name: string;
-  baseUrl: string;
-  categories: CategoryStatus[];
-  lastUpdated: string;
-}
-
-const STATUS_CONFIG = {
-  available: { color: 'bg-emerald-500', text: 'Slots Available', icon: CheckCircle },
-  recent: { color: 'bg-amber-500', text: 'Recent Slots', icon: Clock },
-  no_slots: { color: 'bg-gray-500', text: 'No Slots', icon: XCircle },
-  not_checked: { color: 'bg-blue-500', text: 'Not Checked', icon: AlertCircle },
-  error: { color: 'bg-red-500', text: 'Error', icon: AlertCircle },
+const categoryConfig: Record<number, { label: string; color: string; accent: string }> = {
+  3: { label: 'Passport Services', color: 'from-blue-500 to-blue-600', accent: 'text-blue-600 bg-blue-50' },
+  1: { label: 'OCI Services', color: 'from-violet-500 to-violet-600', accent: 'text-violet-600 bg-violet-50' },
+  2: { label: 'Visa Services', color: 'from-emerald-500 to-emerald-600', accent: 'text-emerald-600 bg-emerald-50' },
+  27: { label: 'Birth Registration', color: 'from-amber-500 to-amber-600', accent: 'text-amber-600 bg-amber-50' },
 };
 
-const CATEGORY_COLORS: Record<number, string> = {
-  3: 'from-blue-600 to-blue-800',      // Passport
-  1: 'from-emerald-600 to-emerald-800', // OCI
-  2: 'from-purple-600 to-purple-800',   // Visa
-  27: 'from-amber-600 to-amber-800',    // Birth
+const statusIcon: Record<string, { icon: any; color: string; label: string }> = {
+  available: { icon: CheckCircle, color: 'text-emerald-500', label: 'Available' },
+  no_slots: { icon: XCircle, color: 'text-slate-400', label: 'No Slots' },
+  error: { icon: AlertCircle, color: 'text-red-500', label: 'Error' },
+  not_checked: { icon: Clock, color: 'text-slate-300', label: 'Not Checked' },
 };
 
 export default function EmbassyView() {
-  const [data, setData] = useState<EmbassyStatus | null>(null);
+  const [categories, setCategories] = useState<EmbassyCategory[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [checking, setChecking] = useState<number | null>(null);
 
-  const fetchData = async () => {
+  const fetchStatus = async () => {
     try {
-      const response = await apiFetch('/api/boss/embassy-status');
-      if (!response.ok) throw new Error('Failed to fetch');
-      const json = await response.json();
-      setData(json);
-      setError(null);
-    } catch (err) {
-      setError('Failed to load embassy status');
-      console.error('Embassy fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
+      const res = await apiFetch('/api/boss/embassy-status');
+      if (res.ok) {
+        const json = await res.json();
+        setCategories(json.data || json || []);
+      }
+    } catch { /* ignore */ }
+    setLoading(false);
   };
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 30000); // Refresh every 30s
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 60000);
     return () => clearInterval(interval);
   }, []);
 
-  const formatTime = (isoString: string | null) => {
-    if (!isoString) return 'Never';
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return date.toLocaleDateString();
+  const triggerCheck = async (catId: number) => {
+    setChecking(catId);
+    try {
+      await apiFetch(`/api/boss/category/indian-embassy-paris/${catId}/check`, { method: 'POST' });
+    } catch { /* ignore */ }
+    setTimeout(() => { setChecking(null); fetchStatus(); }, 5000);
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
-      </div>
-    );
-  }
-
-  if (error || !data) {
-    return (
-      <div className="card p-6 text-center">
-        <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-        <p className="text-red-400">{error || 'No data available'}</p>
-        <button onClick={fetchData} className="mt-4 px-4 py-2 bg-cyan-600 rounded-lg hover:bg-cyan-700 transition-colors">
-          Retry
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="card p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-orange-500 to-orange-700 rounded-xl">
-              <Building2 className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-white">{data.name}</h2>
-              <p className="text-gray-400">Real-time appointment monitoring</p>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-              Live
-            </div>
-            <p className="text-xs text-gray-500">Updated {formatTime(data.lastUpdated)}</p>
-          </div>
+      <div className="bg-white rounded-xl border border-sky-100 shadow-sm p-5 flex items-center gap-4">
+        <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-2xl">&#127470;&#127475;</div>
+        <div>
+          <h2 className="text-lg font-bold text-slate-900">Indian Embassy Paris</h2>
+          <p className="text-sm text-slate-500">Real-time appointment slot monitoring for all services</p>
         </div>
       </div>
 
-      {/* Category Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {data.categories.map((cat) => {
-          const statusConfig = STATUS_CONFIG[cat.status];
-          const StatusIcon = statusConfig.icon;
-          const gradientColor = CATEGORY_COLORS[cat.id] || 'from-gray-600 to-gray-800';
+      {/* Category Cards */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-48 bg-white rounded-xl border border-sky-100 animate-pulse" />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[3, 1, 2, 27].map(catId => {
+            const config = categoryConfig[catId];
+            const cat = categories.find(c => c.id === catId);
+            const status = cat?.status || 'not_checked';
+            const si = statusIcon[status] || statusIcon.not_checked;
+            const StatusIcon = si.icon;
 
-          return (
-            <div key={cat.id} className="card card-hover overflow-hidden">
-              <div className={`h-2 bg-gradient-to-r ${gradientColor}`} />
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-xl font-semibold text-white">{cat.name}</h3>
-                    <p className="text-sm text-gray-400">{cat.code}</p>
-                  </div>
-                  <div className={`px-3 py-1 rounded-full ${statusConfig.color} flex items-center gap-2`}>
-                    <StatusIcon className="w-4 h-4 text-white" />
-                    <span className="text-sm font-medium text-white">{statusConfig.text}</span>
-                  </div>
-                </div>
+            return (
+              <div key={catId} className="bg-white rounded-xl border border-sky-100 shadow-sm overflow-hidden">
+                {/* Color bar */}
+                <div className={`h-1.5 bg-gradient-to-r ${config.color}`} />
 
-                {cat.status === 'available' && cat.slotsCount > 0 && (
-                  <div className="mb-4 p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg">
-                    <p className="text-emerald-400 font-bold text-lg">
-                      {cat.slotsCount} slot{cat.slotsCount > 1 ? 's' : ''} found!
-                    </p>
-                    {cat.slotDates && cat.slotDates.length > 0 && (
-                      <p className="text-sm text-emerald-300 mt-1">
-                        Next: {cat.slotDates[0].date} at {cat.slotDates[0].times[0]}
-                      </p>
+                <div className="p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-slate-900">{config.label}</h3>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${config.accent}`}>ID: {catId}</span>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-slate-500">Status</span>
+                      <div className="flex items-center gap-1.5">
+                        <StatusIcon size={14} className={si.color} />
+                        <span className="text-sm font-medium text-slate-700">{si.label}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-slate-500">Last Check</span>
+                      <span className="text-sm text-slate-700">{cat?.lastScrapedAt ? formatRelativeTime(cat.lastScrapedAt) : '--'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-slate-500">Last Slot</span>
+                      <span className="text-sm text-slate-700">{cat?.lastSlotFoundAt ? formatRelativeTime(cat.lastSlotFoundAt) : 'Never'}</span>
+                    </div>
+                    {cat?.responseTimeMs && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-slate-500">Response Time</span>
+                        <span className="text-sm text-slate-700">{(cat.responseTimeMs / 1000).toFixed(1)}s</span>
+                      </div>
                     )}
                   </div>
-                )}
 
-                {cat.status === 'error' && cat.errorMessage && (
-                  <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
-                    <p className="text-red-400 text-sm">{cat.errorMessage}</p>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-500">Last Checked</p>
-                    <p className="text-gray-300">{formatTime(cat.lastChecked)}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Last Slot Found</p>
-                    <p className="text-gray-300">{formatTime(cat.lastSlotFound)}</p>
-                  </div>
+                  <button onClick={() => triggerCheck(catId)} disabled={checking === catId}
+                    className="mt-4 w-full btn btn-secondary text-sm py-2">
+                    <RefreshCw size={14} className={checking === catId ? 'animate-spin' : ''} />
+                    {checking === catId ? 'Checking...' : 'Check Now'}
+                  </button>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Booking URL */}
-      <div className="card p-4">
-        <p className="text-sm text-gray-400">
-          Booking URL:{' '}
-          <a href={data.baseUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">
-            {data.baseUrl}
-          </a>
-        </p>
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
