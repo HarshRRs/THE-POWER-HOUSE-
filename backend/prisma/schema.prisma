@@ -795,3 +795,34 @@ enum UrlValidationStatus {
   REJECTED        // Admin rejected
   AUTO_APPROVED   // Auto-approved (high confidence)
 }
+
+// ═══════════════════════════════════════
+// CLIENT ALERTS (Simple WhatsApp Subscriptions)
+// ═══════════════════════════════════════
+
+model ClientAlert {
+  id                String        @id @default(cuid())
+  name              String        // Person's name
+  phone             String        // WhatsApp number with country code
+  
+  system            AlertSystem   // PREFECTURE or EMBASSY
+  prefectureId      String?       // For prefecture alerts
+  consulateId       String?       // For embassy alerts (default: indian-embassy-paris)
+  categoryCode      String        // Demarche code (prefecture) or PASSPORT/OCI/VISA/BIRTH (embassy)
+  categoryName      String        // Human-readable category name
+  
+  isActive          Boolean       @default(true)
+  notificationsSent Int           @default(0)
+  lastNotifiedAt    DateTime?
+  
+  createdAt         DateTime      @default(now())
+  
+  @@index([system, isActive])
+  @@index([prefectureId, categoryCode, isActive])
+  @@index([consulateId, categoryCode, isActive])
+}
+
+enum AlertSystem {
+  PREFECTURE
+  EMBASSY
+}

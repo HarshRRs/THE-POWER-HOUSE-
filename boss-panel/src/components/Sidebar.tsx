@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import {
-  LayoutDashboard,
+  Bell,
   MapPin,
   Building2,
   Users,
@@ -21,7 +21,7 @@ interface SidebarProps {
 }
 
 const menuItems = [
-  { id: 'dashboard',   label: 'Command Center',   icon: LayoutDashboard },
+  { id: 'alerts',      label: 'Alerts',            icon: Bell },
   { id: 'prefectures', label: 'Prefectures',       icon: MapPin },
   { id: 'embassy',     label: 'Indian Embassy',    icon: Building2 },
   { id: 'clients',     label: 'Clients',           icon: Users },

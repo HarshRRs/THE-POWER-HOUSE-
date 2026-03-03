@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  LayoutDashboard,
+  Bell,
   Users,
   Building2,
   MessageCircle,
@@ -14,7 +14,7 @@ interface MobileNavProps {
 }
 
 const navItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'alerts',    label: 'Alerts',    icon: Bell },
   { id: 'clients',   label: 'Clients',   icon: Users },
   { id: 'embassy',   label: 'Embassy',   icon: Building2 },
   { id: 'whatsapp',  label: 'WhatsApp',  icon: MessageCircle },

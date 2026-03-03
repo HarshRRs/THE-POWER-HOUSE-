@@ -924,4 +924,109 @@ router.get('/embassy-status', async (_req, res) => {
   }
 });
 
+// ═══════════════════════════════════════
+// CLIENT ALERTS - Simple WhatsApp Subscriptions
+// ═══════════════════════════════════════
+
+/**
+ * List all client alerts
+ */
+router.get('/client-alerts', async (_req, res) => {
+  try {
+    const alerts = await prisma.clientAlert.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(alerts);
+  } catch (error) {
+    logger.error('Error fetching client alerts:', error);
+    res.status(500).json({ error: 'Failed to fetch client alerts' });
+  }
+});
+
+/**
+ * Create a new client alert
+ */
+router.post('/client-alerts', async (req, res) => {
+  try {
+    const { name, phone, system, prefectureId, consulateId, categoryCode, categoryName } = req.body;
+    
+    // Validation
+    if (!name || !phone || !system || !categoryCode || !categoryName) {
+      res.status(400).json({ error: 'Missing required fields: name, phone, system, categoryCode, categoryName' });
+      return;
+    }
+    
+    if (system !== 'PREFECTURE' && system !== 'EMBASSY') {
+      res.status(400).json({ error: 'system must be PREFECTURE or EMBASSY' });
+      return;
+    }
+    
+    const alert = await prisma.clientAlert.create({
+      data: { 
+        name, 
+        phone, 
+        system, 
+        prefectureId: system === 'PREFECTURE' ? prefectureId : null,
+        consulateId: system === 'EMBASSY' ? (consulateId || 'indian-embassy-paris') : null,
+        categoryCode, 
+        categoryName,
+      },
+    });
+    
+    logger.info(`Client alert created: ${alert.id} for ${name} (${system}:${categoryCode})`);
+    res.status(201).json(alert);
+  } catch (error) {
+    logger.error('Error creating client alert:', error);
+    res.status(500).json({ error: 'Failed to create client alert' });
+  }
+});
+
+/**
+ * Delete a client alert
+ */
+router.delete('/client-alerts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const alert = await prisma.clientAlert.findUnique({ where: { id } });
+    if (!alert) {
+      res.status(404).json({ error: 'Alert not found' });
+      return;
+    }
+    
+    await prisma.clientAlert.delete({ where: { id } });
+    logger.info(`Client alert deleted: ${id}`);
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Error deleting client alert:', error);
+    res.status(500).json({ error: 'Failed to delete client alert' });
+  }
+});
+
+/**
+ * Toggle client alert active status
+ */
+router.patch('/client-alerts/:id/toggle', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const alert = await prisma.clientAlert.findUnique({ where: { id } });
+    if (!alert) {
+      res.status(404).json({ error: 'Alert not found' });
+      return;
+    }
+    
+    const updated = await prisma.clientAlert.update({
+      where: { id },
+      data: { isActive: !alert.isActive },
+    });
+    
+    logger.info(`Client alert ${id} toggled: isActive=${updated.isActive}`);
+    res.json(updated);
+  } catch (error) {
+    logger.error('Error toggling client alert:', error);
+    res.status(500).json({ error: 'Failed to toggle client alert' });
+  }
+});
+
 export default router;

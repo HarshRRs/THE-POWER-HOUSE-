@@ -5,7 +5,7 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import LoginPage from '@/components/LoginPage';
 import Sidebar from '@/components/Sidebar';
 import MobileNav from '@/components/MobileNav';
-import DashboardView from '@/components/views/DashboardView';
+import AlertsView from '@/components/views/AlertsView';
 import PrefecturesView from '@/components/views/PrefecturesView';
 import EmbassyView from '@/components/views/EmbassyView';
 import ClientsView from '@/components/views/ClientsView';
@@ -13,7 +13,7 @@ import WhatsAppView from '@/components/views/WhatsAppView';
 import AnalyticsView from '@/components/views/AnalyticsView';
 import ControlView from '@/components/views/ControlView';
 
-type TabId = 'dashboard' | 'prefectures' | 'embassy' | 'clients' | 'whatsapp' | 'analytics' | 'control';
+type TabId = 'alerts' | 'prefectures' | 'embassy' | 'clients' | 'whatsapp' | 'analytics' | 'control';
 
 interface TabMeta {
   title: string;
@@ -21,7 +21,7 @@ interface TabMeta {
 }
 
 const TAB_META: Record<TabId, TabMeta> = {
-  dashboard:   { title: 'Command Center',    description: 'Real-time immigration slot monitoring' },
+  alerts:      { title: 'Alerts',             description: 'Create WhatsApp alert subscriptions' },
   prefectures: { title: 'Prefectures',       description: 'Monitor all French prefectures' },
   embassy:     { title: 'Indian Embassy',    description: 'Embassy slot monitoring' },
   clients:     { title: 'Clients',           description: 'Manage your clients' },
@@ -31,14 +31,14 @@ const TAB_META: Record<TabId, TabMeta> = {
 };
 
 function Dashboard() {
-  const [activeTab, setActiveTab] = useState<TabId>('dashboard');
+  const [activeTab, setActiveTab] = useState<TabId>('alerts');
 
-  const meta = TAB_META[activeTab] ?? TAB_META['dashboard'];
+  const meta = TAB_META[activeTab] ?? TAB_META['alerts'];
 
   const renderView = () => {
     switch (activeTab) {
-      case 'dashboard':
-        return <DashboardView onNavigate={(tab) => setActiveTab(tab as TabId)} />;
+      case 'alerts':
+        return <AlertsView />;
       case 'prefectures':
         return <PrefecturesView />;
       case 'embassy':
@@ -52,7 +52,7 @@ function Dashboard() {
       case 'control':
         return <ControlView />;
       default:
-        return <DashboardView onNavigate={(tab) => setActiveTab(tab as TabId)} />;
+        return <AlertsView />;
     }
   };
 

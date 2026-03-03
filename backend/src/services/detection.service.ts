@@ -3,6 +3,7 @@ import type { ScrapeResult } from '../types/prefecture.types.js';
 import type { ConsulateScrapeResult } from '../types/consulate.types.js';
 import type { SlotDetectionData } from '../types/notification.types.js';
 import { dispatchSlotNotifications } from './notifications/notification.service.js';
+import { sendWhatsApp } from './notifications/whatsapp.service.js';
 import { recordSlotFound } from './prefecture.service.js';
 import { deduplicationService } from './deduplication.service.js';
 import { findMatchingClients } from './booking.service.js';
@@ -164,6 +165,14 @@ export async function processDetection(
   // Dispatch notifications only to non-duplicate users
   const users = nonDuplicateAlerts.map((alert) => alert.user);
   await dispatchSlotNotifications(users, slotData);
+
+  // Notify simple client alerts (boss panel subscriptions)
+  await notifyClientAlerts('PREFECTURE', prefectureId, categoryCode || result.categoryCode, {
+    locationName: `${prefecture.name} (${prefecture.department})`,
+    slotDate: result.slotDate,
+    slotTime: result.slotTime,
+    bookingUrl: result.bookingUrl,
+  });
 
   logger.info(
     `Detection processed: ${result.slotsAvailable} slots at ${prefecture.name}, ` +
@@ -357,4 +366,75 @@ export async function processConsulateDetection(
     `Consulate detection processed: ${result.slotsAvailable} slots at ${consulate.name} (${result.categoryName}), ` +
     `notifying ${users.length} users`
   );
+
+  // Notify simple client alerts (boss panel subscriptions)
+  // Map category ID to category code for matching
+  const embassyCategoryCode = mapEmbassyCategoryToCode(result.category);
+  await notifyClientAlerts('EMBASSY', consulateId, embassyCategoryCode, {
+    locationName: consulate.name,
+    slotDate,
+    slotTime,
+    bookingUrl: result.bookingUrl,
+  });
+}
+
+/**
+ * Map embassy category ID to category code
+ */
+function mapEmbassyCategoryToCode(categoryId: number): string {
+  const mapping: Record<number, string> = {
+    3: 'PASSPORT',
+    1: 'OCI',
+    2: 'VISA',
+    27: 'BIRTH',
+  };
+  return mapping[categoryId] || '';
+}
+
+/**
+ * Notify simple WhatsApp alert subscriptions (from boss panel)
+ * These are separate from User alerts - no account/plan required
+ */
+async function notifyClientAlerts(
+  system: 'PREFECTURE' | 'EMBASSY',
+  locationId: string,
+  categoryCode: string | undefined,
+  slotData: { locationName: string; slotDate?: string; slotTime?: string; bookingUrl: string }
+): Promise<void> {
+  if (!categoryCode) return;
+
+  try {
+    const alerts = await prisma.clientAlert.findMany({
+      where: {
+        system,
+        isActive: true,
+        ...(system === 'PREFECTURE'
+          ? { prefectureId: locationId, categoryCode }
+          : { consulateId: locationId, categoryCode }
+        ),
+      },
+    });
+
+    if (alerts.length === 0) return;
+
+    logger.info(`Notifying ${alerts.length} client alerts for ${system} ${locationId}:${categoryCode}`);
+
+    for (const alert of alerts) {
+      const message = `Bonjour ${alert.name}, un creneau est disponible!\n\n` +
+        `${slotData.locationName}\n` +
+        `${slotData.slotDate || ''} ${slotData.slotTime || ''}\n\n` +
+        `Reservez maintenant: ${slotData.bookingUrl}`;
+
+      const sent = await sendWhatsApp({ to: alert.phone, message });
+
+      if (sent) {
+        await prisma.clientAlert.update({
+          where: { id: alert.id },
+          data: { notificationsSent: { increment: 1 }, lastNotifiedAt: new Date() },
+        });
+      }
+    }
+  } catch (error) {
+    logger.error('Error notifying client alerts:', error);
+  }
 }
