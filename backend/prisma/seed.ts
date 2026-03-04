@@ -3,24 +3,29 @@ import { PrismaClient } from '@prisma/client';
 // In production, code is compiled to dist/. In development, it's in src/.
 const isProduction = process.env.NODE_ENV === 'production';
 const basePath = isProduction ? '../dist/scraper' : '../src/scraper';
+const configBasePath = isProduction ? '../dist/config' : '../src/config';
 
 async function importModules() {
   const prefectures = await import(`${basePath}/prefectures/index.js`);
   const consulates = await import(`${basePath}/consulates/index.js`);
   const vfs = await import(`${basePath}/vfs/index.js`);
+  const categoryConfig = await import(`${configBasePath}/prefecture-categories.config.js`);
   return {
     ALL_PREFECTURES: prefectures.ALL_PREFECTURES,
     ALL_PREFECTURES_FULL: prefectures.ALL_PREFECTURES_FULL,
     ACTIVE_PREFECTURE_IDS: prefectures.ACTIVE_PREFECTURE_IDS,
     ALL_CONSULATES: consulates.ALL_CONSULATES,
     getAllVfsConfigs: vfs.getAllVfsConfigs,
+    RDV_PREFECTURE_CATEGORIES: categoryConfig.RDV_PREFECTURE_CATEGORIES,
+    OTHER_SYSTEM_CATEGORIES: categoryConfig.OTHER_SYSTEM_CATEGORIES,
+    getCategoryUrl: categoryConfig.getCategoryUrl,
   };
 }
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const { ALL_PREFECTURES, ALL_PREFECTURES_FULL, ACTIVE_PREFECTURE_IDS, ALL_CONSULATES, getAllVfsConfigs } = await importModules();
+  const { ALL_PREFECTURES, ALL_PREFECTURES_FULL, ACTIVE_PREFECTURE_IDS, ALL_CONSULATES, getAllVfsConfigs, RDV_PREFECTURE_CATEGORIES, OTHER_SYSTEM_CATEGORIES, getCategoryUrl } = await importModules();
   console.log('Seeding database...');
 
   // Seed only ACTIVE prefectures and set others to PAUSED
@@ -62,6 +67,49 @@ async function main() {
   }
 
   console.log(`Seeded ${ALL_PREFECTURES_FULL.length} prefectures (${ACTIVE_PREFECTURE_IDS.length} ACTIVE, ${ALL_PREFECTURES_FULL.length - ACTIVE_PREFECTURE_IDS.length} PAUSED)`);
+
+  // Seed PrefectureCategory rows for ACTIVE prefectures
+  console.log('Seeding prefecture categories...');
+  let categoryCount = 0;
+
+  const allCategoryConfigs: Record<string, any[]> = { ...RDV_PREFECTURE_CATEGORIES, ...OTHER_SYSTEM_CATEGORIES };
+
+  for (const prefectureId of ACTIVE_PREFECTURE_IDS) {
+    const categories = allCategoryConfigs[prefectureId];
+    if (!categories || categories.length === 0) continue;
+
+    for (const cat of categories) {
+      // Build the category URL - RDV-Prefecture uses demarche codes, others use code as-is
+      const isRdvPrefecture = prefectureId in RDV_PREFECTURE_CATEGORIES;
+      const categoryUrl = isRdvPrefecture
+        ? getCategoryUrl(cat.code)
+        : `https://placeholder.gouv.fr/${prefectureId}/${cat.code}`;
+
+      await prisma.prefectureCategory.upsert({
+        where: {
+          prefectureId_code: { prefectureId, code: cat.code },
+        },
+        update: {
+          name: cat.name,
+          procedure: cat.procedure,
+          categoryUrl,
+          status: 'ACTIVE',
+          consecutiveErrors: 0,
+        },
+        create: {
+          prefectureId,
+          code: cat.code,
+          name: cat.name,
+          procedure: cat.procedure,
+          categoryUrl,
+          status: 'ACTIVE',
+        },
+      });
+      categoryCount++;
+    }
+  }
+
+  console.log(`Seeded ${categoryCount} prefecture categories for ${ACTIVE_PREFECTURE_IDS.length} active prefectures`);
 
   // Seed consulates
   console.log(`Seeding ${ALL_CONSULATES.length} consulate(s)...`);
