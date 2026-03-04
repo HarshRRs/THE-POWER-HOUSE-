@@ -314,12 +314,16 @@ services:
       SMARTPROXY_CITY: ${SMARTPROXY_CITY}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       ADMIN_TELEGRAM_CHAT_ID: ${ADMIN_TELEGRAM_CHAT_ID}
+      TOR_ENABLED: ${TOR_ENABLED:-true}
+      TOR_PROXY_URL: ${TOR_PROXY_URL:-socks5://tor:9050}
       NODE_ENV: production
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      tor:
+        condition: service_started
     networks:
       - rdv_net
     volumes:
@@ -364,12 +368,16 @@ services:
       SMARTPROXY_CITY: ${SMARTPROXY_CITY}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       ADMIN_TELEGRAM_CHAT_ID: ${ADMIN_TELEGRAM_CHAT_ID}
+      TOR_ENABLED: ${TOR_ENABLED:-true}
+      TOR_PROXY_URL: ${TOR_PROXY_URL:-socks5://tor:9050}
       NODE_ENV: production
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      tor:
+        condition: service_started
     networks:
       - rdv_net
     volumes:

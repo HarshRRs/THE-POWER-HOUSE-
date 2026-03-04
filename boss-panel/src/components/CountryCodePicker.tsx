@@ -34,10 +34,10 @@ const COUNTRIES = [
 ];
 
 export default function CountryCodePicker({ value, onChange }: CountryCodePickerProps) {
-  // Split value into country code and number
-  const match = value.match(/^(\+\d+)(.*)$/);
-  const countryCode = match?.[1] || '+33';
-  const phoneNumber = match?.[2] || '';
+  // Find matching country code from known list (longest match first to avoid +3 matching before +33)
+  const sortedCodes = COUNTRIES.map(c => c.code).sort((a, b) => b.length - a.length);
+  const countryCode = sortedCodes.find(c => value.startsWith(c)) || '+33';
+  const phoneNumber = value.slice(countryCode.length);
 
   const handleCodeChange = (newCode: string) => {
     onChange(newCode + phoneNumber);
