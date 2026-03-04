@@ -1,19 +1,40 @@
 import type { ConsulateConfig, ConsulateScrapeResult, CsrfSession, AvailableDate } from '../types/consulate.types.js';
 import { CONSULATE_CONFIG } from '../config/constants.js';
 import logger from '../utils/logger.util.js';
+import { SocksProxyAgent } from 'socks-proxy-agent';
 
 // CSRF session cache per consulate
 const csrfCache = new Map<string, CsrfSession>();
 
+// Create a reusable SOCKS5 agent for Tor if configured
+function getTorAgent(): SocksProxyAgent | undefined {
+  if (process.env.TOR_ENABLED === 'true') {
+    const torUrl = process.env.TOR_PROXY_URL || 'socks5://tor:9050';
+    return new SocksProxyAgent(torUrl);
+  }
+  return undefined;
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Helper: fetch with optional Tor proxy */
+async function proxyFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const agent = getTorAgent();
+  if (agent) {
+    // Node 18+ supports dispatcher option via undici, but socks-proxy-agent
+    // works with the http.Agent interface. Use it via the (non-standard) agent option.
+    return fetch(url, { ...init, ...(agent ? { dispatcher: agent } as any : {}) });
+  }
+  return fetch(url, init);
 }
 
 /**
  * Extract CSRF token and cookies from the landing page
  */
 async function fetchCsrfSession(baseUrl: string): Promise<CsrfSession> {
-  const response = await fetch(baseUrl, {
+  const response = await proxyFetch(baseUrl, {
     method: 'GET',
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -79,7 +100,7 @@ async function fetchServices(
   categoryId: number,
   session: CsrfSession
 ): Promise<{ services: Array<{ id: number; name: string }>; noDates: string[] }> {
-  const response = await fetch(`${baseUrl}/services`, {
+  const response = await proxyFetch(`${baseUrl}/services`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -126,7 +147,7 @@ async function fetchTimeSlots(
   categoryId: number,
   session: CsrfSession
 ): Promise<string[]> {
-  const response = await fetch(`${baseUrl}/time_slots`, {
+  const response = await proxyFetch(`${baseUrl}/time_slots`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

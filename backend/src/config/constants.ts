@@ -45,9 +45,9 @@ export const PLAN_LIMITS: Record<Plan, PlanConfig> = {
 };
 
 export const TIER_INTERVALS = {
-  1: 240,   // Île-de-France critical - every 4 minutes
-  2: 240,   // Major cities - every 4 minutes
-  3: 240,   // Others - every 4 minutes
+  1: 900,   // Île-de-France critical - every 15 minutes
+  2: 900,   // Major cities - every 15 minutes
+  3: 1200,  // Others - every 20 minutes
 } as const;
 
 export const TIER_NAMES = {
@@ -94,7 +94,7 @@ export const BOOKING_CONFIG = {
 export const CONSULATE_CONFIG = {
   maxConsecutiveErrors: 5,
   csrfTokenTtlMs: 15 * 60 * 1000,
-  requestDelayMs: 500,
+  requestDelayMs: 2000,
   maxDatesToCheck: 30,
 };
 
