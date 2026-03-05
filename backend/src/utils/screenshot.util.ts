@@ -8,7 +8,7 @@ export async function ensureScreenshotDir(): Promise<void> {
 
 export function generateScreenshotPath(
   prefectureId: string, 
-  type: 'detection' | 'error' | 'captcha' | 'blocked' = 'detection'
+  type: 'detection' | 'error' | 'captcha' | 'blocked' | 'nav_failure' = 'detection'
 ): string {
   const timestamp = Date.now();
   const filename = `${type}_${prefectureId}_${timestamp}.png`;

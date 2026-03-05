@@ -108,7 +108,7 @@ export const VFS_CONFIG = {
 };
 
 export const SCRAPER_CONFIG = {
-  maxBrowsers: 3,
+  maxBrowsers: parseInt(process.env.MAX_BROWSERS || '1', 10),
   pageTimeout: 20000,
   screenshotDir: './public/screenshots',
   maxConsecutiveErrors: 3,

@@ -2,8 +2,10 @@ import type { PrefectureConfig, ScrapeResult } from '../types/prefecture.types.j
 import { getBrowserPool, type PageSession } from './browser.pool.js';
 import { proxyService } from './proxy.service.js';
 import { captchaService } from './captcha.service.js';
+import { solveImageCaptcha } from '../services/captcha.service.js';
 import { generateScreenshotPath, saveScreenshot } from '../utils/screenshot.util.js';
 import { randomDelay } from '../utils/retry.util.js';
+import { humanScroll, humanReadPage, humanClick } from '../utils/human.util.js';
 import logger from '../utils/logger.util.js';
 
 /**
@@ -92,8 +94,8 @@ export async function scrapePrefectureCategory(
     const redirectChain: string[] = [targetUrl];
     
     const response = await page.goto(targetUrl, {
-      waitUntil: 'networkidle',
-      timeout: 30000,
+      waitUntil: 'load',
+      timeout: 45000,
     });
 
     // Capture final URL after all redirects
@@ -129,31 +131,43 @@ export async function scrapePrefectureCategory(
     const pageContent = await page.content();
     const pageUrl = page.url();
 
-    // Check for bot detection
+    // Check for bot detection (skip for RDV-Prefecture sites which always have "captcha" in page)
     const lowerContent = pageContent.toLowerCase();
-    for (const indicator of BOT_DETECTION_INDICATORS) {
-      if (lowerContent.includes(indicator)) {
-        logger.warn(`Bot detection indicator found for ${config.id}:${category.code}: ${indicator}`);
-        if (proxy) proxyService.reportFailure(proxy, targetDomain);
+    if (config.bookingSystem !== 'rdv-prefecture') {
+      for (const indicator of BOT_DETECTION_INDICATORS) {
+        if (lowerContent.includes(indicator)) {
+          logger.warn(`Bot detection indicator found for ${config.id}:${category.code}: ${indicator}`);
+          if (proxy) proxyService.reportFailure(proxy, targetDomain);
 
-        const screenshotPath = generateScreenshotPath(`${config.id}_${category.code}`, 'blocked');
-        const screenshot = await page.screenshot({ fullPage: true });
-        await saveScreenshot(screenshot, screenshotPath);
+          const screenshotPath = generateScreenshotPath(`${config.id}_${category.code}`, 'blocked');
+          const screenshot = await page.screenshot({ fullPage: true });
+          await saveScreenshot(screenshot, screenshotPath);
 
-        return {
-          status: 'blocked',
-          slotsAvailable: 0,
-          bookingUrl: pageUrl,
-          screenshotPath,
-          errorMessage: `Bot detected: ${indicator}`,
-          responseTimeMs: Date.now() - startTime,
-          categoryCode: category.code,
-          categoryName: category.name,
-        };
+          return {
+            status: 'blocked',
+            slotsAvailable: 0,
+            bookingUrl: pageUrl,
+            screenshotPath,
+            errorMessage: `Bot detected: ${indicator}`,
+            responseTimeMs: Date.now() - startTime,
+            categoryCode: category.code,
+            categoryName: category.name,
+          };
+        }
       }
     }
 
-    // Enhanced CAPTCHA detection
+    // ── Human-like page reading ──────────────────────────────
+    await humanReadPage(page);
+
+    // ── RDV-Prefecture image CAPTCHA flow ──────────────────────
+    if (config.bookingSystem === 'rdv-prefecture') {
+      const rdvResult = await solveRdvPrefectureCaptcha(page, config, category, startTime, proxy, targetDomain);
+      if (rdvResult) return rdvResult;
+      // If null, CAPTCHA was solved and we fall through to slot detection
+    }
+
+    // Enhanced CAPTCHA detection (for non-rdv-prefecture sites)
     const captchaResult = await captchaService.detectCaptcha(pageContent, pageUrl);
 
     // Also check DOM for CAPTCHA elements
@@ -250,12 +264,12 @@ export async function scrapePrefectureCategory(
       }
     }
 
-    // Handle cookie consent if present
+    // Handle cookie consent if present (human-like click)
     if (config.selectors.cookieAccept) {
       try {
         const cookieBtn = page.locator(config.selectors.cookieAccept);
         if (await cookieBtn.isVisible({ timeout: 3000 })) {
-          await cookieBtn.click();
+          await humanClick(page, config.selectors.cookieAccept);
           await randomDelay(500, 1000);
         }
       } catch {
@@ -263,17 +277,59 @@ export async function scrapePrefectureCategory(
       }
     }
 
-    // Click next button if exists
+    // Select procedure if dropdown exists
+    if (config.selectors.procedureDropdown) {
+      try {
+        await humanScroll(page);
+        await page.selectOption(config.selectors.procedureDropdown, config.procedures[0].toString());
+        await randomDelay(1500, 2500);
+      } catch {
+        logger.debug(`No procedure dropdown found for ${config.id}:${category.code}`);
+      }
+    }
+
+    // Click next button if exists (human-like)
+    let nextBtnClicked = false;
     if (config.selectors.nextButton) {
       try {
         const nextBtn = page.locator(config.selectors.nextButton);
         if (await nextBtn.isVisible({ timeout: 2000 })) {
-          await nextBtn.click();
+          await humanClick(page, config.selectors.nextButton);
           await page.waitForLoadState('networkidle');
           await randomDelay(1000, 2000);
+          nextBtnClicked = true;
         }
       } catch {
-        // Next button not found
+        // Next button not found via config selector
+      }
+    }
+
+    // Fallback heuristic for Next button (human-like clicks)
+    if (!nextBtnClicked) {
+      try {
+        const fallbackSelectors = [
+          'button:has-text("Suivant")',
+          'button:has-text("Valider")',
+          'button:has-text("Continuer")',
+          'input[type="submit"][value*="Suivant" i]',
+          'input[type="submit"][value*="Valider" i]',
+          'input[type="submit"][value*="Continuer" i]',
+          'a:has-text("Étape suivante")',
+        ];
+
+        for (const selector of fallbackSelectors) {
+          const locator = page.locator(selector).first();
+          if (await locator.isVisible({ timeout: 500 })) {
+            await humanClick(page, selector);
+            await page.waitForLoadState('networkidle');
+            await randomDelay(1000, 2000);
+            logger.debug(`Found next button using fallback heuristic for ${config.id}:${category.code}`);
+            nextBtnClicked = true;
+            break;
+          }
+        }
+      } catch {
+        // No fallback worked
       }
     }
 
@@ -308,7 +364,8 @@ export async function scrapePrefectureCategory(
             lowerText.includes('aucun rendez-vous n\'est disponible') ||
             lowerText.includes('il n\'existe plus de plage horaire') ||
             lowerText.includes('aucun créneau disponible') ||
-            lowerText.includes('tous les rendez-vous sont complets')
+            lowerText.includes('tous les rendez-vous sont complets') ||
+            lowerText.includes('pas de disponibilité')
           ) {
             noSlotsConfirmed = true;
           }
@@ -371,7 +428,45 @@ export async function scrapePrefectureCategory(
       };
     }
 
-    // No slots found
+    // ── Navigation verification ─────────────────────────────
+    // Before declaring "no_slots", verify the page actually loaded
+    // meaningful content. A blank/error page should be an error, not "no_slots".
+    if (!noSlotsConfirmed) {
+      try {
+        const currentUrl = page.url();
+        const bodyText = await page.textContent('body');
+        const bodyLength = bodyText?.length ?? 0;
+
+        const isLikelyNavigationFailure =
+          bodyLength < 200 ||
+          currentUrl.includes('/error') ||
+          currentUrl.includes('/404');
+
+        if (isLikelyNavigationFailure) {
+          const screenshotPath = generateScreenshotPath(`${config.id}_${category.code}`, 'nav_failure');
+          const screenshot = await page.screenshot({ fullPage: true });
+          await saveScreenshot(screenshot, screenshotPath);
+
+          logger.warn(`Navigation likely failed for ${config.id}:${category.code}: bodyLength=${bodyLength}, url=${currentUrl}`);
+          if (proxy) proxyService.reportFailure(proxy, targetDomain);
+
+          return {
+            status: 'error',
+            slotsAvailable: 0,
+            bookingUrl: page.url(),
+            screenshotPath,
+            errorMessage: `Navigation verification failed: page appears incomplete (${bodyLength} chars)`,
+            responseTimeMs: Date.now() - startTime,
+            categoryCode: category.code,
+            categoryName: category.name,
+          };
+        }
+      } catch {
+        logger.warn(`Navigation verification threw for ${config.id}:${category.code}`);
+      }
+    }
+
+    // No slots found - successful scrape
     if (proxy) proxyService.reportSuccess(proxy, targetDomain);
 
     return {
@@ -421,4 +516,201 @@ export async function scrapePrefectureCategory(
       await pool.releasePage(session.page, session.context);
     }
   }
+}
+
+/**
+ * RDV-Prefecture image CAPTCHA solving flow for category scraper.
+ *
+ * Steps:
+ * 1. Find the CAPTCHA image (base64 PNG) on the page
+ * 2. Extract it and send to 2Captcha solveImageCaptcha()
+ * 3. Fill captchaUsercode input with the answer
+ * 4. Click the submit/next button
+ * 5. Wait for the availability page to load
+ *
+ * Returns a ScrapeResult if we should stop (error/captcha unsolved),
+ * or null if CAPTCHA was solved and the caller should continue to slot detection.
+ */
+async function solveRdvPrefectureCaptcha(
+  page: import('playwright').Page,
+  config: PrefectureConfig,
+  category: CategoryInfo,
+  startTime: number,
+  proxy: import('./proxy.service.js').ProxyConfig | null,
+  targetDomain: string | undefined,
+): Promise<ScrapeResult | null> {
+  const captchaInput = await page.$('input[name="captchaUsercode"]');
+  if (!captchaInput) {
+    logger.debug(`No RDV-Prefecture CAPTCHA found for ${config.id}:${category.code}, continuing`);
+    return null;
+  }
+
+  logger.info(`RDV-Prefecture CAPTCHA detected for ${config.id}:${category.code}, attempting to solve`);
+
+  const captchaImageB64 = await page.evaluate(`(() => {
+    var imgs = document.querySelectorAll('img');
+    for (var i = 0; i < imgs.length; i++) {
+      var src = imgs[i].src;
+      if (src && src.indexOf('data:image/') === 0) {
+        var b64 = src.split(',')[1];
+        if (b64 && b64.length > 100) return b64;
+      }
+    }
+    return null;
+  })()`) as string | null;
+
+  if (!captchaImageB64) {
+    logger.warn(`RDV-Prefecture CAPTCHA image not found for ${config.id}:${category.code}`);
+    const screenshotPath = generateScreenshotPath(`${config.id}_${category.code}`, 'captcha');
+    const screenshot = await page.screenshot({ fullPage: true });
+    await saveScreenshot(screenshot, screenshotPath);
+
+    return {
+      status: 'captcha',
+      slotsAvailable: 0,
+      bookingUrl: page.url(),
+      screenshotPath,
+      errorMessage: 'RDV-Prefecture CAPTCHA image not found on page',
+      responseTimeMs: Date.now() - startTime,
+      categoryCode: category.code,
+      categoryName: category.name,
+    };
+  }
+
+  const captchaResult = await solveImageCaptcha(captchaImageB64);
+  if (!captchaResult.success || !captchaResult.answer) {
+    logger.warn(`Failed to solve RDV-Prefecture CAPTCHA for ${config.id}:${category.code}: ${captchaResult.error}`);
+    if (proxy) proxyService.reportFailure(proxy, targetDomain);
+
+    const screenshotPath = generateScreenshotPath(`${config.id}_${category.code}`, 'captcha');
+    const screenshot = await page.screenshot({ fullPage: true });
+    await saveScreenshot(screenshot, screenshotPath);
+
+    return {
+      status: 'captcha',
+      slotsAvailable: 0,
+      bookingUrl: page.url(),
+      screenshotPath,
+      errorMessage: `RDV-Prefecture CAPTCHA solve failed: ${captchaResult.error}`,
+      responseTimeMs: Date.now() - startTime,
+      categoryCode: category.code,
+      categoryName: category.name,
+    };
+  }
+
+  logger.info(`RDV-Prefecture CAPTCHA solved for ${config.id}:${category.code}: "${captchaResult.answer}"`);
+
+  await captchaInput.fill(captchaResult.answer);
+  await randomDelay(300, 600);
+
+  const submitClicked = await clickRdvSubmitButton(page, config);
+  if (!submitClicked) {
+    logger.warn(`Could not find submit button for ${config.id}:${category.code} after CAPTCHA solve`);
+  }
+
+  try {
+    await page.waitForLoadState('networkidle', { timeout: 15000 });
+  } catch {
+    // Timeout is acceptable
+  }
+  await randomDelay(1000, 2000);
+
+  // Check if we're still on the CAPTCHA page (wrong answer)
+  const stillHasCaptcha = await page.$('input[name="captchaUsercode"]');
+  if (stillHasCaptcha) {
+    logger.warn(`RDV-Prefecture CAPTCHA answer was wrong for ${config.id}:${category.code}, retrying...`);
+
+    const retryB64 = await page.evaluate(`(() => {
+      var imgs = document.querySelectorAll('img');
+      for (var i = 0; i < imgs.length; i++) {
+        var src = imgs[i].src;
+        if (src && src.indexOf('data:image/') === 0) {
+          var b64 = src.split(',')[1];
+          if (b64 && b64.length > 100) return b64;
+        }
+      }
+      return null;
+    })()`) as string | null;
+
+    if (retryB64) {
+      const retryResult = await solveImageCaptcha(retryB64);
+      if (retryResult.success && retryResult.answer) {
+        const retryInput = await page.$('input[name="captchaUsercode"]');
+        if (retryInput) {
+          await retryInput.fill('');
+          await retryInput.fill(retryResult.answer);
+          await randomDelay(300, 600);
+          await clickRdvSubmitButton(page, config);
+          try {
+            await page.waitForLoadState('networkidle', { timeout: 15000 });
+          } catch { /* timeout ok */ }
+          await randomDelay(1000, 2000);
+        }
+      }
+    }
+
+    const stillHasCaptcha2 = await page.$('input[name="captchaUsercode"]');
+    if (stillHasCaptcha2) {
+      if (proxy) proxyService.reportFailure(proxy, targetDomain);
+      const screenshotPath = generateScreenshotPath(`${config.id}_${category.code}`, 'captcha');
+      const screenshot = await page.screenshot({ fullPage: true });
+      await saveScreenshot(screenshot, screenshotPath);
+      return {
+        status: 'captcha',
+        slotsAvailable: 0,
+        bookingUrl: page.url(),
+        screenshotPath,
+        errorMessage: 'RDV-Prefecture CAPTCHA solved but answer was wrong (2 attempts)',
+        responseTimeMs: Date.now() - startTime,
+        categoryCode: category.code,
+        categoryName: category.name,
+      };
+    }
+  }
+
+  logger.info(`RDV-Prefecture CAPTCHA bypassed for ${config.id}:${category.code}, checking slots`);
+  if (proxy) proxyService.reportSuccess(proxy, targetDomain);
+
+  return null;
+}
+
+/**
+ * Click the submit button on an RDV-Prefecture page.
+ * Tries config.selectors.nextButton first, then common fallbacks.
+ */
+async function clickRdvSubmitButton(
+  page: import('playwright').Page,
+  config: PrefectureConfig,
+): Promise<boolean> {
+  if (config.selectors.nextButton) {
+    try {
+      const btn = page.locator(config.selectors.nextButton);
+      if (await btn.isVisible({ timeout: 2000 })) {
+        await humanClick(page, config.selectors.nextButton);
+        return true;
+      }
+    } catch { /* not found */ }
+  }
+
+  const rdvSelectors = [
+    'button.q-btn.bg-primary',
+    'button[type="submit"]',
+    'input[type="submit"]',
+    'button:has-text("Valider")',
+    'button:has-text("Vérifier")',
+    'button:has-text("Continuer")',
+    'button:has-text("Suivant")',
+  ];
+
+  for (const selector of rdvSelectors) {
+    try {
+      const btn = page.locator(selector).first();
+      if (await btn.isVisible({ timeout: 1000 })) {
+        await humanClick(page, selector);
+        return true;
+      }
+    } catch { /* not found */ }
+  }
+
+  return false;
 }

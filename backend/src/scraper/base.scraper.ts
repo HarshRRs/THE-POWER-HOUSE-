@@ -84,8 +84,8 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
       const redirectChain: string[] = [config.bookingUrl];
       
       const response = await page.goto(config.bookingUrl, {
-        waitUntil: 'networkidle',
-        timeout: 30000,
+        waitUntil: 'load',
+        timeout: 45000,
       });
 
       // Capture final URL after all redirects
@@ -479,6 +479,46 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
       };
     }
 
+    // ── Navigation verification ─────────────────────────────
+    // Before declaring "no_slots", verify the page actually loaded
+    // meaningful content. A blank/error page should be an error, not "no_slots".
+    if (!noSlotsConfirmed) {
+      try {
+        const currentUrl = page.url();
+        const bodyText = await page.textContent('body');
+        const bodyLength = bodyText?.length ?? 0;
+
+        const isLikelyNavigationFailure =
+          bodyLength < 200 ||
+          currentUrl.includes('/error') ||
+          currentUrl.includes('/404');
+
+        if (isLikelyNavigationFailure) {
+          const screenshotPath = generateScreenshotPath(config.id, 'nav_failure');
+          const screenshot = await page.screenshot({ fullPage: true });
+          await saveScreenshot(screenshot, screenshotPath);
+
+          logger.warn(`Navigation likely failed for ${config.id}: bodyLength=${bodyLength}, url=${currentUrl}`);
+          if (proxy) proxyService.reportFailure(proxy, targetDomain);
+
+          return {
+            status: 'error',
+            slotsAvailable: 0,
+            bookingUrl: page.url(),
+            screenshotPath,
+            errorMessage: `Navigation verification failed: page appears incomplete (${bodyLength} chars)`,
+            responseTimeMs: Date.now() - startTime,
+            finalUrl,
+            redirectCount: redirectChain.length - 1,
+            urlChanged,
+          };
+        }
+      } catch {
+        // Verification check itself failed — treat as error
+        logger.warn(`Navigation verification threw for ${config.id}`);
+      }
+    }
+
     // No slots found - successful scrape
     if (proxy) proxyService.reportSuccess(proxy, targetDomain);
 
@@ -794,8 +834,8 @@ export async function scrapePrefectureCategory(
     const redirectChain: string[] = [targetUrl];
     
     const response = await page.goto(targetUrl, {
-      waitUntil: 'networkidle',
-      timeout: 30000,
+      waitUntil: 'load',
+      timeout: 45000,
     });
 
     // Capture final URL after all redirects
@@ -1138,6 +1178,44 @@ export async function scrapePrefectureCategory(
         categoryCode: category.code,
         categoryName: category.name,
       };
+    }
+
+    // ── Navigation verification ─────────────────────────────
+    // Before declaring "no_slots", verify the page actually loaded
+    // meaningful content for the category scrape.
+    if (!noSlotsConfirmed) {
+      try {
+        const currentUrl = page.url();
+        const bodyText = await page.textContent('body');
+        const bodyLength = bodyText?.length ?? 0;
+
+        const isLikelyNavigationFailure =
+          bodyLength < 200 ||
+          currentUrl.includes('/error') ||
+          currentUrl.includes('/404');
+
+        if (isLikelyNavigationFailure) {
+          const screenshotPath = generateScreenshotPath(`${config.id}_${category.code}`, 'nav_failure');
+          const screenshot = await page.screenshot({ fullPage: true });
+          await saveScreenshot(screenshot, screenshotPath);
+
+          logger.warn(`Navigation likely failed for ${config.id}:${category.code}: bodyLength=${bodyLength}, url=${currentUrl}`);
+          if (proxy) proxyService.reportFailure(proxy, targetDomain);
+
+          return {
+            status: 'error',
+            slotsAvailable: 0,
+            bookingUrl: page.url(),
+            screenshotPath,
+            errorMessage: `Navigation verification failed: page appears incomplete (${bodyLength} chars)`,
+            responseTimeMs: Date.now() - startTime,
+            categoryCode: category.code,
+            categoryName: category.name,
+          };
+        }
+      } catch {
+        logger.warn(`Navigation verification threw for ${config.id}:${category.code}`);
+      }
     }
 
     // No slots found - successful scrape

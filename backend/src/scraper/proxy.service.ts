@@ -4,6 +4,8 @@ export interface ProxyConfig {
   server: string;
   username?: string;
   password?: string;
+  /** Provider that issued this proxy — used to route failure/success reports */
+  providerName?: string;
 }
 
 export interface ProxyProvider {
@@ -22,9 +24,20 @@ class ProxyService {
   private providers: { provider: ProxyProvider; weight: number }[] = [];
   private enabled = false;
 
+  /**
+   * Domains that should ALWAYS use direct connection (no proxy).
+   * These are sites where Tor/SOCKS5 causes NS_ERROR_ABORT in Firefox
+   * or where Tor exit nodes are blocked, but VPS direct works fine.
+   */
+  private static readonly DIRECT_CONNECT_DOMAINS: string[] = [
+    'seine-saint-denis.gouv.fr',        // bobigny_93 — NS_ERROR_ABORT through SOCKS5
+    'rendezvouspasseport.ants.gouv.fr',  // paris_75 — blocks Tor exit nodes
+  ];
+
   /** Default weights per provider name */
   private static readonly PROVIDER_WEIGHTS: Record<string, number> = {
-    CustomProxies: 60,
+    Tor: 70,
+    CustomProxies: 40,
     BrightData: 30,
     SmartProxy: 10,
     ScraperAPI: 20,
@@ -113,39 +126,60 @@ class ProxyService {
     return this.enabled;
   }
 
+  private shouldBypassProxy(targetDomain?: string): boolean {
+    if (!targetDomain) return false;
+    return ProxyService.DIRECT_CONNECT_DOMAINS.some(d => targetDomain.includes(d));
+  }
+
   getProxy(targetDomain?: string): ProxyConfig | null {
     if (!this.enabled) return null;
+    if (this.shouldBypassProxy(targetDomain)) {
+      logger.info(`ProxyService: DIRECT connection for ${targetDomain} (bypass list)`);
+      return null;
+    }
 
     const provider = this.selectProvider();
     if (!provider) return null;
 
     const proxy = provider.getProxy(targetDomain);
     if (proxy) {
+      proxy.providerName = provider.name;
       logger.debug(`ProxyService: Using proxy from ${provider.name}`);
     }
     return proxy;
   }
 
   reportFailure(proxy: ProxyConfig, targetDomain?: string): void {
+    // Only report to the provider that issued this proxy (not all providers)
+    const ownerName = proxy.providerName;
     for (const { provider } of this.providers) {
+      if (ownerName && provider.name !== ownerName) continue;
       provider.reportFailure(proxy, targetDomain);
     }
   }
 
   reportSuccess(proxy: ProxyConfig, targetDomain?: string): void {
+    // Only report to the provider that issued this proxy (not all providers)
+    const ownerName = proxy.providerName;
     for (const { provider } of this.providers) {
+      if (ownerName && provider.name !== ownerName) continue;
       provider.reportSuccess(proxy, targetDomain);
     }
   }
 
   getProxyExcluding(excludedServers: Set<string>, targetDomain?: string): ProxyConfig | null {
     if (!this.enabled) return null;
+    if (this.shouldBypassProxy(targetDomain)) {
+      logger.info(`ProxyService: DIRECT connection for ${targetDomain} (bypass list)`);
+      return null;
+    }
 
     const provider = this.selectProvider();
     if (!provider) return null;
 
     const proxy = provider.getProxyExcluding(excludedServers, targetDomain);
     if (proxy) {
+      proxy.providerName = provider.name;
       logger.debug(`ProxyService: Using proxy from ${provider.name} (excluding ${excludedServers.size} proxies)`);
     }
     return proxy;

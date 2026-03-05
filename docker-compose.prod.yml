@@ -409,10 +409,12 @@ services:
     restart: always
     expose:
       - "9050" # SOCKS5 — only on rdv_net, never public
+      - "9051" # Control port for NewNym circuit rotation
     networks:
       - rdv_net
     environment:
       - TZ=Europe/Paris
+      - TORRC=/etc/tor/torrc
     deploy:
       resources:
         limits:

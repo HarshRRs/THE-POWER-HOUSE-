@@ -10,7 +10,7 @@ import { BOOTSTRAP_CONFIG, getEffectiveInterval, shouldScrapePrefecture, logBoot
 import logger from '../utils/logger.util.js';
 import type { ScrapeJobData } from '../types/prefecture.types.js';
 
-export async function startScraperWorker(workerId: string, concurrency = 3) {
+export async function startScraperWorker(workerId: string, concurrency = 1) {
   // Use bootstrap concurrency if enabled
   const effectiveConcurrency = BOOTSTRAP_CONFIG.enabled ? BOOTSTRAP_CONFIG.maxBrowsers : concurrency;
   
