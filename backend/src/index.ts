@@ -27,7 +27,7 @@ async function bootstrap() {
     }
 
     // Start HTTP server
-    httpServer.listen(PORT, () => {
+    httpServer.listen(PORT as number, '0.0.0.0', () => {
       logger.info(`RDVPriority API running on port ${PORT}`);
       logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
     });
