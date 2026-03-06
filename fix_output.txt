@@ -1,0 +1,112 @@
+============ FIX SCRIPT ============
+--- STEP 1: ADMIN USER ---
+                  id                  |        email         | role  |     plan      
+--------------------------------------+----------------------+-------+---------------
+ 5e235588-163e-4acf-a45c-214b192e4d42 | admin@rdvpriority.fr | ADMIN | URGENCE_TOTAL
+(1 row)
+
+
+--- STEP 2: START FRONTEND ---
+time="2026-03-06T08:32:30Z" level=warning msg="The \"SMARTPROXY_PASSWORD\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:30Z" level=warning msg="The \"CAPSOLVER_API_KEY\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:30Z" level=warning msg="The \"SMARTPROXY_CITY\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:30Z" level=warning msg="The \"SMARTPROXY_USERNAME\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:30Z" level=warning msg="The \"CAPSOLVER_API_KEY\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:30Z" level=warning msg="The \"SMARTPROXY_PASSWORD\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:30Z" level=warning msg="The \"SMARTPROXY_USERNAME\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:30Z" level=warning msg="The \"SMARTPROXY_CITY\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:30Z" level=warning msg="The \"SMARTPROXY_CITY\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:30Z" level=warning msg="The \"SMARTPROXY_USERNAME\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:30Z" level=warning msg="The \"CAPSOLVER_API_KEY\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:30Z" level=warning msg="The \"SMARTPROXY_PASSWORD\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:30Z" level=warning msg="The \"SMARTPROXY_CITY\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:30Z" level=warning msg="The \"SMARTPROXY_USERNAME\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:30Z" level=warning msg="The \"SMARTPROXY_PASSWORD\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:30Z" level=warning msg="The \"CAPSOLVER_API_KEY\" variable is not set. Defaulting to a blank string."
+ Container rdv_frontend Creating 
+ Container rdv_frontend Created 
+ Container rdv_frontend Starting 
+ Container rdv_frontend Started 
+Waiting 15s for frontend to start...
+CONTAINER ID   IMAGE                  COMMAND                  CREATED          STATUS                    PORTS      NAMES
+065bafb88403   rdvpriority-frontend   "docker-entrypoint.s…"   15 seconds ago   Up 15 seconds (healthy)   3000/tcp   rdv_frontend
+
+--- STEP 3: FORCE RECREATE NGINX ---
+time="2026-03-06T08:32:46Z" level=warning msg="The \"SMARTPROXY_PASSWORD\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:46Z" level=warning msg="The \"CAPSOLVER_API_KEY\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:46Z" level=warning msg="The \"SMARTPROXY_USERNAME\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:46Z" level=warning msg="The \"SMARTPROXY_CITY\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:46Z" level=warning msg="The \"CAPSOLVER_API_KEY\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:46Z" level=warning msg="The \"SMARTPROXY_USERNAME\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:46Z" level=warning msg="The \"SMARTPROXY_CITY\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:46Z" level=warning msg="The \"SMARTPROXY_PASSWORD\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:46Z" level=warning msg="The \"SMARTPROXY_USERNAME\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:46Z" level=warning msg="The \"SMARTPROXY_PASSWORD\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:46Z" level=warning msg="The \"SMARTPROXY_CITY\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:46Z" level=warning msg="The \"CAPSOLVER_API_KEY\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:46Z" level=warning msg="The \"SMARTPROXY_USERNAME\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:46Z" level=warning msg="The \"SMARTPROXY_PASSWORD\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:46Z" level=warning msg="The \"SMARTPROXY_CITY\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:46Z" level=warning msg="The \"CAPSOLVER_API_KEY\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:46Z" level=warning msg="volume \"rdv_certbot_www\" already exists but was not created by Docker Compose. Use `external: true` to use an existing volume"
+time="2026-03-06T08:32:46Z" level=warning msg="volume \"rdv_certbot_certs\" already exists but was not created by Docker Compose. Use `external: true` to use an existing volume"
+ Container rdv_frontend Running 
+ Container rdv_tor Running 
+ Container rdv_redis Running 
+ Container rdv_boss_panel Running 
+ Container rdv_postgres Running 
+ Container rdv_api Running 
+ Container rdv_nginx Recreate 
+ Container rdv_nginx Recreated 
+ Container rdv_postgres Waiting 
+ Container rdv_redis Waiting 
+ Container rdv_redis Healthy 
+ Container rdv_postgres Healthy 
+ Container rdv_api Waiting 
+ Container rdv_api Healthy 
+ Container rdv_nginx Starting 
+ Container rdv_nginx Started 
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+Nginx recreated and tested
+
+--- STEP 4: BOSS PANEL CHECK ---
+time="2026-03-06T08:32:53Z" level=warning msg="The \"SMARTPROXY_PASSWORD\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:53Z" level=warning msg="The \"SMARTPROXY_CITY\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:53Z" level=warning msg="The \"CAPSOLVER_API_KEY\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:53Z" level=warning msg="The \"SMARTPROXY_USERNAME\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:53Z" level=warning msg="The \"SMARTPROXY_USERNAME\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:53Z" level=warning msg="The \"SMARTPROXY_CITY\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:53Z" level=warning msg="The \"CAPSOLVER_API_KEY\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:53Z" level=warning msg="The \"SMARTPROXY_PASSWORD\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:53Z" level=warning msg="The \"CAPSOLVER_API_KEY\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:53Z" level=warning msg="The \"SMARTPROXY_USERNAME\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:53Z" level=warning msg="The \"SMARTPROXY_CITY\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:53Z" level=warning msg="The \"SMARTPROXY_PASSWORD\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:53Z" level=warning msg="The \"SMARTPROXY_USERNAME\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:53Z" level=warning msg="The \"SMARTPROXY_CITY\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:53Z" level=warning msg="The \"SMARTPROXY_PASSWORD\" variable is not set. Defaulting to a blank string."
+time="2026-03-06T08:32:53Z" level=warning msg="The \"CAPSOLVER_API_KEY\" variable is not set. Defaulting to a blank string."
+ Container rdv_boss_panel Restarting 
+ Container rdv_boss_panel Started 
+  - Local:        http://localhost:3001
+  - Network:      http://0.0.0.0:3001
+
+ ✓ Starting...
+ ✓ Ready in 319ms
+
+--- STEP 5: FINAL STATUS ---
+NAMES            STATUS
+rdv_nginx        Up 11 seconds (health: starting)
+rdv_frontend     Up 28 seconds (healthy)
+rdv_worker1      Up 22 hours (healthy)
+rdv_worker3      Up 22 hours (healthy)
+rdv_worker2      Up 22 hours (healthy)
+rdv_api          Up 22 hours (healthy)
+rdv_tor          Up 24 hours (healthy)
+rdv_boss_panel   Up 5 seconds (health: starting)
+rdv_redis        Up 3 days (healthy)
+rdv_certbot      Up 3 days
+rdv_postgres     Up 4 days (healthy)
+
+============ FIX COMPLETE ============

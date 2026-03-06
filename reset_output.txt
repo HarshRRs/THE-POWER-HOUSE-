@@ -1,0 +1,35 @@
+=== Resetting admin password ===
+New hash: $2a$12$t9M2/438mw4wVAcWhG/46eFCdIDD0v9/W0AH4bcNbmvEtAgzoz5gq
+                  id                  |        email         | role  
+--------------------------------------+----------------------+-------
+ 5e235588-163e-4acf-a45c-214b192e4d42 | admin@rdvpriority.fr | ADMIN
+(1 row)
+
+UPDATE 1
+
+=== Admin password reset to: Admin123! ===
+=== Email: admin@rdvpriority.fr ===
+
+=== API Boss Routes ===
+/app/dist/validators/admin.validator.js.map
+/app/dist/validators/admin.validator.d.ts
+/app/dist/validators/admin.validator.js
+/app/dist/validators/admin.validator.d.ts.map
+/app/dist/services/admin-dashboard.service.d.ts.map
+/app/dist/services/admin-dashboard.service.js
+/app/dist/services/admin-dashboard.service.d.ts
+/app/dist/services/admin-dashboard.service.js.map
+/app/dist/middleware/admin.middleware.js.map
+/app/dist/middleware/admin.middleware.js
+
+=== Checking API routes ===
+Boss/Admin route files: [
+  'admin.routes.d.ts',
+  'admin.routes.d.ts.map',
+  'admin.routes.js',
+  'admin.routes.js.map',
+  'boss.routes.d.ts',
+  'boss.routes.d.ts.map',
+  'boss.routes.js',
+  'boss.routes.js.map'
+]

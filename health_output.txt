@@ -1,0 +1,17 @@
+========== SERVER HEALTH CHECK ==========
+
+--- 1. ALL CONTAINERS ---
+NAMES            IMAGE                     STATUS                  PORTS
+rdv_worker1      rdvpriority-worker1       Up 22 hours (healthy)   
+rdv_worker3      rdvpriority-worker3       Up 22 hours (healthy)   
+rdv_worker2      rdvpriority-worker2       Up 22 hours (healthy)   
+rdv_api          rdvpriority-api           Up 22 hours (healthy)   4000/tcp
+rdv_tor          dperson/torproxy:latest   Up 24 hours (healthy)   8118/tcp, 9050-9051/tcp
+rdv_boss_panel   rdvpriority-boss-panel    Up 33 hours (healthy)   3001/tcp
+rdv_nginx        nginx:alpine              Up 33 hours (healthy)   0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:443->443/tcp, [::]:443->443/tcp
+rdv_redis        redis:7-alpine            Up 3 days (healthy)     6379/tcp
+rdv_certbot      certbot/certbot           Up 3 days               80/tcp, 443/tcp
+rdv_postgres     postgres:16-alpine        Up 4 days (healthy)     5432/tcp
+
+--- 2. ADMIN CREDENTIALS ---
+DB User: rdv_prod_user  DB: rdvpriority

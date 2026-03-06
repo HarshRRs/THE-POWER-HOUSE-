@@ -1,0 +1,134 @@
+======= ADMIN USERS =======
+ERROR:  column "isActive" does not exist
+LINE 1: SELECT id, email, role, "isActive", "createdAt" FROM "User" ...
+                                ^
+
+======= ALL TABLES =======
+                   List of relations
+ Schema |         Name         | Type  |     Owner     
+--------+----------------------+-------+---------------
+ public | Alert                | table | rdv_prod_user
+ public | AuditLog             | table | rdv_prod_user
+ public | BookingLog           | table | rdv_prod_user
+ public | Client               | table | rdv_prod_user
+ public | ClientAlert          | table | rdv_prod_user
+ public | Consulate            | table | rdv_prod_user
+ public | ConsulateScraperLog  | table | rdv_prod_user
+ public | Detection            | table | rdv_prod_user
+ public | Notification         | table | rdv_prod_user
+ public | Payment              | table | rdv_prod_user
+ public | Prefecture           | table | rdv_prod_user
+ public | PrefectureCategory   | table | rdv_prod_user
+ public | ProcessedStripeEvent | table | rdv_prod_user
+ public | PushSubscription     | table | rdv_prod_user
+ public | RefreshToken         | table | rdv_prod_user
+ public | ScraperLog           | table | rdv_prod_user
+ public | UrlHistory           | table | rdv_prod_user
+ public | User                 | table | rdv_prod_user
+ public | VfsCenter            | table | rdv_prod_user
+ public | _prisma_migrations   | table | rdv_prod_user
+(20 rows)
+
+
+======= WORKER1 LOGS =======
+{"level":"info","message":"URL change for melun_77: status=REJECTED, confidence=0.45","service":"rdvpriority-api","timestamp":"2026-03-06 08:25:12"}
+{"level":"info","message":"SLOTS FOUND: 2 at Paris (paris_75)","service":"rdvpriority-api","timestamp":"2026-03-06 08:25:33"}
+{"level":"info","message":"ProxyService: DIRECT connection for rendezvouspasseport.ants.gouv.fr (bypass list)","service":"rdvpriority-api","timestamp":"2026-03-06 08:26:00"}
+{"level":"info","message":"SLOTS FOUND: 2 at Paris (paris_75)","service":"rdvpriority-api","timestamp":"2026-03-06 08:26:37"}
+{"level":"info","message":"URL change detected for melun_77: https://administration-etrangers-en-france.interieur.gouv.fr/ -> https://administration-etrangers-en-france.interieur.gouv.fr/particuliers/","service":"rdvpriority-api","timestamp":"2026-03-06 08:27:05"}
+{"level":"info","message":"URL change for melun_77: status=REJECTED, confidence=0.45","service":"rdvpriority-api","timestamp":"2026-03-06 08:27:10"}
+{"level":"info","message":"URL change detected for melun_77: https://administration-etrangers-en-france.interieur.gouv.fr/ -> https://administration-etrangers-en-france.interieur.gouv.fr/particuliers/#/","service":"rdvpriority-api","timestamp":"2026-03-06 08:27:35"}
+{"level":"info","message":"URL change for melun_77: status=REJECTED, confidence=0.45","service":"rdvpriority-api","timestamp":"2026-03-06 08:27:38"}
+{"level":"info","message":"URL change detected for lyon_69: https://administration-etrangers-en-france.interieur.gouv.fr/ -> https://administration-etrangers-en-france.interieur.gouv.fr/particuliers/","service":"rdvpriority-api","timestamp":"2026-03-06 08:28:11"}
+{"level":"info","message":"URL change for lyon_69: status=REJECTED, confidence=0.45","service":"rdvpriority-api","timestamp":"2026-03-06 08:28:17"}
+
+======= WORKER2 LOGS =======
+{"level":"info","message":"URL change for melun_77: status=REJECTED, confidence=0.45","service":"rdvpriority-api","timestamp":"2026-03-06 08:25:41"}
+{"level":"info","message":"SLOTS FOUND: 2 at Paris (paris_75)","service":"rdvpriority-api","timestamp":"2026-03-06 08:26:04"}
+{"level":"info","message":"URL change detected for melun_77: https://administration-etrangers-en-france.interieur.gouv.fr/ -> https://administration-etrangers-en-france.interieur.gouv.fr/particuliers/","service":"rdvpriority-api","timestamp":"2026-03-06 08:26:07"}
+{"level":"info","message":"URL change for melun_77: status=REJECTED, confidence=0.45","service":"rdvpriority-api","timestamp":"2026-03-06 08:26:11"}
+{"level":"info","message":"ProxyService: DIRECT connection for rendezvouspasseport.ants.gouv.fr (bypass list)","service":"rdvpriority-api","timestamp":"2026-03-06 08:26:30"}
+{"level":"info","message":"ProxyService: DIRECT connection for rendezvouspasseport.ants.gouv.fr (bypass list)","service":"rdvpriority-api","timestamp":"2026-03-06 08:27:00"}
+{"level":"info","message":"SLOTS FOUND: 2 at Paris (paris_75)","service":"rdvpriority-api","timestamp":"2026-03-06 08:27:04"}
+{"level":"info","message":"SLOTS FOUND: 2 at Paris (paris_75)","service":"rdvpriority-api","timestamp":"2026-03-06 08:27:36"}
+{"level":"info","message":"URL change detected for lyon_69: https://administration-etrangers-en-france.interieur.gouv.fr/ -> https://administration-etrangers-en-france.interieur.gouv.fr/particuliers/","service":"rdvpriority-api","timestamp":"2026-03-06 08:28:05"}
+{"level":"info","message":"URL change for lyon_69: status=REJECTED, confidence=0.45","service":"rdvpriority-api","timestamp":"2026-03-06 08:28:12"}
+
+======= WORKER3 LOGS =======
+{"level":"info","message":"URL change detected for lyon_69: https://administration-etrangers-en-france.interieur.gouv.fr/ -> https://administration-etrangers-en-france.interieur.gouv.fr/particuliers/#/","service":"rdvpriority-api","timestamp":"2026-03-06 08:27:06"}
+{"level":"info","message":"URL change for lyon_69: status=REJECTED, confidence=0.45","service":"rdvpriority-api","timestamp":"2026-03-06 08:27:10"}
+{"level":"info","message":"ProxyService: DIRECT connection for rendezvouspasseport.ants.gouv.fr (bypass list)","service":"rdvpriority-api","timestamp":"2026-03-06 08:27:30"}
+{"level":"info","message":"ProxyService: DIRECT connection for rendezvouspasseport.ants.gouv.fr (bypass list)","service":"rdvpriority-api","timestamp":"2026-03-06 08:28:00"}
+{"level":"info","message":"SLOTS FOUND: 2 at Paris (paris_75)","service":"rdvpriority-api","timestamp":"2026-03-06 08:28:01"}
+{"level":"info","message":"URL change detected for melun_77: https://administration-etrangers-en-france.interieur.gouv.fr/ -> https://administration-etrangers-en-france.interieur.gouv.fr/particuliers/#/","service":"rdvpriority-api","timestamp":"2026-03-06 08:28:05"}
+{"level":"info","message":"ProxyService: DIRECT connection for rendezvouspasseport.ants.gouv.fr (bypass list)","service":"rdvpriority-api","timestamp":"2026-03-06 08:28:10"}
+{"level":"info","message":"URL change for melun_77: status=REJECTED, confidence=0.45","service":"rdvpriority-api","timestamp":"2026-03-06 08:28:10"}
+{"level":"info","message":"URL change detected for melun_77: https://administration-etrangers-en-france.interieur.gouv.fr/ -> https://administration-etrangers-en-france.interieur.gouv.fr/particuliers/#/","service":"rdvpriority-api","timestamp":"2026-03-06 08:28:17"}
+{"level":"info","message":"URL change for melun_77: status=REJECTED, confidence=0.45","service":"rdvpriority-api","timestamp":"2026-03-06 08:28:22"}
+
+======= API LOGS =======
+{"level":"info","message":"Security configuration validated","service":"rdvpriority-api","timestamp":"2026-03-05 10:24:43"}
+Redis connected successfully
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+{"level":"info","message":"Database connected successfully","service":"rdvpriority-api","timestamp":"2026-03-05 10:24:43"}
+Redis: Connection failed, continuing without Redis
+{"level":"info","message":"RDVPriority API running on port 4000","service":"rdvpriority-api","timestamp":"2026-03-05 10:24:43"}
+{"level":"info","message":"Environment: production","service":"rdvpriority-api","timestamp":"2026-03-05 10:24:43"}
+
+======= TOR STATUS =======
+Mar 06 08:55:41.000 [notice] circpad_marked_circuit_for_padding(): Bug: Circuit 6244 was not marked for close because of a pending padding machine in index 0 for over an hour. Circuit is a Circuit kept open for padding (on Tor 0.4.3.5 )
+Mar 06 08:55:41.000 [notice] circpad_marked_circuit_for_padding(): Bug: Circuit 6245 was not marked for close because of a pending padding machine in index 0 for over an hour. Circuit is a Circuit kept open for padding (on Tor 0.4.3.5 )
+Mar 06 09:10:40.000 [notice] circpad_marked_circuit_for_padding(): Bug: Circuit 6253 was not marked for close because of a pending padding machine in index 0 for over an hour. Circuit is a Circuit kept open for padding (on Tor 0.4.3.5 )
+Mar 06 09:16:13.000 [notice] Have tried resolving or connecting to address '[scrubbed]' at 3 different places. Giving up.
+Mar 06 09:19:27.000 [notice] circpad_marked_circuit_for_padding(): Bug: Circuit 6307 was not marked for close because of a pending padding machine in index 0 for over an hour. Circuit is a Circuit kept open for padding (on Tor 0.4.3.5 )
+
+======= FRONTEND LOGS =======
+Error response from daemon: No such container: rdv_frontend
+
+======= BOSS PANEL LOGS =======
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:13:18480
+    at AsyncLocalStorage.run (node:async_hooks:346:14)
+    at e_ (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:141556)
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:138898
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+
+======= NGINX CONF ROUTES =======
+9:upstream boss_panel_upstream {
+19:    location /health {
+25:    location /.well-known/acme-challenge/ {
+29:    location / {
+52:    location /api/ {
+54:        proxy_pass http://api_upstream;
+65:    location /socket.io/ {
+66:        proxy_pass http://api_upstream;
+76:    location / {
+78:        try_files /coming-soon.html =404;
+108:    location /api/ {
+110:        proxy_pass http://api_upstream;
+122:    location /socket.io/ {
+123:        proxy_pass http://api_upstream;
+135:    location / {
+136:        proxy_pass http://boss_panel_upstream;
+
+======= REDIS =======
+PONG
+394
+
+======= BOSS PANEL ENV =======
+NEXT_TELEMETRY_DISABLED=1
+PORT=3001
+
+======= DISK + RAM =======
+/dev/sda1       150G   74G   71G  52% /
+               total        used        free      shared  buff/cache   available
+Mem:           7.6Gi       4.0Gi       1.5Gi        98Mi       2.4Gi       3.5Gi
+
+======= DONE =======

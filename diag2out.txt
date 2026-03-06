@@ -1,0 +1,143 @@
+======= USER TABLE SCHEMA =======
+                                        Table "public.User"
+         Column         |              Type              | Collation | Nullable |      Default      
+------------------------+--------------------------------+-----------+----------+-------------------
+ id                     | text                           |           | not null | 
+ email                  | text                           |           | not null | 
+ passwordHash           | text                           |           | not null | 
+ phone                  | text                           |           |          | 
+ whatsappNumber         | text                           |           |          | 
+ telegramChatId         | text                           |           |          | 
+ fcmTokens              | text[]                         |           |          | ARRAY[]::text[]
+ role                   | "Role"                         |           | not null | 'USER'::"Role"
+ plan                   | "Plan"                         |           | not null | 'NONE'::"Plan"
+ planExpiresAt          | timestamp(3) without time zone |           |          | 
+ stripeCustomerId       | text                           |           |          | 
+ emailVerified          | boolean                        |           | not null | false
+ emailVerificationToken | text                           |           |          | 
+ passwordResetToken     | text                           |           |          | 
+ passwordResetExpiresAt | timestamp(3) without time zone |           |          | 
+ notifyEmail            | boolean                        |           | not null | true
+ notifyWhatsapp         | boolean                        |           | not null | false
+ notifyTelegram         | boolean                        |           | not null | false
+ notifySms              | boolean                        |           | not null | false
+ notifyFcm              | boolean                        |           | not null | false
+ createdAt              | timestamp(3) without time zone |           | not null | CURRENT_TIMESTAMP
+ updatedAt              | timestamp(3) without time zone |           | not null | 
+Indexes:
+    "User_pkey" PRIMARY KEY, btree (id)
+    "User_createdAt_idx" btree ("createdAt")
+    "User_email_key" UNIQUE, btree (email)
+    "User_plan_planExpiresAt_idx" btree (plan, "planExpiresAt")
+    "User_role_idx" btree (role)
+    "User_stripeCustomerId_key" UNIQUE, btree ("stripeCustomerId")
+Referenced by:
+    TABLE ""Alert"" CONSTRAINT "Alert_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE ""AuditLog"" CONSTRAINT "AuditLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE SET NULL
+    TABLE ""Notification"" CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+    TABLE ""Payment"" CONSTRAINT "Payment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+    TABLE ""PushSubscription"" CONSTRAINT "PushSubscription_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE ""RefreshToken"" CONSTRAINT "RefreshToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+
+======= ALL USERS =======
+ERROR:  column "firstName" does not exist
+LINE 1: SELECT id, email, role, "firstName", "lastName" FROM "User" ...
+                                ^
+======= BOSS PANEL ERRORS (last 30) =======
+  ▲ Next.js 14.2.0
+  - Local:        http://localhost:3001
+  - Network:      http://0.0.0.0:3001
+
+ ✓ Starting...
+ ✓ Ready in 134ms
+TypeError: Cannot read properties of null (reading 'digest')
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:13:18480
+    at AsyncLocalStorage.run (node:async_hooks:346:14)
+    at e_ (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:141556)
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:138898
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+======= FRONTEND CONTAINER CHECK =======
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+======= NGINX FULL CONFIG (rdvpriority.fr server) =======
+    listen 80;
+    listen [::]:80;
+    server_name rdvpriority.fr www.rdvpriority.fr admin.rdvpriority.fr;
+
+    location /health {
+        access_log off;
+        return 200 'ok';
+        add_header Content-Type text/plain;
+    }
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# ── Main site: rdvpriority.fr (COMING SOON) ───────
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name rdvpriority.fr www.rdvpriority.fr;
+
+    ssl_certificate /etc/letsencrypt/live/rdvpriority.fr/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/rdvpriority.fr/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+
+    # API Routes
+    location /api/ {
+        limit_req zone=api_limit burst=20 nodelay;
+        proxy_pass http://api_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Socket.io
+    location /socket.io/ {
+        proxy_pass http://api_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 7d;
+        proxy_send_timeout 7d;
+    }
+
+    location / {
+        root /usr/share/nginx/html;
+        try_files /coming-soon.html =404;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+}
+
+# ── Admin panel: admin.rdvpriority.fr ─────────────
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name admin.rdvpriority.fr;
+
+    ssl_certificate /etc/letsencrypt/live/rdvpriority.fr/fullchain.pem;
+======= GIT LOG =======
+14c5b39 fix: scraper accuracy - check all services + prevent false no_slots
+dd84f92 fix: safer scraping - reduce intervals + route embassy through Tor
+784246e feat: seed PrefectureCategory rows for active prefectures
+c3e48a1 fix: phone input greedy regex + add TOR proxy to worker2/worker3
+0545b33 fix: WhatsApp alerts crash + ControlView logs extraction

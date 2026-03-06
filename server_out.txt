@@ -1,0 +1,19 @@
+--- NGINX MOUNTS ---
+[{"Type":"volume","Name":"rdv_certbot_certs","Source":"/var/lib/docker/volumes/rdv_certbot_certs/_data","Destination":"/etc/letsencrypt","Driver":"local","Mode":"ro","RW":false,"Propagation":""},{"Type":"bind","Source":"/opt/rdvpriority/nginx/nginx.conf","Destination":"/etc/nginx/conf.d/default.conf","Mode":"ro","RW":false,"Propagation":"rprivate"},{"Type":"bind","Source":"/opt/rdvpriority/nginx/coming-soon.html","Destination":"/usr/share/nginx/html/coming-soon.html","Mode":"ro","RW":false,"Propagation":"rprivate"},{"Type":"volume","Name":"rdv_certbot_www","Source":"/var/lib/docker/volumes/rdv_certbot_www/_data","Destination":"/var/www/certbot","Driver":"local","Mode":"ro","RW":false,"Propagation":""}]
+--- POSTGRES ENV ---
+POSTGRES_USER=rdv_prod_user
+--- GET ADMIN DB ---
+ admin@rdvpriority.fr | ADMIN
+
+CONTAINER ID   IMAGE                     COMMAND                  CREATED          STATUS                    PORTS                                                                          NAMES
+763cc63461c7   rdvpriority-frontend      "docker-entrypoint.s…"   54 minutes ago   Up 54 minutes (healthy)   3000/tcp                                                                       rdv_frontend
+8a345adadc4a   rdvpriority-worker3       "docker-entrypoint.s…"   7 hours ago      Up 7 hours (healthy)                                                                                     rdv_worker3
+25f975547a8d   rdvpriority-worker2       "docker-entrypoint.s…"   7 hours ago      Up 7 hours (healthy)                                                                                     rdv_worker2
+4bf1e1fc0f59   rdvpriority-worker1       "docker-entrypoint.s…"   7 hours ago      Up 7 hours (healthy)                                                                                     rdv_worker1
+ca521bc0448e   nginx:alpine              "/docker-entrypoint.…"   8 hours ago      Up 28 minutes (healthy)   0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:443->443/tcp, [::]:443->443/tcp   rdv_nginx
+416615f8c654   rdvpriority-api           "docker-entrypoint.s…"   8 hours ago      Up 8 hours (healthy)      4000/tcp                                                                       rdv_api
+8b25fd15654a   redis:7-alpine            "docker-entrypoint.s…"   8 hours ago      Up 8 hours (healthy)      6379/tcp                                                                       rdv_redis
+07d040a49bcd   rdvpriority-boss-panel    "docker-entrypoint.s…"   8 hours ago      Up 8 hours (healthy)      3001/tcp                                                                       rdv_boss_panel
+967f1f25831c   dperson/torproxy:latest   "/sbin/tini -- /usr/…"   8 hours ago      Up 8 hours (healthy)      8118/tcp, 9050-9051/tcp                                                        rdv_tor
+4bf5a6471642   certbot/certbot           "/bin/sh -c 'trap ex…"   3 days ago       Up 8 hours                80/tcp, 443/tcp                                                                rdv_certbot
+079f10bf5888   postgres:16-alpine        "docker-entrypoint.s…"   3 days ago       Up 24 hours (healthy)     5432/tcp                                                                       rdv_postgres
