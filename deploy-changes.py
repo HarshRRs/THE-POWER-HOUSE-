@@ -6,15 +6,10 @@ REMOTE_BASE = '/opt/rdvpriority'
 
 # Files to upload (local relative path -> remote relative path)
 FILES = [
-    # Backend - WebSocket CORS fix
-    ('backend/src/services/websocket.service.ts', 'backend/src/services/websocket.service.ts'),
-    # Boss Panel - Dashboard component fixes (API response parsing)
-    ('boss-panel/src/components/dashboard/PowerStatsGrid.tsx', 'boss-panel/src/components/dashboard/PowerStatsGrid.tsx'),
-    ('boss-panel/src/components/dashboard/SlotMatrix.tsx', 'boss-panel/src/components/dashboard/SlotMatrix.tsx'),
-    ('boss-panel/src/components/dashboard/SystemHealth.tsx', 'boss-panel/src/components/dashboard/SystemHealth.tsx'),
-    ('boss-panel/src/components/dashboard/ManualBookingModal.tsx', 'boss-panel/src/components/dashboard/ManualBookingModal.tsx'),
-    # Boss Panel - WebSocket authentication fix
-    ('boss-panel/src/hooks/useWebSocket.ts', 'boss-panel/src/hooks/useWebSocket.ts'),
+    # Backend - Boss API fixes: slotsFound24h + categories in details
+    ('backend/src/routes/boss.routes.ts', 'backend/src/routes/boss.routes.ts'),
+    # Backend - Consulate scraper: check ALL services per category (not just first)
+    ('backend/src/scraper/consulate.scraper.ts', 'backend/src/scraper/consulate.scraper.ts'),
 ]
 
 print('Connecting to server...')
@@ -33,9 +28,9 @@ for local_rel, remote_rel in FILES:
 sftp.close()
 print('All files uploaded.')
 
-# Rebuild all containers
-print('\nRebuilding api and boss-panel containers...')
-cmd = 'cd /opt/rdvpriority && docker compose -f docker-compose.prod.yml build --no-cache api boss-panel 2>&1'
+# Rebuild api + all worker containers (workers need the updated scraper code)
+print('\nRebuilding api, worker1, worker2, worker3 containers...')
+cmd = 'cd /opt/rdvpriority && docker compose -f docker-compose.prod.yml build --no-cache api worker1 worker2 worker3 2>&1'
 channel = ssh.get_transport().open_session()
 channel.settimeout(600)
 channel.exec_command(cmd)
@@ -62,7 +57,7 @@ print(f'\nBuild exit code: {exit_code}')
 if exit_code == 0:
     print('\nRestarting containers...')
     stdin, stdout, stderr = ssh.exec_command(
-        'cd /opt/rdvpriority && docker compose -f docker-compose.prod.yml up -d api boss-panel 2>&1',
+        'cd /opt/rdvpriority && docker compose -f docker-compose.prod.yml up -d api worker1 worker2 worker3 2>&1',
         timeout=120
     )
     result = stdout.read().decode('utf-8', errors='replace')

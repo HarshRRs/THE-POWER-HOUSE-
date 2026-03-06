@@ -18,7 +18,7 @@ export interface ConsulateServiceCategory {
 }
 
 export interface ConsulateScrapeResult {
-  status: 'slots_found' | 'no_slots' | 'error' | 'timeout';
+  status: 'slots_found' | 'no_slots' | 'error' | 'timeout' | 'blocked';
   category: number;
   categoryName: string;
   slotsAvailable: number;

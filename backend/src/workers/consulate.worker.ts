@@ -1,6 +1,7 @@
 import { createWorker, consulateQueue } from '../config/bullmq.js';
 import { prisma } from '../config/database.js';
 import { scrapeConsulate } from '../scraper/consulate.scraper.js';
+import { scrapeIndianEmbassy } from '../scraper/consulates/indian-embassy-paris.scraper.js';
 import { getConsulateConfig } from '../scraper/consulates/index.js';
 import { processConsulateDetection } from '../services/detection.service.js';
 import { updateConsulateStatus } from '../services/consulate.service.js';
@@ -66,8 +67,10 @@ export async function startConsulateWorker(workerId: string, concurrency = 2) {
           logger.debug(`Priority consulate ${consulateId}/${category.name} - scraping without alerts`);
         }
 
-        // Run the scraper
-        const result = await scrapeConsulate(config, categoryId);
+        // Run the scraper - Custom Playwright scraper for Indian Embassy, fallback generic otherwise
+        const result = consulateId === 'indian-embassy-paris'
+          ? await scrapeIndianEmbassy(config, categoryId)
+          : await scrapeConsulate(config, categoryId);
 
         // Handle result
         if (result.status === 'slots_found') {
@@ -77,12 +80,26 @@ export async function startConsulateWorker(workerId: string, concurrency = 2) {
             alerts.map((a) => a.id)
           );
           await updateConsulateStatus(consulateId, 'ACTIVE');
+        } else if (result.status === 'blocked') {
+          // BLOCKED by Cloudflare / bot detection — treat as error, NOT as no_slots
+          const newErrorCount = (consulate.consecutiveErrors || 0) + 1;
+          logger.warn(`${consulateId} BLOCKED (attempt ${newErrorCount}): ${result.errorMessage}`);
+
+          if (newErrorCount >= CONSULATE_CONFIG.maxConsecutiveErrors) {
+            await updateConsulateStatus(consulateId, 'ERROR');
+            logger.error(`${consulateId} marked as ERROR after ${newErrorCount} consecutive blocks`);
+          } else {
+            await prisma.consulate.update({
+              where: { id: consulateId },
+              data: { consecutiveErrors: newErrorCount },
+            });
+          }
         } else if (result.status === 'error' || result.status === 'timeout') {
           const newErrorCount = (consulate.consecutiveErrors || 0) + 1;
 
           if (newErrorCount >= CONSULATE_CONFIG.maxConsecutiveErrors) {
             await updateConsulateStatus(consulateId, 'ERROR');
-            logger.error(`${consulateId} marked as ERROR after ${newErrorCount} consecutive errors`);
+            logger.error(`${consulateId} marked as ERROR after ${newErrorCount} consecutive errors: ${result.errorMessage}`);
           } else {
             await prisma.consulate.update({
               where: { id: consulateId },

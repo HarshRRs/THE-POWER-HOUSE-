@@ -37,29 +37,42 @@ router.get('/prefectures', async (_req, res) => {
       orderBy: [{ tier: 'asc' }, { name: 'asc' }],
     });
 
-    // Get latest detection for each prefecture
-    const latestDetections = await prisma.detection.findMany({
-      where: {
-        prefectureId: { in: prefectures.map(p => p.id) },
-      },
-      orderBy: { detectedAt: 'desc' },
-      distinct: ['prefectureId'],
-      select: {
-        prefectureId: true,
-        slotDate: true,
-        slotTime: true,
-        slotsAvailable: true,
-        detectedAt: true,
-      },
-    });
+    const prefectureIds = prefectures.map(p => p.id);
+    const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    // Get latest detection + 24h count in parallel
+    const [latestDetections, detectionCounts] = await Promise.all([
+      prisma.detection.findMany({
+        where: { prefectureId: { in: prefectureIds } },
+        orderBy: { detectedAt: 'desc' },
+        distinct: ['prefectureId'],
+        select: {
+          prefectureId: true,
+          slotDate: true,
+          slotTime: true,
+          slotsAvailable: true,
+          detectedAt: true,
+        },
+      }),
+      prisma.detection.groupBy({
+        by: ['prefectureId'],
+        where: {
+          prefectureId: { in: prefectureIds },
+          detectedAt: { gte: last24h },
+        },
+        _count: { id: true },
+      }),
+    ]);
 
     const detectionMap = new Map(latestDetections.map(d => [d.prefectureId, d]));
+    const countMap = new Map(detectionCounts.map(d => [d.prefectureId, d._count.id]));
 
     const enrichedPrefectures = prefectures.map(p => {
       const detection = detectionMap.get(p.id);
       return {
         ...p,
         latestSlot: detection || null,
+        slotsFound24h: countMap.get(p.id) || 0,
         status: detection 
           ? (Date.now() - detection.detectedAt.getTime() < 3600000 ? 'hot' : 'warm')
           : 'cold',
@@ -303,14 +316,28 @@ router.get('/power-stats', async (_req, res) => {
   }
 });
 
-// Get prefecture details with history
+// Get prefecture details with history and categories
 router.get('/prefecture/:id/details', async (req, res): Promise<void> => {
   try {
     const { id } = req.params;
     
-    const [prefecture, detections, prediction] = await Promise.all([
+    const [prefecture, categories, detections, prediction] = await Promise.all([
       prisma.prefecture.findUnique({
         where: { id },
+      }),
+      prisma.prefectureCategory.findMany({
+        where: { prefectureId: id },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          procedure: true,
+          status: true,
+          lastScrapedAt: true,
+          lastSlotFoundAt: true,
+          consecutiveErrors: true,
+        },
+        orderBy: { name: 'asc' },
       }),
       prisma.detection.findMany({
         where: { prefectureId: id },
@@ -325,8 +352,15 @@ router.get('/prefecture/:id/details', async (req, res): Promise<void> => {
       return;
     }
 
+    // Map categories to the format the frontend expects
+    const enrichedCategories = categories.map(cat => ({
+      ...cat,
+      categoryStatus: cat.consecutiveErrors > 3 ? 'ERROR' : cat.status,
+    }));
+
     res.json({
       prefecture,
+      categories: enrichedCategories,
       recentDetections: detections,
       prediction: prediction ? {
         ...prediction,

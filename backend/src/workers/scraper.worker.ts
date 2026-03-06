@@ -13,7 +13,7 @@ import type { ScrapeJobData } from '../types/prefecture.types.js';
 export async function startScraperWorker(workerId: string, concurrency = 1) {
   // Use bootstrap concurrency if enabled
   const effectiveConcurrency = BOOTSTRAP_CONFIG.enabled ? BOOTSTRAP_CONFIG.maxBrowsers : concurrency;
-  
+
   logBootstrapStatus();
   logger.info(`Starting scraper worker ${workerId} with concurrency ${effectiveConcurrency}`);
 
@@ -93,13 +93,13 @@ export async function startScraperWorker(workerId: string, concurrency = 1) {
         } else if (result.status === 'captcha') {
           await updatePrefectureStatus(prefectureId, 'CAPTCHA');
           logger.warn(`CAPTCHA detected for ${prefectureId}, pausing`);
-          
+
           // Send manual CAPTCHA alert (bootstrap mode or no auto-solver)
           const prefectureInfo = await prisma.prefecture.findUnique({
             where: { id: prefectureId },
             select: { name: true, bookingUrl: true },
           });
-          
+
           if (prefectureInfo) {
             await sendManualCaptchaAlert({
               prefectureId,
@@ -109,9 +109,23 @@ export async function startScraperWorker(workerId: string, concurrency = 1) {
               detectedAt: new Date(),
             });
           }
+        } else if (result.status === 'blocked') {
+          // BLOCKED by Cloudflare / bot detection — treat as error, NOT as no_slots
+          const newErrorCount = (prefecture.consecutiveErrors || 0) + 1;
+          logger.warn(`${prefectureId} BLOCKED (attempt ${newErrorCount}): ${result.errorMessage}`);
+
+          if (newErrorCount >= SCRAPER_CONFIG.maxConsecutiveErrors) {
+            await updatePrefectureStatus(prefectureId, 'ERROR');
+            logger.error(`${prefectureId} marked as ERROR after ${newErrorCount} consecutive blocks`);
+          } else {
+            await prisma.prefecture.update({
+              where: { id: prefectureId },
+              data: { consecutiveErrors: newErrorCount },
+            });
+          }
         } else if (result.status === 'error' || result.status === 'timeout') {
           const newErrorCount = (prefecture.consecutiveErrors || 0) + 1;
-          
+
           if (newErrorCount >= SCRAPER_CONFIG.maxConsecutiveErrors) {
             await updatePrefectureStatus(prefectureId, 'ERROR');
             logger.error(`${prefectureId} marked as ERROR after ${newErrorCount} consecutive errors`);
@@ -190,7 +204,7 @@ export async function scheduleScraperJobs() {
 
     const isPriority = BOOTSTRAP_CONFIG.priorityPrefectureIds.includes(pref.id);
     const jobId = `repeat:${pref.id}`;
-    
+
     // Use bootstrap-aware interval
     const effectiveInterval = getEffectiveInterval(pref.checkInterval);
 

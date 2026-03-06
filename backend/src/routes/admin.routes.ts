@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
+import os from 'os';
 import { prisma } from '../config/database.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { adminMiddleware } from '../middleware/admin.middleware.js';
@@ -17,9 +18,11 @@ import { scraperQueue, notificationQueue } from '../config/bullmq.js';
 import { sendSuccess, sendError } from '../utils/responses.util.js';
 import logger from '../utils/logger.util.js';
 import { testPrefectureScraper } from '../scraper/base.scraper.js';
-import { getPrefectureConfig } from '../scraper/prefectures/index.js';
+import { getPrefectureConfig, ACTIVE_PREFECTURE_IDS } from '../scraper/prefectures/index.js';
 import { getDashboardStats } from '../services/admin-dashboard.service.js';
 import { triggerManualRefund, checkRefundEligibility } from '../services/refund-guarantee.service.js';
+import { scheduleScraperJobs } from '../workers/scraper.worker.js';
+import { redis } from '../config/redis.js';
 
 const router = Router();
 
@@ -287,7 +290,7 @@ router.patch('/prefectures/:id', validateBody(prefectureUpdateSchema), async (re
 router.post('/prefectures/:id/test', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const prefectureId = req.params.id as string;
-    
+
     // Get prefecture config
     const config = getPrefectureConfig(prefectureId);
     if (!config) {
@@ -296,10 +299,10 @@ router.post('/prefectures/:id/test', async (req: Request, res: Response, next: N
     }
 
     logger.info(`Admin ${req.user!.email} triggered test scraper for ${config.name}`);
-    
+
     // Run the scraper test
     const result = await testPrefectureScraper(config);
-    
+
     // Log the result
     await prisma.scraperLog.create({
       data: {
@@ -312,7 +315,7 @@ router.post('/prefectures/:id/test', async (req: Request, res: Response, next: N
         screenshotPath: result.screenshotPath,
       },
     });
-    
+
     sendSuccess(res, {
       prefectureId: config.id,
       prefectureName: config.name,
@@ -332,7 +335,7 @@ router.post('/prefectures/:id/test', async (req: Request, res: Response, next: N
 });
 
 // ──────────────────────────────────────
-// GET /api/admin/scraper/status - Queue stats
+// GET /api/admin/scraper/status - Scraper status for ControlView
 // ──────────────────────────────────────
 router.get('/scraper/status', async (_req: Request, res: Response, next: NextFunction) => {
   try {
@@ -359,6 +362,17 @@ router.get('/scraper/status', async (_req: Request, res: Response, next: NextFun
       // Queue may not be available
     }
 
+    // Get active prefecture and category counts from DB
+    const [activePrefectures, activeCategories, lastLog] = await Promise.all([
+      prisma.prefecture.count({ where: { status: 'ACTIVE' } }),
+      prisma.prefectureCategory.count({ where: { status: 'ACTIVE' } }).catch(() => 0),
+      prisma.scraperLog.findFirst({ orderBy: { createdAt: 'desc' }, select: { createdAt: true } }),
+    ]);
+
+    // Scraper is "running" if there are active/waiting/delayed jobs
+    const isRunning = scraperStats.active > 0 || scraperStats.waiting > 0 || scraperStats.delayed > 0;
+    const queueDepth = scraperStats.active + scraperStats.waiting + scraperStats.delayed;
+
     // Recent failed jobs
     let recentFailed: Array<Record<string, unknown>> = [];
     try {
@@ -376,12 +390,151 @@ router.get('/scraper/status', async (_req: Request, res: Response, next: NextFun
     }
 
     sendSuccess(res, {
+      // Fields expected by ControlView ScraperStatus interface
+      running: isRunning,
+      isRunning,
+      status: isRunning ? 'running' : 'stopped',
+      activePrefectures,
+      prefectureCount: activePrefectures,
+      activeCategories,
+      categoryCount: activeCategories,
+      queueDepth,
+      lastRunAt: lastLog?.createdAt?.toISOString() || null,
+      lastRun: lastLog?.createdAt?.toISOString() || null,
+      // Original queue stats (preserved for backward compat)
       queues: {
         scraper: scraperStats,
         notifications: notifStats,
       },
       recentFailed,
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ──────────────────────────────────────
+// GET /api/admin/server/health - Server health for ControlView
+// ──────────────────────────────────────
+router.get('/server/health', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const usedMem = totalMem - freeMem;
+    const cpus = os.cpus();
+
+    // Calculate CPU usage from os.cpus() load averages
+    let cpuPercent = 0;
+    if (cpus.length > 0) {
+      const loadAvg = os.loadavg();
+      cpuPercent = Math.min(100, (loadAvg[0] / cpus.length) * 100);
+    }
+
+    sendSuccess(res, {
+      cpuPercent: Math.round(cpuPercent * 10) / 10,
+      cpu: Math.round(cpuPercent * 10) / 10,
+      memoryPercent: Math.round((usedMem / totalMem) * 1000) / 10,
+      memoryUsedMB: Math.round(usedMem / 1048576),
+      memoryTotalMB: Math.round(totalMem / 1048576),
+      memory: {
+        percent: Math.round((usedMem / totalMem) * 1000) / 10,
+        used: Math.round(usedMem / 1048576),
+        total: Math.round(totalMem / 1048576),
+      },
+      diskPercent: 0, // Will be populated by separate check if needed
+      disk: { percent: 0 },
+      uptime: Math.round(os.uptime()),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ──────────────────────────────────────
+// POST /api/admin/scraper/start - Start/restart scraper jobs
+// ──────────────────────────────────────
+router.post('/scraper/start', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    logger.info(`Admin ${req.user!.email} triggered scraper start`);
+    await scheduleScraperJobs();
+    sendSuccess(res, { message: 'Scraper jobs scheduled for all active prefectures' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ──────────────────────────────────────
+// POST /api/admin/scraper/stop - Stop/drain scraper queue
+// ──────────────────────────────────────
+router.post('/scraper/stop', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    logger.info(`Admin ${req.user!.email} triggered scraper stop`);
+    await scraperQueue.drain();
+    sendSuccess(res, { message: 'Scraper queue drained — jobs will stop after current ones finish' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ──────────────────────────────────────
+// POST /api/admin/cache/clear - Clear Redis scraper caches
+// ──────────────────────────────────────
+router.post('/cache/clear', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    logger.info(`Admin ${req.user!.email} triggered cache clear`);
+    let keysCleared = 0;
+    try {
+      // Use imported redis singleton
+      const keys = await redis.keys('scraper:*');
+      if (keys.length > 0) {
+        await redis.del(...keys);
+        keysCleared = keys.length;
+      }
+      // Also clear dashboard cache
+      const cacheKeys = await redis.keys('cache:*');
+      if (cacheKeys.length > 0) {
+        await redis.del(...cacheKeys);
+        keysCleared += cacheKeys.length;
+      }
+    } catch {
+      // Redis may not be available
+    }
+    sendSuccess(res, { message: `Cache cleared: ${keysCleared} keys removed` });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ──────────────────────────────────────
+// POST /api/admin/scraper/force-scan - Force immediate scan of all prefectures
+// ──────────────────────────────────────
+router.post('/scraper/force-scan', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    logger.info(`Admin ${req.user!.email} triggered force scan of all prefectures`);
+    let jobsQueued = 0;
+    for (const prefId of ACTIVE_PREFECTURE_IDS) {
+      await scraperQueue.add(
+        `force-scan:${prefId}`,
+        { prefectureId: prefId, manual: true },
+        { priority: 1 }
+      );
+      jobsQueued++;
+    }
+    sendSuccess(res, { message: `Force scan triggered: ${jobsQueued} jobs queued` });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ──────────────────────────────────────
+// POST /api/admin/workers/restart - Restart workers (schedule new jobs)
+// ──────────────────────────────────────
+router.post('/workers/restart', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    logger.info(`Admin ${req.user!.email} triggered worker restart`);
+    await scraperQueue.drain();
+    await scheduleScraperJobs();
+    sendSuccess(res, { message: 'Workers restarted: queue drained and jobs rescheduled' });
   } catch (error) {
     next(error);
   }
@@ -563,18 +716,18 @@ router.get('/refunds/check/:id', validateParams(uuidParamSchema), async (req: Re
 router.post('/refunds/process/:id', validateParams(uuidParamSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { reason } = req.body as { reason?: string };
-    
+
     if (!reason || reason.trim().length === 0) {
       sendError(res, 'Reason is required for manual refund', 400);
       return;
     }
-    
+
     const result = await triggerManualRefund(
       req.params.id as string,
       req.user!.id,
       reason.trim()
     );
-    
+
     if (result.success) {
       sendSuccess(res, { message: result.message });
     } else {
@@ -592,11 +745,11 @@ router.post('/refunds/batch', async (req: Request, res: Response, next: NextFunc
   try {
     // Import the function here to avoid circular dependencies
     const { processBatchRefunds } = await import('../services/refund-guarantee.service.js');
-    
+
     const result = await processBatchRefunds();
-    
+
     logger.info(`Admin ${req.user!.email} triggered batch refund processing: ${result.totalProcessed} processed`);
-    
+
     sendSuccess(res, {
       message: `Batch refund processing completed`,
       ...result
@@ -740,12 +893,12 @@ router.get('/url-changes', async (_req: Request, res: Response, next: NextFuncti
 router.post('/prefectures/:id/url/approve', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { urlHistoryId } = req.body;
-    
+
     if (!urlHistoryId || typeof urlHistoryId !== 'string') {
       sendError(res, 'urlHistoryId is required', 400);
       return;
     }
-    
+
     await approveUrlChange(urlHistoryId);
     sendSuccess(res, { message: 'URL change approved and applied' });
   } catch (error) {
@@ -759,12 +912,12 @@ router.post('/prefectures/:id/url/approve', async (req: Request, res: Response, 
 router.post('/prefectures/:id/url/reject', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { urlHistoryId } = req.body;
-    
+
     if (!urlHistoryId || typeof urlHistoryId !== 'string') {
       sendError(res, 'urlHistoryId is required', 400);
       return;
     }
-    
+
     await rejectUrlChange(urlHistoryId);
     sendSuccess(res, { message: 'URL change rejected' });
   } catch (error) {
@@ -780,12 +933,12 @@ router.post('/prefectures/:id/url/manual', async (req: Request, res: Response, n
     const prefectureId = req.params.id as string;
     const { newUrl } = req.body;
     const adminUserId = (req as Request & { user?: { id: string } }).user?.id;
-    
+
     if (!newUrl || typeof newUrl !== 'string') {
       sendError(res, 'newUrl is required', 400);
       return;
     }
-    
+
     // Basic URL validation
     try {
       new URL(newUrl);
@@ -793,7 +946,7 @@ router.post('/prefectures/:id/url/manual', async (req: Request, res: Response, n
       sendError(res, 'Invalid URL format', 400);
       return;
     }
-    
+
     await manualUrlUpdate(prefectureId, newUrl, adminUserId);
     sendSuccess(res, { message: 'URL updated successfully' });
   } catch (error) {
@@ -807,13 +960,13 @@ router.post('/prefectures/:id/url/manual', async (req: Request, res: Response, n
 router.get('/prefectures/:id/url/history', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const prefectureId = req.params.id as string;
-    
+
     const history = await prisma.urlHistory.findMany({
       where: { prefectureId },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
-    
+
     sendSuccess(res, { history });
   } catch (error) {
     next(error);
