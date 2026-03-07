@@ -96,7 +96,7 @@ async function scrapeRdvPrefectureApi(
 
   try {
     // ── Step 1: Get session cookie ──────────────────────────────
-    logger.debug(`RDV-API: Getting session for demarche ${demarcheCode} (${config.id})`);
+    logger.info(`RDV-API: Getting session for demarche ${demarcheCode} (${config.id})`);
     const sessionResp = await fetch(
       `${RDV_PREF_BASE}/rdvpref/reservation/demarche/${demarcheCode}/`,
       {
@@ -136,7 +136,7 @@ async function scrapeRdvPrefectureApi(
     await randomDelay(500, 1500);
 
     // ── Step 2: Check next available slot (quick check) ─────────
-    logger.debug(`RDV-API: Checking nextSlot for demarche ${demarcheCode}`);
+    logger.info(`RDV-API: Checking nextSlot for demarche ${demarcheCode}`);
     const nextSlotResp = await fetch(`${RDV_PREF_BASE}/api/nextSlot`, {
       method: 'POST',
       headers: {
@@ -166,7 +166,7 @@ async function scrapeRdvPrefectureApi(
     await randomDelay(300, 800);
 
     // ── Step 3: Get available locations (lieux) ─────────────────
-    logger.debug(`RDV-API: Fetching lieux for demarche ${demarcheCode}`);
+    logger.info(`RDV-API: Fetching lieux for demarche ${demarcheCode}`);
     const lieuxResp = await fetch(`${RDV_PREF_BASE}/api/lieu/${demarcheCode}`, {
       method: 'GET',
       headers: { ...headers, 'Cookie': cookies },
@@ -221,7 +221,7 @@ async function scrapeRdvPrefectureApi(
       };
     }
 
-    logger.debug(`RDV-API: Found ${lieux.length} lieu(x) for demarche ${demarcheCode}`);
+    logger.info(`RDV-API: Found ${lieux.length} lieu(x) for demarche ${demarcheCode}`);
 
     // ── Step 4: Check créneaux for each lieu ────────────────────
     let totalSlots = 0;
@@ -240,7 +240,7 @@ async function scrapeRdvPrefectureApi(
       );
 
       if (!creneauResp.ok) {
-        logger.debug(`RDV-API: Creneau request failed for lieu ${lieu.id}: HTTP ${creneauResp.status}`);
+        logger.warn(`RDV-API: Creneau request failed for lieu ${lieu.id}: HTTP ${creneauResp.status}`);
         continue;
       }
 
@@ -249,7 +249,7 @@ async function scrapeRdvPrefectureApi(
         const creneauData = await creneauResp.json();
         creneaux = Array.isArray(creneauData) ? creneauData : (creneauData?.data || creneauData?.creneaux || []);
       } catch {
-        logger.debug(`RDV-API: Failed to parse creneau JSON for lieu ${lieu.id}`);
+        logger.warn(`RDV-API: Failed to parse creneau JSON for lieu ${lieu.id}`);
         continue;
       }
 
