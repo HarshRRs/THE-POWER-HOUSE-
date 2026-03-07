@@ -1,14 +1,15 @@
 import { createWorker, scraperQueue } from '../config/bullmq.js';
 import { prisma } from '../config/database.js';
-import { scrapePrefecture } from '../scraper/base.scraper.js';
+import { scrapePrefecture, scrapePrefectureCategory, type CategoryInfo } from '../scraper/base.scraper.js';
 import { getPrefectureConfig } from '../scraper/prefectures/index.js';
+import { getPrefectureCategories, getCategoryUrl, isRdvPrefectureSystem } from '../config/prefecture-categories.config.js';
 import { processDetection } from '../services/detection.service.js';
 import { updatePrefectureStatus } from '../services/prefecture.service.js';
 import { sendManualCaptchaAlert } from '../services/manual-captcha.service.js';
 import { SCRAPER_CONFIG } from '../config/constants.js';
 import { BOOTSTRAP_CONFIG, getEffectiveInterval, shouldScrapePrefecture, logBootstrapStatus } from '../config/bootstrap.config.js';
 import logger from '../utils/logger.util.js';
-import type { ScrapeJobData } from '../types/prefecture.types.js';
+import type { ScrapeJobData, ScrapeResult } from '../types/prefecture.types.js';
 
 export async function startScraperWorker(workerId: string, concurrency = 1) {
   // Use bootstrap concurrency if enabled
@@ -63,24 +64,80 @@ export async function startScraperWorker(workerId: string, concurrency = 1) {
           return;
         }
 
-        // Run the scraper
-        const result = await scrapePrefecture(config);
+        // ── Category-level scraping (each demarche = separate result) ──
+        const categories = getPrefectureCategories(prefectureId);
 
-        // Log result
-        await prisma.scraperLog.create({
-          data: {
-            prefectureId,
-            workerId,
-            status: result.status,
-            slotsFound: result.slotsAvailable,
-            responseTimeMs: result.responseTimeMs,
-            errorMessage: result.errorMessage,
-            screenshotPath: result.screenshotPath,
-            finalUrl: result.finalUrl,
-            redirectCount: result.redirectCount || 0,
-            urlChanged: result.urlChanged || false,
-          },
-        });
+        let results: { result: ScrapeResult; categoryCode?: string; categoryName?: string }[] = [];
+
+        if (categories.length > 0) {
+          // Scrape each category independently
+          logger.info(`Scraping ${prefectureId}: ${categories.length} categories`);
+
+          for (const cat of categories) {
+            const catInfo: CategoryInfo = {
+              code: cat.code,
+              name: cat.name,
+              url: isRdvPrefectureSystem(prefectureId)
+                ? getCategoryUrl(cat.code)
+                : config.bookingUrl,
+            };
+
+            try {
+              const catResult = await scrapePrefectureCategory(config, catInfo);
+              results.push({ result: catResult, categoryCode: cat.code, categoryName: cat.name });
+
+              logger.info(
+                `  ${prefectureId}/${cat.name} (${cat.code}): ${catResult.status}, ${catResult.slotsAvailable} slots, ${catResult.responseTimeMs}ms`
+              );
+            } catch (catError) {
+              const errMsg = catError instanceof Error ? catError.message : 'Unknown error';
+              logger.error(`  ${prefectureId}/${cat.name} (${cat.code}): ERROR - ${errMsg}`);
+              results.push({
+                result: {
+                  status: 'error',
+                  slotsAvailable: 0,
+                  bookingUrl: config.bookingUrl,
+                  responseTimeMs: 0,
+                  errorMessage: errMsg,
+                },
+                categoryCode: cat.code,
+                categoryName: cat.name,
+              });
+            }
+          }
+        } else {
+          // No categories configured — scrape the whole prefecture as before
+          const result = await scrapePrefecture(config);
+          results.push({ result });
+        }
+
+        // Log all results to database
+        for (const { result, categoryCode, categoryName } of results) {
+          await prisma.scraperLog.create({
+            data: {
+              prefectureId,
+              categoryCode: categoryCode || null,
+              workerId,
+              status: result.status,
+              slotsFound: result.slotsAvailable,
+              responseTimeMs: result.responseTimeMs,
+              errorMessage: result.errorMessage,
+              screenshotPath: result.screenshotPath,
+              finalUrl: result.finalUrl,
+              redirectCount: result.redirectCount || 0,
+              urlChanged: result.urlChanged || false,
+            },
+          });
+        }
+
+        // Aggregate: pick the "best" result for status tracking
+        const bestResult = results.find(r => r.result.status === 'slots_found')?.result
+          ?? results.find(r => r.result.status === 'no_slots')?.result
+          ?? results[0]?.result
+          ?? { status: 'error', slotsAvailable: 0, bookingUrl: config.bookingUrl, responseTimeMs: 0 };
+
+        const totalSlots = results.reduce((sum, r) => sum + r.result.slotsAvailable, 0);
+        const result = { ...bestResult, slotsAvailable: totalSlots };
 
         // Handle result
         if (result.status === 'slots_found') {
