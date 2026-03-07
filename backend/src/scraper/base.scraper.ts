@@ -665,6 +665,17 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
         }
       }
 
+      // After CAPTCHA and page interaction, if this is an RDV-Prefecture site,
+      // run the exact API fetch via the browser context for 100% accurate slot counts
+      if ((config.bookingSystem as string) === 'rdv-prefecture') {
+        const apiResult = await scrapeRdvPrefectureApiViaBrowser(page, config);
+        if (apiResult) {
+          apiResult.responseTimeMs = Date.now() - startTime;
+          return apiResult;
+        }
+        // If apiResult is null (failed), we fall back to the DOM parsing heuristic below
+      }
+
       // Check for "no slots" message
       let noSlotsConfirmed = false;
 
@@ -1073,6 +1084,104 @@ export async function testPrefectureScraper(config: PrefectureConfig): Promise<S
 }
 
 /**
+ * Extract exact slot counts and dates using RDV Prefecture APIs from WITHIN the browser context.
+ * By running this in page.evaluate(), we automatically inherit the browser's Cloudflare clearance,
+ * cookies, TLS fingerprint, and IP, avoiding the 403 Forbidden blocks that raw fetch() hits.
+ */
+async function scrapeRdvPrefectureApiViaBrowser(
+  page: import('playwright').Page,
+  config: PrefectureConfig,
+  categoryCode?: string,
+  categoryName?: string,
+): Promise<ScrapeResult | null> {
+  const demarcheCode = categoryCode || extractDemarcheCode(config.bookingUrl);
+
+  if (!demarcheCode) {
+    logger.warn(`Cannot extract demarche code for ${config.id}, falling back to DOM parsing`);
+    return null;
+  }
+
+  logger.info(`RDV-API (Browser): Checking slots for demarche ${demarcheCode} (${config.id}) via evaluate`);
+
+  try {
+    const apiResult = await page.evaluate(async (demarcheId) => {
+      // 1. Fetch available locations (lieux)
+      const lieuxResp = await fetch(`/api/lieu/${demarcheId}`);
+      if (!lieuxResp.ok) {
+        return { error: `Failed to fetch lieux: ${lieuxResp.status}` };
+      }
+
+      const lieuxData = await lieuxResp.json();
+      const lieux = Array.isArray(lieuxData) ? lieuxData : (lieuxData?.data || lieuxData?.lieux || []);
+
+      if (lieux.length === 0) {
+        return { totalSlots: 0, lieuxCount: 0 };
+      }
+
+      let totalSlots = 0;
+      let firstSlotDate: string | undefined;
+      let firstSlotTime: string | undefined;
+
+      // 2. Fetch slots (creneaux) for each location
+      for (const lieu of lieux) {
+        try {
+          const creneauResp = await fetch(`/api/creneau/${lieu.id}/${demarcheId}`);
+          if (!creneauResp.ok) continue;
+
+          const creneauData = await creneauResp.json();
+          const creneaux = Array.isArray(creneauData) ? creneauData : (creneauData?.data || creneauData?.creneaux || []);
+
+          if (creneaux.length > 0) {
+            totalSlots += creneaux.length;
+            if (!firstSlotDate && creneaux[0]) {
+              firstSlotDate = creneaux[0].date;
+              firstSlotTime = creneaux[0].heure;
+            }
+          }
+        } catch {
+          // Ignore individual lieu errors
+        }
+      }
+
+      return { totalSlots, firstSlotDate, firstSlotTime, lieuxCount: lieux.length };
+    }, demarcheCode);
+
+    if (apiResult.error) {
+      logger.warn(`RDV-API (Browser): ${apiResult.error}`);
+      return null;
+    }
+
+    if (apiResult.totalSlots === 0) {
+      logger.info(`RDV-API (Browser): No slots available across ${apiResult.lieuxCount} lieu(x) for demarche ${demarcheCode}`);
+      return {
+        status: 'no_slots',
+        slotsAvailable: 0,
+        bookingUrl: page.url(),
+        responseTimeMs: 0, // Handled by caller
+        categoryCode,
+        categoryName,
+      };
+    }
+
+    logger.info(`RDV-API (Browser): SLOTS FOUND! ${apiResult.totalSlots} slot(s) for demarche ${demarcheCode}`);
+    return {
+      status: 'slots_found',
+      slotsAvailable: apiResult.totalSlots || 0,
+      slotDate: apiResult.firstSlotDate,
+      slotTime: apiResult.firstSlotTime,
+      bookingUrl: page.url(),
+      responseTimeMs: 0, // Handled by caller
+      categoryCode,
+      categoryName,
+    };
+
+  } catch (err) {
+    logger.warn(`RDV-API (Browser): Error executing evaluate for demarche ${demarcheCode}`, err);
+    return null;
+  }
+}
+
+/**
  * Scrape a specific category of a prefecture
  * 
  * This function enables category-level monitoring for RDV-Prefecture sites
@@ -1090,13 +1199,7 @@ export async function scrapePrefectureCategory(
   config: PrefectureConfig,
   category: CategoryInfo
 ): Promise<ScrapeResult> {
-  // ── FAST PATH: RDV-Prefecture categories use direct API (no browser) ──
-  if (config.bookingSystem === 'rdv-prefecture') {
-    const demarcheCode = extractDemarcheCode(category.url);
-    logger.info(`Using direct API for ${config.id}:${category.name} demarche ${demarcheCode}`);
-    return scrapeRdvPrefectureApi(config, demarcheCode || category.code, category.name);
-  }
-
+  // Remove fast-path: we must use the browser to bypass Cloudflare
   const startTime = Date.now();
   const pool = await getBrowserPool();
   let session: PageSession | null = null;
