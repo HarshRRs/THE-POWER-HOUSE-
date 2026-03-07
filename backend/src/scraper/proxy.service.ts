@@ -30,13 +30,15 @@ class ProxyService {
    * or where Tor exit nodes are blocked, but VPS direct works fine.
    */
   private static readonly DIRECT_CONNECT_DOMAINS: string[] = [
-    'seine-saint-denis.gouv.fr',        // bobigny_93 — NS_ERROR_ABORT through SOCKS5
-    'rendezvouspasseport.ants.gouv.fr',  // paris_75 — blocks Tor exit nodes
+    'seine-saint-denis.gouv.fr',             // bobigny_93 — NS_ERROR_ABORT through SOCKS5
+    'rendezvouspasseport.ants.gouv.fr',      // paris_75 — blocks Tor exit nodes
+    'rdv-prefecture.interieur.gouv.fr',      // All RDV-Prefecture sites — Tor exit nodes silently blocked
+    'administration-etrangers-en-france.interieur.gouv.fr', // ANEF — sensitive to Tor
   ];
 
   /** Default weights per provider name */
   private static readonly PROVIDER_WEIGHTS: Record<string, number> = {
-    Tor: 70,
+    Tor: 40,           // Reduced from 70 — many government sites block Tor exit nodes
     CustomProxies: 40,
     BrightData: 30,
     SmartProxy: 10,

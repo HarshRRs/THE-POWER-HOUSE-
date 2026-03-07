@@ -92,7 +92,7 @@ export async function scrapePrefectureCategory(
 
     // Track redirects during navigation
     const redirectChain: string[] = [targetUrl];
-    
+
     const response = await page.goto(targetUrl, {
       waitUntil: 'load',
       timeout: 45000,
@@ -100,10 +100,10 @@ export async function scrapePrefectureCategory(
 
     // Capture final URL after all redirects
     const finalUrl = page.url();
-    const urlChanged = finalUrl !== targetUrl && 
-                       !finalUrl.includes('error') && 
-                       !finalUrl.includes('404');
-    
+    const urlChanged = finalUrl !== targetUrl &&
+      !finalUrl.includes('error') &&
+      !finalUrl.includes('404');
+
     if (finalUrl !== targetUrl) {
       redirectChain.push(finalUrl);
     }

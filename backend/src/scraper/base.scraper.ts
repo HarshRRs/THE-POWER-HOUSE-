@@ -18,6 +18,291 @@ export interface CategoryInfo {
   url: string;
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// RDV-Prefecture DIRECT API Scraper — NO CAPTCHA, NO BROWSER
+// ════════════════════════════════════════════════════════════════════════
+//
+// How it works:
+//   The RDV-Prefecture website is a Vue.js SPA. The CAPTCHA only guards the
+//   initial page render. Once the page loads, the frontend calls these JSON
+//   APIs internally to display slots:
+//
+//   1. GET  /rdvpref/reservation/demarche/{code}/  → Sets JSESSIONID cookie
+//   2. POST /api/nextSlot                          → Checks if any slot exists
+//   3. GET  /api/lieu/{demarcheId}                 → Lists available locations
+//   4. GET  /api/creneau/{lieuId}/{demarcheId}     → Lists available time slots
+//
+//   By calling these APIs directly with fetch(), we completely bypass the
+//   CAPTCHA. This is ~100x faster and costs $0.
+// ════════════════════════════════════════════════════════════════════════
+
+const RDV_PREF_BASE = 'https://www.rdv-prefecture.interieur.gouv.fr';
+
+interface RdvLieu {
+  id: number;
+  nom: string;
+  adresse?: string;
+}
+
+interface RdvCreneau {
+  date: string;
+  heure: string;
+  lieuId?: number;
+}
+
+/**
+ * Extract the demarche code from a full RDV-Prefecture URL.
+ * Examples:
+ *   .../rdvpref/reservation/demarche/16040/  → "16040"
+ *   .../rdvpref/reservation/demarche/1922/   → "1922"
+ */
+function extractDemarcheCode(url: string): string | null {
+  const match = url.match(/\/demarche\/(\d+)\/?/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Scrape an RDV-Prefecture site using direct API calls.
+ * No browser. No CAPTCHA. Pure HTTP.
+ */
+async function scrapeRdvPrefectureApi(
+  config: PrefectureConfig,
+  categoryCode?: string,
+  categoryName?: string,
+): Promise<ScrapeResult> {
+  const startTime = Date.now();
+  const demarcheCode = categoryCode || extractDemarcheCode(config.bookingUrl);
+
+  if (!demarcheCode) {
+    logger.error(`Cannot extract demarche code from ${config.bookingUrl}`);
+    return {
+      status: 'error',
+      slotsAvailable: 0,
+      bookingUrl: config.bookingUrl,
+      errorMessage: 'Cannot extract demarche code from URL',
+      responseTimeMs: Date.now() - startTime,
+      categoryCode,
+      categoryName,
+    };
+  }
+
+  const headers: Record<string, string> = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
+    'Referer': `${RDV_PREF_BASE}/rdvpref/reservation/demarche/${demarcheCode}/`,
+    'Origin': RDV_PREF_BASE,
+  };
+
+  try {
+    // ── Step 1: Get session cookie ──────────────────────────────
+    logger.debug(`RDV-API: Getting session for demarche ${demarcheCode} (${config.id})`);
+    const sessionResp = await fetch(
+      `${RDV_PREF_BASE}/rdvpref/reservation/demarche/${demarcheCode}/`,
+      {
+        method: 'GET',
+        headers: {
+          ...headers,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        },
+        redirect: 'follow',
+      },
+    );
+
+    if (!sessionResp.ok) {
+      logger.warn(`RDV-API: Session request failed with HTTP ${sessionResp.status} for ${config.id}`);
+      return {
+        status: sessionResp.status === 403 ? 'blocked' : 'error',
+        slotsAvailable: 0,
+        bookingUrl: config.bookingUrl,
+        errorMessage: `Session request failed: HTTP ${sessionResp.status}`,
+        responseTimeMs: Date.now() - startTime,
+        categoryCode,
+        categoryName,
+      };
+    }
+
+    // Extract cookies from Set-Cookie headers
+    const setCookieHeaders = sessionResp.headers.getSetCookie?.() || [];
+    const cookies = setCookieHeaders
+      .map((c: string) => c.split(';')[0])
+      .join('; ');
+
+    if (!cookies) {
+      logger.warn(`RDV-API: No session cookies received for ${config.id}`);
+    }
+
+    // Add human-like delay between requests
+    await randomDelay(500, 1500);
+
+    // ── Step 2: Check next available slot (quick check) ─────────
+    logger.debug(`RDV-API: Checking nextSlot for demarche ${demarcheCode}`);
+    const nextSlotResp = await fetch(`${RDV_PREF_BASE}/api/nextSlot`, {
+      method: 'POST',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+        'Cookie': cookies,
+      },
+      body: JSON.stringify({ demarcheId: parseInt(demarcheCode, 10) }),
+    });
+
+    if (nextSlotResp.ok) {
+      const nextSlotData = await nextSlotResp.json().catch(() => null) as Record<string, unknown> | null;
+      // If the API says no next slot exists, we can short-circuit
+      if (nextSlotData && (nextSlotData as Record<string, unknown>).noSlot === true) {
+        logger.info(`RDV-API: No slots confirmed via nextSlot API for ${config.id} demarche ${demarcheCode}`);
+        return {
+          status: 'no_slots',
+          slotsAvailable: 0,
+          bookingUrl: config.bookingUrl,
+          responseTimeMs: Date.now() - startTime,
+          categoryCode,
+          categoryName,
+        };
+      }
+    }
+
+    await randomDelay(300, 800);
+
+    // ── Step 3: Get available locations (lieux) ─────────────────
+    logger.debug(`RDV-API: Fetching lieux for demarche ${demarcheCode}`);
+    const lieuxResp = await fetch(`${RDV_PREF_BASE}/api/lieu/${demarcheCode}`, {
+      method: 'GET',
+      headers: { ...headers, 'Cookie': cookies },
+    });
+
+    if (!lieuxResp.ok) {
+      // Check if we got blocked silently
+      const status = lieuxResp.status;
+      logger.warn(`RDV-API: Lieux request failed HTTP ${status} for ${config.id}`);
+
+      if (status === 403 || status === 429) {
+        return {
+          status: 'blocked',
+          slotsAvailable: 0,
+          bookingUrl: config.bookingUrl,
+          errorMessage: `Lieux API blocked: HTTP ${status}`,
+          responseTimeMs: Date.now() - startTime,
+          categoryCode,
+          categoryName,
+        };
+      }
+
+      return {
+        status: 'error',
+        slotsAvailable: 0,
+        bookingUrl: config.bookingUrl,
+        errorMessage: `Lieux API failed: HTTP ${status}`,
+        responseTimeMs: Date.now() - startTime,
+        categoryCode,
+        categoryName,
+      };
+    }
+
+    let lieux: RdvLieu[] = [];
+    try {
+      const lieuxData = await lieuxResp.json();
+      // Response can be an array directly or { data: [...] }
+      lieux = Array.isArray(lieuxData) ? lieuxData : (lieuxData?.data || lieuxData?.lieux || []);
+    } catch {
+      logger.warn(`RDV-API: Failed to parse lieux JSON for ${config.id}`);
+    }
+
+    if (lieux.length === 0) {
+      logger.info(`RDV-API: No lieux available for ${config.id} demarche ${demarcheCode}`);
+      return {
+        status: 'no_slots',
+        slotsAvailable: 0,
+        bookingUrl: config.bookingUrl,
+        responseTimeMs: Date.now() - startTime,
+        categoryCode,
+        categoryName,
+      };
+    }
+
+    logger.debug(`RDV-API: Found ${lieux.length} lieu(x) for demarche ${demarcheCode}`);
+
+    // ── Step 4: Check créneaux for each lieu ────────────────────
+    let totalSlots = 0;
+    let firstSlotDate: string | undefined;
+    let firstSlotTime: string | undefined;
+
+    for (const lieu of lieux) {
+      await randomDelay(300, 600);
+
+      const creneauResp = await fetch(
+        `${RDV_PREF_BASE}/api/creneau/${lieu.id}/${demarcheCode}`,
+        {
+          method: 'GET',
+          headers: { ...headers, 'Cookie': cookies },
+        },
+      );
+
+      if (!creneauResp.ok) {
+        logger.debug(`RDV-API: Creneau request failed for lieu ${lieu.id}: HTTP ${creneauResp.status}`);
+        continue;
+      }
+
+      let creneaux: RdvCreneau[] = [];
+      try {
+        const creneauData = await creneauResp.json();
+        creneaux = Array.isArray(creneauData) ? creneauData : (creneauData?.data || creneauData?.creneaux || []);
+      } catch {
+        logger.debug(`RDV-API: Failed to parse creneau JSON for lieu ${lieu.id}`);
+        continue;
+      }
+
+      if (creneaux.length > 0) {
+        totalSlots += creneaux.length;
+        if (!firstSlotDate && creneaux[0]) {
+          firstSlotDate = creneaux[0].date;
+          firstSlotTime = creneaux[0].heure;
+        }
+        logger.info(
+          `RDV-API: SLOTS FOUND at ${lieu.nom || lieu.id}: ${creneaux.length} créneau(x) ` +
+          `for ${config.id} demarche ${demarcheCode}`,
+        );
+      }
+    }
+
+    if (totalSlots > 0) {
+      return {
+        status: 'slots_found',
+        slotsAvailable: totalSlots,
+        slotDate: firstSlotDate,
+        slotTime: firstSlotTime,
+        bookingUrl: `${RDV_PREF_BASE}/rdvpref/reservation/demarche/${demarcheCode}/`,
+        responseTimeMs: Date.now() - startTime,
+        categoryCode,
+        categoryName,
+      };
+    }
+
+    return {
+      status: 'no_slots',
+      slotsAvailable: 0,
+      bookingUrl: config.bookingUrl,
+      responseTimeMs: Date.now() - startTime,
+      categoryCode,
+      categoryName,
+    };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error(`RDV-API: Error for ${config.id} demarche ${demarcheCode}: ${errorMessage}`);
+    return {
+      status: errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT') ? 'timeout' : 'error',
+      slotsAvailable: 0,
+      bookingUrl: config.bookingUrl,
+      errorMessage: `RDV-API error: ${errorMessage}`,
+      responseTimeMs: Date.now() - startTime,
+      categoryCode,
+      categoryName,
+    };
+  }
+}
+
 // Enhanced CAPTCHA selectors for common protection systems
 const CAPTCHA_SELECTORS = [
   // reCAPTCHA
@@ -54,6 +339,12 @@ const BOT_DETECTION_INDICATORS = [
 const MAX_PROXY_RETRIES = 3;
 
 export async function scrapePrefecture(config: PrefectureConfig): Promise<ScrapeResult> {
+  // ── FAST PATH: RDV-Prefecture sites use direct API (no browser) ──
+  if (config.bookingSystem === 'rdv-prefecture') {
+    logger.info(`Using direct API for ${config.id} (RDV-Prefecture)`);
+    return scrapeRdvPrefectureApi(config);
+  }
+
   const startTime = Date.now();
   const pool = await getBrowserPool();
   let session: PageSession | null = null;
@@ -82,7 +373,7 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
 
       // Track redirects during navigation
       const redirectChain: string[] = [config.bookingUrl];
-      
+
       const response = await page.goto(config.bookingUrl, {
         waitUntil: 'load',
         timeout: 45000,
@@ -90,10 +381,10 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
 
       // Capture final URL after all redirects
       const finalUrl = page.url();
-      const urlChanged = finalUrl !== config.bookingUrl && 
-                         !finalUrl.includes('error') && 
-                         !finalUrl.includes('404');
-      
+      const urlChanged = finalUrl !== config.bookingUrl &&
+        !finalUrl.includes('error') &&
+        !finalUrl.includes('404');
+
       if (finalUrl !== config.bookingUrl) {
         redirectChain.push(finalUrl);
       }
@@ -146,40 +437,38 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
       // Check for bot detection
       const lowerContent = pageContent.toLowerCase();
 
-      // Skip bot detection for RDV-Prefecture sites (they always have "captcha" in the page)
+      // Check for bot detection indicators
       let botDetected = false;
-      if (config.bookingSystem !== 'rdv-prefecture') {
-        for (const indicator of BOT_DETECTION_INDICATORS) {
-          if (lowerContent.includes(indicator)) {
-            logger.warn(`Bot detection indicator found for ${config.id}: ${indicator}`);
-            if (proxy) {
-              proxyService.reportFailure(proxy, targetDomain);
-              usedProxies.add(proxy.server);
-            }
-
-            // Retry with different proxy on bot detection
-            if (attempt < MAX_PROXY_RETRIES - 1) {
-              logger.info(`Bot detected for ${config.id}, retrying with different proxy (attempt ${attempt + 1}/${MAX_PROXY_RETRIES})`);
-              await pool.releasePage(session.page, session.context);
-              session = null;
-              await randomDelay(2000, 5000);
-              botDetected = true;
-              break;
-            }
-
-            const screenshotPath = generateScreenshotPath(config.id, 'blocked');
-            const screenshot = await page.screenshot({ fullPage: true });
-            await saveScreenshot(screenshot, screenshotPath);
-
-            return {
-              status: 'blocked',
-              slotsAvailable: 0,
-              bookingUrl: pageUrl,
-              screenshotPath,
-              errorMessage: `Bot detected: ${indicator}`,
-              responseTimeMs: Date.now() - startTime,
-            };
+      for (const indicator of BOT_DETECTION_INDICATORS) {
+        if (lowerContent.includes(indicator)) {
+          logger.warn(`Bot detection indicator found for ${config.id}: ${indicator}`);
+          if (proxy) {
+            proxyService.reportFailure(proxy, targetDomain);
+            usedProxies.add(proxy.server);
           }
+
+          // Retry with different proxy on bot detection
+          if (attempt < MAX_PROXY_RETRIES - 1) {
+            logger.info(`Bot detected for ${config.id}, retrying with different proxy (attempt ${attempt + 1}/${MAX_PROXY_RETRIES})`);
+            await pool.releasePage(session.page, session.context);
+            session = null;
+            await randomDelay(2000, 5000);
+            botDetected = true;
+            break;
+          }
+
+          const screenshotPath = generateScreenshotPath(config.id, 'blocked');
+          const screenshot = await page.screenshot({ fullPage: true });
+          await saveScreenshot(screenshot, screenshotPath);
+
+          return {
+            status: 'blocked',
+            slotsAvailable: 0,
+            bookingUrl: pageUrl,
+            screenshotPath,
+            errorMessage: `Bot detected: ${indicator}`,
+            responseTimeMs: Date.now() - startTime,
+          };
         }
       }
 
@@ -190,58 +479,51 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
       // Simulate a human reading the page before interacting
       await humanReadPage(page);
 
-    // ── RDV-Prefecture image CAPTCHA flow ──────────────────────
-    // RDV-Prefecture sites use a custom image CAPTCHA (not reCAPTCHA/hCaptcha).
-    // The page has: captchaUsercode input + base64 PNG image + captchaId hidden field.
-    // We extract the image, send to 2Captcha, fill the answer, and submit.
-    if (config.bookingSystem === 'rdv-prefecture') {
-      const rdvResult = await solveRdvPrefectureCaptcha(page, config, startTime, proxy, targetDomain);
-      if (rdvResult) return rdvResult;
-      // If null, CAPTCHA was solved and we fall through to slot detection below
-    }
+      // NOTE: RDV-Prefecture sites are handled by the fast-path at the top
+      // of scrapePrefecture() using direct API calls (no browser needed).
 
-    // Enhanced CAPTCHA detection (for non-rdv-prefecture sites)
-    const captchaResult = await captchaService.detectCaptcha(pageContent, pageUrl);
+      // Enhanced CAPTCHA detection (for non-rdv-prefecture sites)
+      const captchaResult = await captchaService.detectCaptcha(pageContent, pageUrl);
 
-    // Also check DOM for CAPTCHA elements
-    let captchaElement = null;
-    for (const selector of CAPTCHA_SELECTORS) {
-      try {
-        captchaElement = await page.$(selector);
-        if (captchaElement) break;
-      } catch {
-        // Selector not found
+      // Also check DOM for CAPTCHA elements
+      let captchaElement = null;
+      for (const selector of CAPTCHA_SELECTORS) {
+        try {
+          captchaElement = await page.$(selector);
+          if (captchaElement) break;
+        } catch {
+          // Selector not found
+        }
       }
-    }
 
-    // Check config-specific CAPTCHA selector
-    if (!captchaElement && config.selectors.captchaDetect) {
-      captchaElement = await page.$(config.selectors.captchaDetect);
-    }
+      // Check config-specific CAPTCHA selector
+      if (!captchaElement && config.selectors.captchaDetect) {
+        captchaElement = await page.$(config.selectors.captchaDetect);
+      }
 
-    if (captchaResult.detected || captchaElement) {
-      logger.warn(`CAPTCHA detected for ${config.id}, type: ${captchaResult.type || 'unknown'}`);
+      if (captchaResult.detected || captchaElement) {
+        logger.warn(`CAPTCHA detected for ${config.id}, type: ${captchaResult.type || 'unknown'}`);
 
-      const screenshotPath = generateScreenshotPath(config.id, 'captcha');
-      const screenshot = await page.screenshot({ fullPage: true });
-      await saveScreenshot(screenshot, screenshotPath);
+        const screenshotPath = generateScreenshotPath(config.id, 'captcha');
+        const screenshot = await page.screenshot({ fullPage: true });
+        await saveScreenshot(screenshot, screenshotPath);
 
-      // Try to solve if service is enabled and we have the siteKey
-      let captchaSolved = false;
+        // Try to solve if service is enabled and we have the siteKey
+        let captchaSolved = false;
 
-      if (captchaService.isEnabled() && captchaResult.siteKey && captchaResult.type) {
-        logger.info(`Attempting CAPTCHA solve for ${config.id}`);
+        if (captchaService.isEnabled() && captchaResult.siteKey && captchaResult.type) {
+          logger.info(`Attempting CAPTCHA solve for ${config.id}`);
 
-        const solution = await captchaService.solveCaptcha(
-          captchaResult.type,
-          captchaResult.siteKey,
-          pageUrl
-        );
+          const solution = await captchaService.solveCaptcha(
+            captchaResult.type,
+            captchaResult.siteKey,
+            pageUrl
+          );
 
-        if (solution) {
-          // Inject solution and retry (runs in browser context)
-          try {
-            await page.evaluate(`
+          if (solution) {
+            // Inject solution and retry (runs in browser context)
+            try {
+              await page.evaluate(`
               (function(token, type) {
                 if (type === 'cloudflare') {
                   var input = document.querySelector('input[name="cf-turnstile-response"]');
@@ -274,162 +556,254 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
               })('${solution.token.replace(/'/g, "\\'")}', '${solution.type}')
             `);
 
-            await randomDelay(1000, 2000);
+              await randomDelay(1000, 2000);
 
-            // Wait for page to potentially navigate after CAPTCHA solve
-            try {
-              await page.waitForLoadState('networkidle', { timeout: 10000 });
-            } catch {
-              // Timeout is acceptable - page may not navigate
+              // Wait for page to potentially navigate after CAPTCHA solve
+              try {
+                await page.waitForLoadState('networkidle', { timeout: 10000 });
+              } catch {
+                // Timeout is acceptable - page may not navigate
+              }
+
+              // Check if CAPTCHA is still present
+              const newContent = await page.content();
+              const newCaptchaResult = await captchaService.detectCaptcha(newContent, page.url());
+
+              if (!newCaptchaResult.detected) {
+                logger.info(`CAPTCHA solved successfully for ${config.id}`);
+                if (proxy) proxyService.reportSuccess(proxy, targetDomain);
+                captchaSolved = true;
+                // Fall through to continue normal scraping flow below
+              }
+            } catch (solveError) {
+              logger.error(`CAPTCHA injection failed for ${config.id}:`, solveError);
             }
-
-            // Check if CAPTCHA is still present
-            const newContent = await page.content();
-            const newCaptchaResult = await captchaService.detectCaptcha(newContent, page.url());
-
-            if (!newCaptchaResult.detected) {
-              logger.info(`CAPTCHA solved successfully for ${config.id}`);
-              if (proxy) proxyService.reportSuccess(proxy, targetDomain);
-              captchaSolved = true;
-              // Fall through to continue normal scraping flow below
-            }
-          } catch (solveError) {
-            logger.error(`CAPTCHA injection failed for ${config.id}:`, solveError);
           }
         }
-      }
 
-      // If CAPTCHA was not solved, return captcha status
-      if (!captchaSolved) {
-        if (proxy) proxyService.reportFailure(proxy, targetDomain);
+        // If CAPTCHA was not solved, return captcha status
+        if (!captchaSolved) {
+          if (proxy) proxyService.reportFailure(proxy, targetDomain);
 
-        return {
-          status: 'captcha',
-          slotsAvailable: 0,
-          bookingUrl: pageUrl,
-          screenshotPath,
-          errorMessage: `CAPTCHA type: ${captchaResult.type || 'unknown'}`,
-          responseTimeMs: Date.now() - startTime,
-        };
-      }
-    }
-
-    // Handle cookie consent if present (with human-like click)
-    if (config.selectors.cookieAccept) {
-      try {
-        const cookieBtn = page.locator(config.selectors.cookieAccept);
-        if (await cookieBtn.isVisible({ timeout: 3000 })) {
-          await humanClick(page, config.selectors.cookieAccept);
-          await randomDelay(500, 1000);
+          return {
+            status: 'captcha',
+            slotsAvailable: 0,
+            bookingUrl: pageUrl,
+            screenshotPath,
+            errorMessage: `CAPTCHA type: ${captchaResult.type || 'unknown'}`,
+            responseTimeMs: Date.now() - startTime,
+          };
         }
-      } catch {
-        // Cookie button not found or already accepted
       }
-    }
 
-    // Select procedure if dropdown exists
-    if (config.selectors.procedureDropdown) {
-      try {
-        await humanScroll(page);
-        await page.selectOption(config.selectors.procedureDropdown, config.procedures[0].toString());
-        await randomDelay(1500, 2500);
-      } catch {
-        logger.debug(`No procedure dropdown found for ${config.id}`);
-      }
-    }
-
-    // Click next button if exists (human-like)
-    let nextBtnClicked = false;
-    if (config.selectors.nextButton) {
-      try {
-        const nextBtn = page.locator(config.selectors.nextButton);
-        if (await nextBtn.isVisible({ timeout: 2000 })) {
-          await humanClick(page, config.selectors.nextButton);
-          await page.waitForLoadState('networkidle');
-          await randomDelay(1000, 2000);
-          nextBtnClicked = true;
+      // Handle cookie consent if present (with human-like click)
+      if (config.selectors.cookieAccept) {
+        try {
+          const cookieBtn = page.locator(config.selectors.cookieAccept);
+          if (await cookieBtn.isVisible({ timeout: 3000 })) {
+            await humanClick(page, config.selectors.cookieAccept);
+            await randomDelay(500, 1000);
+          }
+        } catch {
+          // Cookie button not found or already accepted
         }
-      } catch {
-        // Next button not found via config selector
       }
-    }
 
-    // Fallback heuristic for Next button (human-like clicks)
-    if (!nextBtnClicked) {
-      try {
-        const fallbackSelectors = [
-          'button:has-text("Suivant")',
-          'button:has-text("Valider")',
-          'button:has-text("Continuer")',
-          'input[type="submit"][value*="Suivant" i]',
-          'input[type="submit"][value*="Valider" i]',
-          'input[type="submit"][value*="Continuer" i]',
-          'a:has-text("Étape suivante")',
-        ];
+      // Select procedure if dropdown exists
+      if (config.selectors.procedureDropdown) {
+        try {
+          await humanScroll(page);
+          await page.selectOption(config.selectors.procedureDropdown, config.procedures[0].toString());
+          await randomDelay(1500, 2500);
+        } catch {
+          logger.debug(`No procedure dropdown found for ${config.id}`);
+        }
+      }
 
-        for (const selector of fallbackSelectors) {
-          const locator = page.locator(selector).first();
-          if (await locator.isVisible({ timeout: 500 })) {
-            await humanClick(page, selector);
+      // Click next button if exists (human-like)
+      let nextBtnClicked = false;
+      if (config.selectors.nextButton) {
+        try {
+          const nextBtn = page.locator(config.selectors.nextButton);
+          if (await nextBtn.isVisible({ timeout: 2000 })) {
+            await humanClick(page, config.selectors.nextButton);
             await page.waitForLoadState('networkidle');
             await randomDelay(1000, 2000);
-            logger.debug(`Found next button using fallback heuristic for ${config.id}`);
             nextBtnClicked = true;
-            break;
           }
+        } catch {
+          // Next button not found via config selector
         }
-      } catch {
-        // No fallback worked
       }
-    }
 
-    // Check for "no slots" message
-    let noSlotsConfirmed = false;
+      // Fallback heuristic for Next button (human-like clicks)
+      if (!nextBtnClicked) {
+        try {
+          const fallbackSelectors = [
+            'button:has-text("Suivant")',
+            'button:has-text("Valider")',
+            'button:has-text("Continuer")',
+            'input[type="submit"][value*="Suivant" i]',
+            'input[type="submit"][value*="Valider" i]',
+            'input[type="submit"][value*="Continuer" i]',
+            'a:has-text("Étape suivante")',
+          ];
 
-    // First try the specific config selector
-    if (config.selectors.noSlotIndicator) {
-      try {
-        const noSlot = await page.$(config.selectors.noSlotIndicator);
-        if (noSlot) {
-          const noSlotText = await noSlot.textContent();
-          if (noSlotText && (
-            noSlotText.toLowerCase().includes('aucun') ||
-            noSlotText.toLowerCase().includes('indisponible') ||
-            noSlotText.toLowerCase().includes('complet')
-          )) {
-            noSlotsConfirmed = true;
+          for (const selector of fallbackSelectors) {
+            const locator = page.locator(selector).first();
+            if (await locator.isVisible({ timeout: 500 })) {
+              await humanClick(page, selector);
+              await page.waitForLoadState('networkidle');
+              await randomDelay(1000, 2000);
+              logger.debug(`Found next button using fallback heuristic for ${config.id}`);
+              nextBtnClicked = true;
+              break;
+            }
           }
+        } catch {
+          // No fallback worked
         }
-      } catch {
-        // config selector failed
       }
-    }
 
-    // Fallback heuristic for No Slots
-    if (!noSlotsConfirmed) {
-      try {
-        // Look for common "no availability" phrases anywhere on the page text
-        const bodyText = await page.textContent('body');
-        if (bodyText) {
-          const lowerText = bodyText.toLowerCase();
-          if (
-            lowerText.includes('aucun rendez-vous n\'est disponible') ||
-            lowerText.includes('il n\'existe plus de plage horaire') ||
-            lowerText.includes('aucun créneau disponible') ||
-            lowerText.includes('tous les rendez-vous sont complets') ||
-            lowerText.includes('pas de disponibilité')
-          ) {
-            noSlotsConfirmed = true;
-            logger.debug(`Confirmed no slots using fallback heuristic for ${config.id}`);
+      // Check for "no slots" message
+      let noSlotsConfirmed = false;
+
+      // First try the specific config selector
+      if (config.selectors.noSlotIndicator) {
+        try {
+          const noSlot = await page.$(config.selectors.noSlotIndicator);
+          if (noSlot) {
+            const noSlotText = await noSlot.textContent();
+            if (noSlotText && (
+              noSlotText.toLowerCase().includes('aucun') ||
+              noSlotText.toLowerCase().includes('indisponible') ||
+              noSlotText.toLowerCase().includes('complet')
+            )) {
+              noSlotsConfirmed = true;
+            }
           }
+        } catch {
+          // config selector failed
         }
-      } catch {
-        // fallback failed
       }
-    }
 
-    if (noSlotsConfirmed) {
+      // Fallback heuristic for No Slots
+      if (!noSlotsConfirmed) {
+        try {
+          // Look for common "no availability" phrases anywhere on the page text
+          const bodyText = await page.textContent('body');
+          if (bodyText) {
+            const lowerText = bodyText.toLowerCase();
+            if (
+              lowerText.includes('aucun rendez-vous n\'est disponible') ||
+              lowerText.includes('il n\'existe plus de plage horaire') ||
+              lowerText.includes('aucun créneau disponible') ||
+              lowerText.includes('tous les rendez-vous sont complets') ||
+              lowerText.includes('pas de disponibilité')
+            ) {
+              noSlotsConfirmed = true;
+              logger.debug(`Confirmed no slots using fallback heuristic for ${config.id}`);
+            }
+          }
+        } catch {
+          // fallback failed
+        }
+      }
+
+      if (noSlotsConfirmed) {
+        if (proxy) proxyService.reportSuccess(proxy, targetDomain);
+        return {
+          status: 'no_slots',
+          slotsAvailable: 0,
+          bookingUrl: page.url(),
+          responseTimeMs: Date.now() - startTime,
+          finalUrl,
+          redirectCount: redirectChain.length - 1,
+          urlChanged,
+        };
+      }
+
+      // Check for available slots
+      const slotElements = await page.$$(config.selectors.availableSlot);
+      const slotsAvailable = slotElements.length;
+
+      if (slotsAvailable > 0) {
+        // Extract slot details
+        let slotDate: string | undefined;
+        let slotTime: string | undefined;
+
+        if (config.selectors.slotDate) {
+          slotDate = await page.textContent(config.selectors.slotDate).catch(() => undefined) || undefined;
+        }
+        if (config.selectors.slotTime) {
+          slotTime = await page.textContent(config.selectors.slotTime).catch(() => undefined) || undefined;
+        }
+
+        // Take screenshot as proof
+        const screenshotPath = generateScreenshotPath(config.id, 'detection');
+        const screenshot = await page.screenshot({ fullPage: true });
+        await saveScreenshot(screenshot, screenshotPath);
+
+        logger.info(`SLOTS FOUND: ${slotsAvailable} at ${config.name} (${config.id})`);
+        if (proxy) proxyService.reportSuccess(proxy, targetDomain);
+
+        return {
+          status: 'slots_found',
+          slotsAvailable,
+          slotDate: slotDate?.trim(),
+          slotTime: slotTime?.trim(),
+          bookingUrl: page.url(),
+          screenshotPath,
+          responseTimeMs: Date.now() - startTime,
+          finalUrl,
+          redirectCount: redirectChain.length - 1,
+          urlChanged,
+        };
+      }
+
+      // ── Navigation verification ─────────────────────────────
+      // Before declaring "no_slots", verify the page actually loaded
+      // meaningful content. A blank/error page should be an error, not "no_slots".
+      if (!noSlotsConfirmed) {
+        try {
+          const currentUrl = page.url();
+          const bodyText = await page.textContent('body');
+          const bodyLength = bodyText?.length ?? 0;
+
+          const isLikelyNavigationFailure =
+            bodyLength < 200 ||
+            currentUrl.includes('/error') ||
+            currentUrl.includes('/404');
+
+          if (isLikelyNavigationFailure) {
+            const screenshotPath = generateScreenshotPath(config.id, 'nav_failure');
+            const screenshot = await page.screenshot({ fullPage: true });
+            await saveScreenshot(screenshot, screenshotPath);
+
+            logger.warn(`Navigation likely failed for ${config.id}: bodyLength=${bodyLength}, url=${currentUrl}`);
+            if (proxy) proxyService.reportFailure(proxy, targetDomain);
+
+            return {
+              status: 'error',
+              slotsAvailable: 0,
+              bookingUrl: page.url(),
+              screenshotPath,
+              errorMessage: `Navigation verification failed: page appears incomplete (${bodyLength} chars)`,
+              responseTimeMs: Date.now() - startTime,
+              finalUrl,
+              redirectCount: redirectChain.length - 1,
+              urlChanged,
+            };
+          }
+        } catch {
+          // Verification check itself failed — treat as error
+          logger.warn(`Navigation verification threw for ${config.id}`);
+        }
+      }
+
+      // No slots found - successful scrape
       if (proxy) proxyService.reportSuccess(proxy, targetDomain);
+
       return {
         status: 'no_slots',
         slotsAvailable: 0,
@@ -439,134 +813,42 @@ export async function scrapePrefecture(config: PrefectureConfig): Promise<Scrape
         redirectCount: redirectChain.length - 1,
         urlChanged,
       };
-    }
 
-    // Check for available slots
-    const slotElements = await page.$$(config.selectors.availableSlot);
-    const slotsAvailable = slotElements.length;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      logger.error(`Scrape error for ${config.id}: ${errorMessage}`);
 
-    if (slotsAvailable > 0) {
-      // Extract slot details
-      let slotDate: string | undefined;
-      let slotTime: string | undefined;
-
-      if (config.selectors.slotDate) {
-        slotDate = await page.textContent(config.selectors.slotDate).catch(() => undefined) || undefined;
-      }
-      if (config.selectors.slotTime) {
-        slotTime = await page.textContent(config.selectors.slotTime).catch(() => undefined) || undefined;
+      // Report proxy failure on error
+      if (session?.proxy) {
+        proxyService.reportFailure(session.proxy, targetDomain);
       }
 
-      // Take screenshot as proof
-      const screenshotPath = generateScreenshotPath(config.id, 'detection');
-      const screenshot = await page.screenshot({ fullPage: true });
-      await saveScreenshot(screenshot, screenshotPath);
-
-      logger.info(`SLOTS FOUND: ${slotsAvailable} at ${config.name} (${config.id})`);
-      if (proxy) proxyService.reportSuccess(proxy, targetDomain);
-
-      return {
-        status: 'slots_found',
-        slotsAvailable,
-        slotDate: slotDate?.trim(),
-        slotTime: slotTime?.trim(),
-        bookingUrl: page.url(),
-        screenshotPath,
-        responseTimeMs: Date.now() - startTime,
-        finalUrl,
-        redirectCount: redirectChain.length - 1,
-        urlChanged,
-      };
-    }
-
-    // ── Navigation verification ─────────────────────────────
-    // Before declaring "no_slots", verify the page actually loaded
-    // meaningful content. A blank/error page should be an error, not "no_slots".
-    if (!noSlotsConfirmed) {
+      // Take error screenshot
+      let screenshotPath: string | undefined;
       try {
-        const currentUrl = page.url();
-        const bodyText = await page.textContent('body');
-        const bodyLength = bodyText?.length ?? 0;
-
-        const isLikelyNavigationFailure =
-          bodyLength < 200 ||
-          currentUrl.includes('/error') ||
-          currentUrl.includes('/404');
-
-        if (isLikelyNavigationFailure) {
-          const screenshotPath = generateScreenshotPath(config.id, 'nav_failure');
-          const screenshot = await page.screenshot({ fullPage: true });
+        if (session?.page) {
+          screenshotPath = generateScreenshotPath(config.id, 'error');
+          const screenshot = await session.page.screenshot({ fullPage: true });
           await saveScreenshot(screenshot, screenshotPath);
-
-          logger.warn(`Navigation likely failed for ${config.id}: bodyLength=${bodyLength}, url=${currentUrl}`);
-          if (proxy) proxyService.reportFailure(proxy, targetDomain);
-
-          return {
-            status: 'error',
-            slotsAvailable: 0,
-            bookingUrl: page.url(),
-            screenshotPath,
-            errorMessage: `Navigation verification failed: page appears incomplete (${bodyLength} chars)`,
-            responseTimeMs: Date.now() - startTime,
-            finalUrl,
-            redirectCount: redirectChain.length - 1,
-            urlChanged,
-          };
         }
       } catch {
-        // Verification check itself failed — treat as error
-        logger.warn(`Navigation verification threw for ${config.id}`);
+        // Screenshot failed
+      }
+
+      return {
+        status: errorMessage.includes('timeout') ? 'timeout' : 'error',
+        slotsAvailable: 0,
+        bookingUrl: config.bookingUrl,
+        screenshotPath,
+        errorMessage,
+        responseTimeMs: Date.now() - startTime,
+      };
+
+    } finally {
+      if (session) {
+        await pool.releasePage(session.page, session.context);
       }
     }
-
-    // No slots found - successful scrape
-    if (proxy) proxyService.reportSuccess(proxy, targetDomain);
-
-    return {
-      status: 'no_slots',
-      slotsAvailable: 0,
-      bookingUrl: page.url(),
-      responseTimeMs: Date.now() - startTime,
-      finalUrl,
-      redirectCount: redirectChain.length - 1,
-      urlChanged,
-    };
-
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    logger.error(`Scrape error for ${config.id}: ${errorMessage}`);
-
-    // Report proxy failure on error
-    if (session?.proxy) {
-      proxyService.reportFailure(session.proxy, targetDomain);
-    }
-
-    // Take error screenshot
-    let screenshotPath: string | undefined;
-    try {
-      if (session?.page) {
-        screenshotPath = generateScreenshotPath(config.id, 'error');
-        const screenshot = await session.page.screenshot({ fullPage: true });
-        await saveScreenshot(screenshot, screenshotPath);
-      }
-    } catch {
-      // Screenshot failed
-    }
-
-    return {
-      status: errorMessage.includes('timeout') ? 'timeout' : 'error',
-      slotsAvailable: 0,
-      bookingUrl: config.bookingUrl,
-      screenshotPath,
-      errorMessage,
-      responseTimeMs: Date.now() - startTime,
-    };
-
-  } finally {
-    if (session) {
-      await pool.releasePage(session.page, session.context);
-    }
-  }
   } // end retry loop
 
   // All retries exhausted (should not reach here, but safety fallback)
@@ -808,6 +1090,13 @@ export async function scrapePrefectureCategory(
   config: PrefectureConfig,
   category: CategoryInfo
 ): Promise<ScrapeResult> {
+  // ── FAST PATH: RDV-Prefecture categories use direct API (no browser) ──
+  if (config.bookingSystem === 'rdv-prefecture') {
+    const demarcheCode = extractDemarcheCode(category.url);
+    logger.info(`Using direct API for ${config.id}:${category.name} demarche ${demarcheCode}`);
+    return scrapeRdvPrefectureApi(config, demarcheCode || category.code, category.name);
+  }
+
   const startTime = Date.now();
   const pool = await getBrowserPool();
   let session: PageSession | null = null;
@@ -832,7 +1121,7 @@ export async function scrapePrefectureCategory(
 
     // Track redirects during navigation
     const redirectChain: string[] = [targetUrl];
-    
+
     const response = await page.goto(targetUrl, {
       waitUntil: 'load',
       timeout: 45000,
@@ -840,10 +1129,10 @@ export async function scrapePrefectureCategory(
 
     // Capture final URL after all redirects
     const finalUrl = page.url();
-    const urlChanged = finalUrl !== targetUrl && 
-                       !finalUrl.includes('error') && 
-                       !finalUrl.includes('404');
-    
+    const urlChanged = finalUrl !== targetUrl &&
+      !finalUrl.includes('error') &&
+      !finalUrl.includes('404');
+
     if (finalUrl !== targetUrl) {
       redirectChain.push(finalUrl);
     }
